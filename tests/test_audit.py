@@ -39,6 +39,8 @@ def _source_fixture(tmp_path: Path) -> Path:
                 "origplace": [{"origplace": "Place A", "id": "PLACE1"}],
                 "objecttype": [{"objecttype": "Stele", "id": "OBJ1"}],
                 "location": [{"location": "Museum", "id": "LOC1"}],
+                "material": [{"material": "Stone", "id": "MAT1"}],
+                "condition": "fragmentary",
                 "idno": ["X", "X"],
                 "bibliography": "Ref",
                 "sentences": [
@@ -56,7 +58,7 @@ def _source_fixture(tmp_path: Path) -> Path:
                                 "token": "oraec1-1-1",
                             },
                             {
-                                "lineCount": "[1]",
+                                "lineCount": " [1]",
                                 "written_form": "[x]",
                                 "token": "oraec1-1-2",
                                 "hiero": "[⯑]",
@@ -151,6 +153,9 @@ def test_audit_measures_core_corpus_contract(tmp_path: Path) -> None:
 
     assert report["controlled_vocabulary"]["date"]["distinct_ids"] == 1
     assert report["controlled_vocabulary"]["origplace"]["distinct_ids"] == 1
+    assert report["controlled_vocabulary"]["material"]["distinct_ids"] == 1
+    assert report["fields"]["record"]["condition"]["distinct_scalar_values"] == 1
+    assert report["line_count"]["leading_whitespace_count"] == 1
     assert report["idno"]["texts_with_duplicate_values"] == 1
 
 
@@ -195,3 +200,23 @@ def test_audit_counts_missing_or_non_string_token_ids(tmp_path: Path) -> None:
     report = audit_source(root)
 
     assert report["token_ids"]["missing_or_non_string_count"] == 1
+
+
+def test_audit_records_empty_token_sentences_for_schema_design(tmp_path: Path) -> None:
+    root = _source_fixture(tmp_path)
+    payload = json.loads((root / "oraec2.json").read_text(encoding="utf-8"))
+    payload["oraec2"]["sentences"].append(
+        {"translation": "Source sentence without token slots", "token": []}
+    )
+    _write_json(root / "oraec2.json", payload)
+
+    report = audit_source(root)
+
+    assert report["sentences"]["empty_token_count"] == 1
+    assert report["anomalies"]["empty_token_sentences"] == [
+        {
+            "text": "oraec2",
+            "sentence": 2,
+            "translation": "Source sentence without token slots",
+        }
+    ]
