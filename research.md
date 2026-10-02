@@ -155,3 +155,16 @@ The three zero-token ORAEC sentences were checked against their AED-TEI provenan
 Text-Fabric `v13.1.0` was inspected at commit `dd227ce62b5536de53a0e20eac98c0459da8fd3d`. Although the conceptual data-model documentation mentions nodes with no slots, the released CV/writer/reader path removes or rejects unlinked non-slot nodes and cannot round-trip an empty `oslots` target set.
 
 ADR 0002 therefore requires exactly one explicitly marked technical anchor slot per zero-token source sentence, while rejecting the more misleading alternative of attaching an empty sentence to a neighbouring real token slot. The final slot-type name remains a #3 decision.
+
+
+## R-005 — ORAEC hieroglyphic placeholder/replacement semantics
+
+Date: 2026-10-03  
+Issue: #21  
+ADR: `docs/adr/0003-hieroglyphic-preservation.md`
+
+The pinned ORAEC corpus contains 13,198 exact `[⯑]` hieroglyphic values and 6,545 values containing U+FFFD. These were checked against real AED stand-off files and ORAEC's own `formerly-mdc-now_unicode` producer repository.
+
+The producer mapping explicitly maps uncertainty/control codes such as `HASH` and `hatching` to `[⯑]`, while numerous custom/unencoded sign identifiers such as `US85Aa1002XT` map to U+FFFD. AED comparison additionally shows that ORAEC may emit `[⯑]` for graphemically uncertain material even when AED contains Unicode signs inside `<unclear>`.
+
+The markers therefore encode upstream transformation state and must remain exact source values in the core corpus. AED/MdC recovery is optional enrichment, not a core dependency, and must never overwrite `hiero`.
