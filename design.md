@@ -72,7 +72,7 @@ Source order is semantically relevant unless the audit proves otherwise.
 The model must retain, where present in ORAEC:
 
 - exact `written_form`;
-- hieroglyphic `hiero`;
+- exact hieroglyphic `hiero`, preserved code-point-for-code-point under ADR 0003;
 - token ID;
 - sentence translation;
 - token/cotext translation;
@@ -116,7 +116,7 @@ The emitted dataset must then be loaded through `Fabric` as an independent loada
 
 A standard advanced app/browser is part of the deliverable. `app/config.yaml` is tracked from bootstrap, but display/section contracts are finalized only after the TF graph schema is frozen.
 
-The app should expose useful transliteration and hieroglyphic formats, provenance, feature documentation, and stable ORAEC/source links where possible.
+The app should expose useful transliteration and hieroglyphic formats, provenance, feature documentation, and stable ORAEC/source links where possible. Under ADR 0003 it must render exact ORAEC `hiero` values visibly, including `[⯑]` and U+FFFD, without silently reconstructing or replacing them.
 
 ## Agora materializer
 
@@ -143,4 +143,4 @@ Validation has two independent layers:
 1. converter/unit/schema tests prove implementation contracts;
 2. a separate source→graph audit rereads raw source independently and checks the generated TF graph.
 
-Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data. Converter-derived technical anchors are allowed only under explicit schema rules such as ADR 0002 and must be independently countable and excluded from source-token conservation.
+Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data. Exact Unicode equality is part of conservation for source `hiero` values under ADR 0003. Converter-derived technical anchors are allowed only under explicit schema rules such as ADR 0002 and must be independently countable and excluded from source-token conservation.
