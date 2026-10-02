@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ORAEC-TF local source and generated artifacts
+/upstream/
+/corpus/
+/tf/
+/reports/generated/
