@@ -1,0 +1,7 @@
+# Bootstrap advanced-app configuration.
+# Issue #9 finalizes display, sections, formats, and source links after #3 freezes the TF schema.
+apiVersion: 3
+provenanceSpec:
+  corpus: ORAEC-TF = Open Richly Annotated Egyptian Corpus in Text-Fabric
+  version: 0.1.0-dev
+writing: egy
