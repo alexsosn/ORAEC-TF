@@ -80,6 +80,19 @@ def test_fetch_rejects_nonempty_destination_before_running_git() -> None:
         run_git.assert_not_called()
 
 
+def test_fetch_rejects_symlink_destination_before_running_git(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    target = tmp_path / "source"
+    target.symlink_to(real, target_is_directory=True)
+
+    with patch("oraec_tf.source._run_git") as run_git:
+        with pytest.raises(SourceAcquisitionError, match="symlink"):
+            fetch_source(target)
+
+    run_git.assert_not_called()
+
+
 def test_fetch_rejects_symbolic_revision_before_running_git() -> None:
     with TemporaryDirectory() as temp:
         target = Path(temp) / "source"
