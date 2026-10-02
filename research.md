@@ -142,3 +142,16 @@ The reproducible full-source audit establishes the complete record/sentence/toke
 It also found schema-sensitive cases absent from the initial sample: `material`, duplicated source `idno` pairs, three zero-token sentences, highly non-numeric `lineCount` values with source whitespace, and hieroglyphic placeholders/U+FFFD. Collocation/statistics files are classified as reconstructible ORAEC-derived analytical products rather than primary text semantics.
 
 Follow-up: #17, #19, #20, #21. #3 should consume #19/#20 before freezing structural semantics.
+
+
+## R-004 — zero-token sentence representation
+
+Date: 2026-10-03  
+Issue: #20  
+ADR: `docs/adr/0002-zero-token-sentences.md`
+
+The three zero-token ORAEC sentences were checked against their AED-TEI provenance. They represent three distinct source situations: a sentence containing only a line-break marker, a genuinely empty sentence, and a genuinely empty sentence with a non-empty stand-off translation.
+
+Text-Fabric `v13.1.0` was inspected at commit `dd227ce62b5536de53a0e20eac98c0459da8fd3d`. Although the conceptual data-model documentation mentions nodes with no slots, the released CV/writer/reader path removes or rejects unlinked non-slot nodes and cannot round-trip an empty `oslots` target set.
+
+ADR 0002 therefore requires exactly one explicitly marked technical anchor slot per zero-token source sentence, while rejecting the more misleading alternative of attaching an empty sentence to a neighbouring real token slot. The final slot-type name remains a #3 decision.
