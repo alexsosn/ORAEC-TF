@@ -129,3 +129,46 @@ def test_linecount_analysis_keeps_representative_contexts(tmp_path: Path) -> Non
     assert crossing["text"] == "oraec1"
     assert crossing["label"] == "[2]"
     assert crossing["sentences"] == [1, 2]
+
+
+def test_zero_token_sentence_breaks_a_linecount_run(tmp_path: Path) -> None:
+    root = tmp_path / "source"
+    root.mkdir()
+    _write_json(
+        root / "oraec1.json",
+        {
+            "oraec1": {
+                "oraecid": "oraec1",
+                "sentences": [
+                    {
+                        "translation": "",
+                        "token": [
+                            {
+                                "token": "oraec1-1-1",
+                                "written_form": "a",
+                                "lineCount": "[1]",
+                            }
+                        ],
+                    },
+                    {"translation": "", "token": []},
+                    {
+                        "translation": "",
+                        "token": [
+                            {
+                                "token": "oraec1-3-1",
+                                "written_form": "b",
+                                "lineCount": "[1]",
+                            }
+                        ],
+                    },
+                ],
+                "credits": {"license": "cc-by-sa-4.0", "author": "A", "source": []},
+            }
+        },
+    )
+
+    report = analyze_linecount_source(root)
+
+    assert report["runs"]["exact_count"] == 2
+    assert report["runs"]["exact_cross_sentence_count"] == 0
+    assert report["runs"]["texts_with_exact_noncontiguous_reuse"] == 1
