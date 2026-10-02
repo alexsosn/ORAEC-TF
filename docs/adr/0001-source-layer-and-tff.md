@@ -94,6 +94,19 @@ ORAEC-TF does not have an XML/TEI primary source contract. Adding Factory as a r
 
 Factory also declares an unbounded `text-fabric` dependency, while ORAEC-TF deliberately constrains Text-Fabric to `>=13.1,<14`.
 
+
+### Dependency and operational assessment
+
+- **Licence:** Text-Fabric Factory is MIT-licensed. Licence compatibility is therefore not a blocker; the rejection is architectural, not legal.
+- **Python compatibility:** Factory 1.0.8 declares Python `>=3.9`; ORAEC-TF supports Python `>=3.11`. The Python floors overlap.
+- **Text-Fabric compatibility/pinning:** Factory declares plain `text-fabric` with no compatible-release or upper bound. ORAEC-TF deliberately pins `text-fabric>=13.1,<14`. Adding Factory would widen the dependency-resolution surface without providing a capability needed by the JSON/TSV source path.
+- **Deterministic builds:** ORAEC-TF pins an immutable ORAEC source commit and constrains Text-Fabric. A dependency that leaves its Text-Fabric version unconstrained would make the effective tested stack less explicit unless ORAEC-TF overrode that resolution itself.
+- **Maintenance burden:** Factory would add XML/TEI/PageXML, schema/JING/TRANG, IIIF/WATM, NLP, app-generation, and repository-layout conventions that ORAEC-TF would have to understand and regression-test despite not using them as its primary conversion model.
+- **Performance:** no performance advantage was found that is relevant to ORAEC JSON+TSV materialization. Factory would still require corpus-specific conversion logic and ultimately calls the same `tf.convert.walker.CV` that ORAEC-TF can call directly. Adopting the package without a measured benefit would add another abstraction layer rather than remove conversion work.
+- **Maturity:** the repository describes the project as active; release notes also say the TEI/WATM/IIIF components remain in active development. This is acceptable for reference use, but reinforces the need to justify any future runtime dependency at a narrow boundary.
+
+These points mean that technical installability is not the issue: Factory can coexist with the supported Python range, but it does not improve the present architecture enough to justify dependency and maintenance cost.
+
 ## Reusable design patterns
 
 The useful Factory patterns do not require a Factory dependency.
