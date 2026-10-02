@@ -32,7 +32,7 @@ def _fixture(tmp_path: Path) -> Path:
                         "translation": "",
                         "token": [
                             {"token": "oraec1-2-1", "written_form": "d", "lineCount": "[2]"},
-                            {"token": "oraec1-2-2", "written_form": "e", "lineCount": "[1]"},
+                            {"token": "oraec1-2-2", "written_form": "e", "lineCount": " [1]"},
                         ],
                     },
                     {
@@ -58,8 +58,13 @@ def _fixture(tmp_path: Path) -> Path:
                     {
                         "translation": "",
                         "token": [
-                            {"token": "oraec2-1-1", "written_form": "x", "lineCount": "[1]"},
-                            {"token": "oraec2-1-2", "written_form": "y", "lineCount": "   "},
+                            {"token": "oraec2-1-1", "written_form": "x", "lineCount": "[1]"}
+                        ],
+                    },
+                    {
+                        "translation": "",
+                        "token": [
+                            {"token": "oraec2-2-1", "written_form": "y", "lineCount": "   "}
                         ],
                     }
                 ],
