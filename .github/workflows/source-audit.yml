@@ -8,6 +8,8 @@ on:
       - "scripts/audit_source.py"
       - "tests/test_audit.py"
       - ".github/workflows/source-audit.yml"
+      - "docs/research/source-audit.md"
+      - "research.md"
 
 jobs:
   audit:
