@@ -153,7 +153,20 @@ def analyze_linecount_source(
 
         for sentence_index, sentence in enumerate(record["sentences"], start=1):
             this_sentence: list[dict[str, Any]] = []
-            for token_index, token in enumerate(sentence["token"], start=1):
+            source_tokens = sentence["token"]
+            if not source_tokens:
+                # Preserve a structural break in the flattened run stream.
+                # Zero-token ORAEC sentences are real source records; one of the
+                # supported cases corresponds to an AED <lb/>-only sentence.
+                flattened.append(
+                    {
+                        "sentence": sentence_index,
+                        "token_index": 0,
+                        "written_form": None,
+                        "lineCount": None,
+                    }
+                )
+            for token_index, token in enumerate(source_tokens, start=1):
                 token_count += 1
                 raw = token.get("lineCount")
                 label = raw if isinstance(raw, str) else None
