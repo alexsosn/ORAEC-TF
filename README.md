@@ -55,9 +55,10 @@ For development:
 python -m pip install -e '.[dev]'
 oraec-tf source-info
 oraec-tf fetch upstream/corpus_raw_data
+oraec-tf verify-source upstream/corpus_raw_data
 ```
 
-The fetch command clones the default supported immutable upstream revision. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the local source directory.
+The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the verified local source directory.
 
 ## Text-Fabric app/browser
 
