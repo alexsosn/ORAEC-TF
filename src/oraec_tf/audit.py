@@ -29,7 +29,7 @@ GRAMMAR_FIELDS = (
     "verbalClass",
     "status",
 )
-CONTROLLED_VOCABULARIES = ("date", "origplace", "objecttype", "location")
+CONTROLLED_VOCABULARIES = ("date", "origplace", "objecttype", "location", "material")
 TABLE_FILES = (
     "mapping_oraec_trismegistos.csv",
     "mapping_oraec_wikidata.tsv",
@@ -333,8 +333,12 @@ def audit_source(root: str | Path) -> dict[str, Any]:
     record_id_mismatches: list[dict[str, str]] = []
     malformed_json: list[dict[str, str]] = []
     unexpected_shapes: list[dict[str, str]] = []
+    empty_token_sentences: list[dict[str, Any]] = []
 
     line_values: Counter[str] = Counter()
+    line_leading_whitespace_count = 0
+    line_trailing_whitespace_count = 0
+    line_blank_count = 0
     hiero_values: Counter[str] = Counter()
     hiero_placeholder_count = 0
     hiero_replacement_count = 0
@@ -508,6 +512,15 @@ def audit_source(root: str | Path) -> dict[str, Any]:
                 )
                 continue
 
+            if not tokens:
+                empty_token_sentences.append(
+                    {
+                        "text": expected_id,
+                        "sentence": sentence_number,
+                        "translation": sentence.get("translation"),
+                    }
+                )
+
             for token_number, token in enumerate(tokens, start=1):
                 counts["tokens"] += 1
                 if not isinstance(token, dict):
@@ -548,6 +561,12 @@ def audit_source(root: str | Path) -> dict[str, Any]:
                 line_count = token.get("lineCount")
                 if isinstance(line_count, str):
                     line_values[line_count] += 1
+                    if line_count[:1].isspace():
+                        line_leading_whitespace_count += 1
+                    if line_count[-1:].isspace():
+                        line_trailing_whitespace_count += 1
+                    if not line_count.strip():
+                        line_blank_count += 1
 
                 hiero = token.get("hiero")
                 if isinstance(hiero, str):
@@ -639,9 +658,15 @@ def audit_source(root: str | Path) -> dict[str, Any]:
             "malformed_count": len(malformed_token_ids),
             "position_mismatch_count": len(token_position_mismatches),
         },
+        "sentences": {
+            "empty_token_count": len(empty_token_sentences),
+        },
         "line_count": {
             "present": sum(line_values.values()),
             "distinct": len(line_values),
+            "leading_whitespace_count": line_leading_whitespace_count,
+            "trailing_whitespace_count": line_trailing_whitespace_count,
+            "blank_count": line_blank_count,
             "values": dict(sorted(line_values.items())),
         },
         "hieroglyphs": {
@@ -706,6 +731,7 @@ def audit_source(root: str | Path) -> dict[str, Any]:
             "invalid_token_ids": invalid_token_ids,
             "malformed_token_ids": sorted(malformed_token_ids),
             "token_position_mismatches": token_position_mismatches,
+            "empty_token_sentences": empty_token_sentences,
         },
     }
 
