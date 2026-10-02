@@ -157,7 +157,7 @@ Text-Fabric `v13.1.0` was inspected at commit `dd227ce62b5536de53a0e20eac98c0459
 ADR 0002 therefore requires exactly one explicitly marked technical anchor slot per zero-token source sentence, while rejecting the more misleading alternative of attaching an empty sentence to a neighbouring real token slot. The final slot-type name remains a #3 decision.
 
 
-## R-005 — ORAEC hieroglyphic placeholder/replacement semantics
+## R-006 — ORAEC hieroglyphic placeholder/replacement semantics
 
 Date: 2026-10-03  
 Issue: #21  
