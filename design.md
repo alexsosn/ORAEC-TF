@@ -51,7 +51,7 @@ The repository may ship provenance/validation schemas and reports, but those rep
 
 Until issue #3 is complete:
 
-- `word` is the candidate slot type, following ORAEC token granularity and the BHSA word-slot precedent;
+- a word-like slot layer remains the ergonomic candidate, but #3 must choose the final slot-type name in light of the three technical anchors required by ADR 0002;
 - `sentence` and `text` are expected structural node types;
 - explicit `line` nodes are allowed only if the source audit establishes a defensible line identity/order model from `lineCount`;
 - lexical identity may warrant `lex` nodes, with word→lex relations, if corpus-wide lemma evidence supports stable identity;
@@ -98,6 +98,12 @@ Reuse requires semantic equivalence. Examples:
 
 Every deliberate divergence from an applicable BHSA convention belongs in the frozen schema/ADR.
 
+## Zero-token sentence preservation
+
+The supported ORAEC snapshot contains three real sentence records with no source tokens. ADR 0002 requires one explicitly marked technical anchor slot for each so all 101,796 sentence records remain first-class TF sentence nodes without falsely linking an empty sentence to a neighbouring source token.
+
+For the pinned snapshot the conservation contract is 815,026 source tokens plus 3 anchors = 815,029 total slots. Anchor slots carry no fabricated ORAEC token identity or linguistic annotation and render as empty text. The final slot-type name and feature names are frozen by #3.
+
 ## Text-Fabric writer
 
 After #3 freezes the ontology, #6 should implement an ORAEC-specific director over the typed IR using `tf.convert.walker.CV`.
@@ -137,4 +143,4 @@ Validation has two independent layers:
 1. converter/unit/schema tests prove implementation contracts;
 2. a separate source→graph audit rereads raw source independently and checks the generated TF graph.
 
-Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data.
+Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data. Converter-derived technical anchors are allowed only under explicit schema rules such as ADR 0002 and must be independently countable and excluded from source-token conservation.
