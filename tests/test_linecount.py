@@ -109,8 +109,9 @@ def test_linecount_analysis_measures_missingness_transitions_and_label_scope(
     assert report["transitions"]["missing_to_present"] == 1
     assert report["transitions"]["present_to_missing"] == 1
 
-    assert report["scope"]["exact_labels_shared_across_texts"] == 1
-    assert report["scope"]["max_texts_per_exact_label"] == 2
+    assert report["scope"]["exact_labels_shared_across_texts"] == 0
+    assert report["scope"]["normalized_labels_shared_across_texts"] == 1
+    assert report["scope"]["max_texts_per_normalized_label"] == 2
 
     assert report["shapes"]["blank"]["occurrences"] == 1
     assert report["shapes"]["bracketed_integer"]["occurrences"] == 6
