@@ -107,6 +107,30 @@ Agora's materializer registry treats the third-party converter as owner of parsi
 
 ORAEC-TF should therefore support direct local conversion first. Agora integration must remain thin: acquisition and execution orchestration belong downstream; ORAEC parsing and TF modelling belong here.
 
+## R-002 — authoritative source layer and Text-Fabric Factory
+
+Date: 2026-10-03  
+Issue: #14  
+ADR: `docs/adr/0001-source-layer-and-tff.md`
+
+ORAEC's own README describes `oraec/corpus_raw_data` as the raw data of the ORAEC corpus and names AED/AES as sources of the 13,026 JSON text records.
+
+A real aligned comparison was made between `oraec8036` and AED text `PLDASMSHTZFIJE3GUCFK2JOZNY`. ORAEC carries its own IDs and normalized token/lemma/morphology/translation representation. AED-TEI additionally carries TEI-specific editorial structures and metadata such as `supplied`, `damage`, `gap`, AED/TLA XML IDs, dating bounds, and physical-support notes. ORAEC also adds corpus-level hierarchy and mappings not supplied by a plain AED-TEI conversion.
+
+Conclusion: the pinned ORAEC distribution is the semantic authority for ORAEC-TF. AED/AES and the earlier BBAW/TLA resources are provenance and evidence, not a second mandatory source layer.
+
+`annotation/text-fabric-factory` 1.0.8 was inspected at repository head `bae4a39d298ab6a44668b37e565d799d11f9a244`. It is primarily XML/TEI/PageXML conversion tooling. Its generic XML converter explicitly presents itself as an example, while its richer production machinery is TEI-specific.
+
+The useful graph-building mechanism, `tf.convert.walker.CV`, already belongs to Text-Fabric 13.1.0. ORAEC-TF will therefore use `CV` directly after its typed IR rather than adding Text-Fabric Factory as a dependency.
+
+Reusable patterns from Factory are:
+- corpus-specific `CV` director;
+- convert → load validation;
+- generated-dataset validation through `Fabric`;
+- selected app/provenance design ideas.
+
+Factory remains reference material only.
+
 ## Open research questions
 
 Issue #2 must answer at least:
