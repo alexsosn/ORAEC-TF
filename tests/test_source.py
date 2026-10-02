@@ -149,7 +149,7 @@ def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
     command_args = [args for args, _capture in calls]
     assert any(args[-2:] == ["init", "--quiet"] for args in command_args)
     assert any(
-        args[-4:] == ["fetch", "--depth", "1", "origin", revision]
+        args[-5:] == ["fetch", "--depth", "1", "origin", revision]
         for args in command_args
     )
     assert any(
