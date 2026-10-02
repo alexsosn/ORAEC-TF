@@ -9,12 +9,17 @@ This report records corpus-wide facts that constrain the Text-Fabric schema. It 
 
 The audit is implemented by `src/oraec_tf/audit.py` and `scripts/audit_source.py`.
 
-Final evidence run: GitHub Actions source-audit run **37069853172** on ORAEC-TF head `0a1a8b1e722708bb9a8706c1ee8b68c82ea83606`.
+The research counts below were produced by the audit implementation introduced on this branch and repeatedly reproduced by the dedicated `Source audit` workflow against the same immutable source commit.
 
-Artifact id: `11253987082`  
-Artifact digest: `sha256:74aa91445bca4020f6ae201f75e471b153472ad86667ab4b290a3f0ad68da283`
+The report intentionally does **not** embed a “latest/final” workflow run ID or artifact digest. Those identifiers are outputs of validation runs; writing them back into this file would create a self-referential cycle in which documenting a run triggers another run with a new identifier.
 
-The workflow acquired the exact source commit, verified its SHA, audited the complete tree, and reported a clean checkout.
+For PR/release review, the authoritative execution evidence is therefore:
+- the immutable ORAEC source revision above;
+- the audit implementation and tests in the reviewed Git commit;
+- a successful `Source audit` workflow on that exact commit;
+- the JSON/Markdown workflow artifact attached to that run.
+
+The audited checkout must resolve exactly to the supported source commit and be clean.
 
 ## Corpus identity
 
