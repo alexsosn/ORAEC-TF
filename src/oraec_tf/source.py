@@ -111,6 +111,8 @@ def fetch_source(
     target_preexisted = target.exists()
 
     if target_preexisted:
+        if target.is_symlink():
+            raise SourceAcquisitionError(f"destination must not be a symlink: {target}")
         if not target.is_dir():
             raise SourceAcquisitionError(
                 f"destination exists and is not a directory: {target}"
