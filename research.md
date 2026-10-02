@@ -131,17 +131,14 @@ Reusable patterns from Factory are:
 
 Factory remains reference material only.
 
-## Open research questions
+## R-003 — complete pinned-source audit
 
-Issue #2 must answer at least:
+Date: 2026-10-03  
+Issue: #2  
+Report: `docs/research/source-audit.md`
 
-- complete field/type/cardinality census across all records;
-- whether any source object or token IDs collide;
-- the full grammar/value vocabularies and anomalous values;
-- all forms and semantics of `lineCount`;
-- exact schema and identity semantics of `oraec_hierarchical_path.tsv`;
-- whether text/date/place/object-type lists have stable IDs that warrant shared entity nodes;
-- whether credits/authors should be entity nodes, edge relations, or source-faithful text metadata;
-- the precise relation between `lemmaID`, `lemma_form`, and corpus-level lemma mappings;
-- whether all hierarchy/mapping files are licensed for redistribution in the generated adaptation;
-- whether any collocation/statistics artifacts encode non-reconstructible information.
+The reproducible full-source audit establishes the complete record/sentence/token field census, stable text/token identities, controlled-vocabulary inventories, mapping multiplicities, hierarchy serialization, provenance regularities, and licence coverage for the supported snapshot.
+
+It also found schema-sensitive cases absent from the initial sample: `material`, duplicated source `idno` pairs, three zero-token sentences, highly non-numeric `lineCount` values with source whitespace, and hieroglyphic placeholders/U+FFFD. Collocation/statistics files are classified as reconstructible ORAEC-derived analytical products rather than primary text semantics.
+
+Follow-up: #17, #19, #20, #21. #3 should consume #19/#20 before freezing structural semantics.
