@@ -24,3 +24,12 @@ def test_karnak_mapping_scope_is_not_inferred_from_blog_footer() -> None:
     assert "adapted from TLA" in text
     assert "not the content behind SITH URLs" in text
     assert "README omission" in text
+
+
+def test_karnak_mappings_fail_closed_without_explicit_file_level_licence() -> None:
+    text = LICENSE_SCOPE.read_text(encoding="utf-8")
+
+    assert "strong evidence of intended CC0" in text
+    assert "insufficient for release-grade file-level licensing" in text
+    assert "exclude the Karnak mappings from distributable generated corpora" in text
+    assert "explicit upstream clarification" in text
