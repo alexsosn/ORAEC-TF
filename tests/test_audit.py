@@ -144,7 +144,7 @@ def test_audit_measures_core_corpus_contract(tmp_path: Path) -> None:
     assert report["token_ids"]["position_mismatch_count"] == 0
 
     assert report["line_count"]["present"] == 2
-    assert report["line_count"]["distinct"] == 1
+    assert report["line_count"]["distinct"] == 2
     assert report["hieroglyphs"]["present"] == 2
     assert report["hieroglyphs"]["placeholder_count"] == 1
 
