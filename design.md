@@ -2,7 +2,7 @@
 
 Status: **working architecture; TF schema not frozen**.
 
-Issue #3 freezes the graph model after issue #2 completes the corpus-wide audit.
+Issue #3 freezes the graph model after issues #2 and #14 establish the complete source contract and source-layer boundary.
 
 ## Goals
 
@@ -17,7 +17,16 @@ The generated corpus must preserve research semantics in native TF nodes, node f
 - embedding raw JSON/XML or arbitrary serialized objects in TF features;
 - using semantic sidecars as a shortcut around graph modelling;
 - inventing linguistic analyses or repairing scholarly content silently;
+- reconstructing every AED-TEI semantic that ORAEC itself does not publish;
 - replacing the ORAEC website as the source project's editorial interface.
+
+## Authoritative source layer
+
+The pinned `oraec/corpus_raw_data` snapshot is the semantic authority for ORAEC-TF.
+
+AED, AES, the 2018 BBAW extract, TLA, and other cited projects remain provenance and research evidence unless the ORAEC distribution itself ships a relation to them.
+
+This prevents the converter from silently becoming a reconstruction of AED or TLA rather than a materializer of ORAEC. See `docs/adr/0001-source-layer-and-tff.md`.
 
 ## Source and build boundary
 
@@ -26,12 +35,15 @@ Agora/manual acquisition
   -> immutable local ORAEC source checkout
   -> source audit/parser
   -> typed canonical IR
-  -> TF graph writer
+  -> ORAEC-specific tf.convert.walker.CV director
+  -> native TF graph
   -> independent conservation validator
   -> ephemeral/release artifact
 ```
 
 The converter stage is network-free.
+
+Text-Fabric Factory is not a runtime dependency. Its useful `CV/director`, convert→load, app, and provenance patterns are reference material. The graph writer uses Text-Fabric's own `tf.convert.walker.CV` directly.
 
 The repository may ship provenance/validation schemas and reports, but those reports may only carry build identity, counts, hashes, validation evidence, diagnostics, and other provenance. They are never the sole storage location for corpus semantics.
 
@@ -57,7 +69,7 @@ Source order is semantically relevant unless the audit proves otherwise.
 
 ## Text and annotation
 
-The model must retain, where present:
+The model must retain, where present in ORAEC:
 
 - exact `written_form`;
 - hieroglyphic `hiero`;
@@ -85,6 +97,14 @@ Reuse requires semantic equivalence. Examples:
 - BHSA morphology names must not be copied onto ORAEC values merely to make APIs look familiar.
 
 Every deliberate divergence from an applicable BHSA convention belongs in the frozen schema/ADR.
+
+## Text-Fabric writer
+
+After #3 freezes the ontology, #6 should implement an ORAEC-specific director over the typed IR using `tf.convert.walker.CV`.
+
+The director must express the scholarly graph contract; it must not mechanically reproduce JSON nesting when that would flatten or misrepresent ORAEC semantics.
+
+The emitted dataset must then be loaded through `Fabric` as an independent loadability gate before project-specific conservation checks.
 
 ## Text-Fabric app
 

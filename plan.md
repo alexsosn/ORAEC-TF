@@ -8,10 +8,11 @@ The 0.1.0 path is issue-driven. Dependencies are intentional: do not implement a
 
 ## Research and schema
 
+- #14 Decide authoritative source layer and Text-Fabric Factory boundary.
 - #2 Complete ORAEC source/schema/licence audit.
 - #3 Freeze the native TF ontology and serialization contract.
 
-Dependency: #3 requires #2.
+Dependency: #3 requires #14 and #2.
 
 ## Source pipeline
 
@@ -21,8 +22,8 @@ Dependency: #3 requires #2.
 - #7 Native modelling of hierarchy, lexical entities, and external mappings.
 
 Dependencies:
-- #5 requires #2 and #3.
-- #6 requires #3 and #5.
+- #5 requires #14, #2, and #3.
+- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory.
 - #7 requires #2, #3, and the relevant parser/writer interfaces.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.
