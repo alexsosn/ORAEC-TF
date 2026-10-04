@@ -47,7 +47,7 @@ The same table maps custom or otherwise unavailable sign identifiers to U+FFFD, 
 - `A366,�`;
 - `Ff1,�`.
 
-It also contains sign identifiers mapped to bare `⯑`. Therefore `[⯑]`, bare `⯑`, and U+FFFD are not interchangeable normalization variants.
+It also contains sign identifiers mapped to the bare ⯑ form. Therefore `[⯑]`, bare ⯑, and U+FFFD are not interchangeable normalization variants.
 
 ## AED provenance checks
 
