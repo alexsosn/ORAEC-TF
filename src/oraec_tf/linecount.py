@@ -216,7 +216,7 @@ def analyze_linecount_source(
             if len(normalized_sentence_runs) > 1:
                 sentences_with_multiple_normalized_runs += 1
 
-            for left, right in zip(this_sentence, this_sentence[1:]):
+            for left, right in zip(this_sentence, this_sentence[1:], strict=False):
                 left_present = left["lineCount"] is not None
                 right_present = right["lineCount"] is not None
                 if not left_present and right_present:
@@ -224,7 +224,9 @@ def analyze_linecount_source(
                 elif left_present and not right_present:
                     within_present_to_missing += 1
 
-        for left_sentence, right_sentence in zip(sentence_tokens, sentence_tokens[1:]):
+        for left_sentence, right_sentence in zip(
+            sentence_tokens, sentence_tokens[1:], strict=False
+        ):
             if not left_sentence or not right_sentence:
                 continue
             left_present = left_sentence[-1]["lineCount"] is not None
