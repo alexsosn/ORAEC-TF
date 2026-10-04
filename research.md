@@ -162,10 +162,10 @@ ADR 0002 therefore requires exactly one explicitly marked technical anchor slot 
 Date: 2026-10-03  
 Issue: #17
 
-The two Karnak crosswalk files are absent from the pinned source README's per-file licence table, but stronger project-side provenance was found.
+The two Karnak crosswalk files are absent from the pinned source README's per-file licence table.
 
-ORAEC's 2022 licensing policy says that “our own things we create in the future” will be CC0. The two Karnak mappings were subsequently added directly by the ORAEC GitHub account in commits `edd5e4dc1e567274819ed05c644b6f83cc243579` and `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`. The 2024 Karnak post describes ORAEC as having found the 31 text correspondences and as having created the nearly 2,000-entry lemma mapping table.
+ORAEC's 2022 licensing policy says that “our own things we create in the future” will be CC0. The two Karnak mappings were subsequently added directly by the ORAEC GitHub account in commits `edd5e4dc1e567274819ed05c644b6f83cc243579` and `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`. The 2024 Karnak post describes ORAEC as having found the 31 text correspondences and as having created the nearly 2,000-entry lemma mapping table. This is strong evidence of intended CC0 treatment.
 
-A VÉgA control case prevents an overbroad blog-footer inference: its ORAEC post also carries a CC0 footer, but says the mapping was adapted from scraped TLA data and the source README classifies the file CC BY-SA. The Karnak decision therefore rests on ORAEC's prospective policy plus explicit ORAEC-created provenance, not the page footer alone.
+A VÉgA control case prevents an overbroad inference: its ORAEC post also carries a CC0 footer, but says the mapping was adapted from scraped TLA data and the source README classifies the file CC BY-SA. The Karnak evidence therefore cannot be reduced to a page footer.
 
-`LICENSE_SCOPE.md` classifies the ORAEC-authored Karnak crosswalk pairs as CC0 while explicitly excluding the external content behind SITH URLs from that classification.
+Because no explicit licence statement tied to the exact two Karnak TSV files has been located, the intent evidence is insufficient for release-grade file-level licensing. `LICENSE_SCOPE.md` therefore requires distributable builds to exclude the Karnak mappings until explicit upstream clarification is available. Their one-to-many semantics may still be audited and designed under #7 behind that licence gate.
