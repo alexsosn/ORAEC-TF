@@ -56,7 +56,7 @@ Until issue #3 is complete:
 - explicit `line` nodes are allowed only if the source audit establishes a defensible line identity/order model from `lineCount`;
 - lexical identity may warrant `lex` nodes, with word→lex relations, if corpus-wide lemma evidence supports stable identity;
 - repeated date/place/object-type/hierarchy values may warrant shared entity or occurrence nodes rather than packed string features;
-- external mappings must preserve multiplicity and provenance;
+- external mappings must preserve multiplicity and provenance; Karnak crosswalks remain behind a fail-closed release/licence gate because project-side CC0 intent is not yet an explicit file-level licence;
 - source hierarchy must remain navigable/queryable if it is in release scope.
 
 These are hypotheses, not implementation permission. No converter writer should freeze them before issue #3.
