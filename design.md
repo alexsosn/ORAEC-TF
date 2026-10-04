@@ -53,7 +53,7 @@ Until issue #3 is complete:
 
 - a word-like slot layer remains the ergonomic candidate, but #3 must choose the final slot-type name in light of the three technical anchors required by ADR 0002;
 - `sentence` and `text` are expected structural node types;
-- explicit `line` nodes are allowed only if the source audit establishes a defensible line identity/order model from `lineCount`;
+- the initial core graph has no `line` node type derived from `lineCount`; ADR 0004 requires exact token-level preservation and rejects run-based line reconstruction;
 - lexical identity may warrant `lex` nodes, with word→lex relations, if corpus-wide lemma evidence supports stable identity;
 - repeated date/place/object-type/hierarchy values may warrant shared entity or occurrence nodes rather than packed string features;
 - external mappings must preserve multiplicity and provenance; Karnak crosswalks remain behind a fail-closed release/licence gate because project-side CC0 intent is not yet an explicit file-level licence;
@@ -79,7 +79,7 @@ The model must retain, where present in ORAEC:
 - lemma form and lemma ID;
 - part of speech;
 - all attested grammatical feature families;
-- line/address information;
+- exact token-level `lineCount` when present; no core line nodes are inferred from it;
 - text title, bibliography, identifiers, location, date, original place, object type;
 - credits, licence, author/responsibility, and source references;
 - in-scope corpus hierarchy and mappings.
@@ -103,6 +103,12 @@ Every deliberate divergence from an applicable BHSA convention belongs in the fr
 The supported ORAEC snapshot contains three real sentence records with no source tokens. ADR 0002 requires one explicitly marked technical anchor slot for each so all 101,796 sentence records remain first-class TF sentence nodes without falsely linking an empty sentence to a neighbouring source token.
 
 For the pinned snapshot the conservation contract is 815,026 source tokens plus 3 anchors = 815,029 total slots. Anchor slots carry no fabricated ORAEC token identity or linguistic annotation and render as empty text. The final slot-type name and feature names are frozen by #3.
+
+## lineCount boundary
+
+ADR 0004 treats `lineCount` as exact source-token annotation, not a complete structural line model. Equal labels cross sentence boundaries, repeat across texts, and are interrupted by unlabeled gap tokens inside a real source line. The core graph therefore stores exact `lineCount` on real source-token slots and does not create `line` nodes from contiguous runs or normalized labels.
+
+Any later reconstructed line/navigation layer is converter-derived, separately provenanced, and cannot replace the authoritative feature.
 
 ## Text-Fabric writer
 

@@ -12,7 +12,7 @@ The 0.1.0 path is issue-driven. Dependencies are intentional: do not implement a
 - #2 Complete ORAEC source/schema/licence audit.
 - #3 Freeze the native TF ontology and serialization contract.
 
-Dependency: #3 requires #14 and #2, and must consume the focused structural research from #19 and #20.
+Dependency: #3 requires #14 and #2 and consumes ADR 0004 (#19) plus ADR 0002 (#20); the core schema must not infer `line` nodes from `lineCount`.
 
 ## Source pipeline
 
@@ -22,8 +22,8 @@ Dependency: #3 requires #14 and #2, and must consume the focused structural rese
 - #7 Native modelling of hierarchy, lexical entities, and external mappings.
 
 Dependencies:
-- #5 requires #14, #2, and #3.
-- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors and ADR 0003's exact `hiero` preservation.
+- #5 requires #14, #2, and #3; it must preserve exact/missing `lineCount` values under ADR 0004.
+- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors, ADR 0003's exact `hiero` preservation, and ADR 0004's exact token-level `lineCount` without synthesized core line nodes.
 - #7 requires #2, #3, and the relevant parser/writer interfaces.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.

@@ -182,3 +182,16 @@ The pinned ORAEC corpus contains 13,198 exact `[⯑]` hieroglyphic values and 6,
 The producer mapping explicitly maps uncertainty/control codes such as `HASH` and `hatching` to `[⯑]`, while numerous custom/unencoded sign identifiers such as `US85Aa1002XT` map to U+FFFD. AED comparison additionally shows that ORAEC may emit `[⯑]` for graphemically uncertain material even when AED contains Unicode signs inside `<unclear>`.
 
 The markers therefore encode upstream transformation state and must remain exact source values in the core corpus. AED/MdC recovery is optional enrichment, not a core dependency, and must never overwrite `hiero`.
+
+
+## R-007 — lineCount is annotation, not a complete line-node serialization
+
+Date: 2026-10-04  
+Issue: #19  
+ADR: `docs/adr/0004-linecount-semantics.md`
+
+The dedicated full-corpus analysis found 789,633 annotated tokens, 28,672 exact labels, 30,467 runs crossing sentence boundaries, 2,143 texts with non-contiguous exact-label reuse, and 7,119 exact labels shared across multiple texts.
+
+A real ORAEC/AED comparison falsified contiguous-run reconstruction: in `oraec1:83`, `[Vs 22]` occurs before and after an unlabeled ORAEC `[...]` token; AED shows the middle item as `<gap reason="lost"/>` with no intervening `<lb>`. The missing token annotation is therefore not a line boundary.
+
+ADR 0004 keeps exact `lineCount` as token-level source data and omits core `line` nodes. Any normalized label or reconstructed line layer is explicitly converter-derived and requires separate evidence.
