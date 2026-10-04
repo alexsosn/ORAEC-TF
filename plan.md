@@ -23,7 +23,7 @@ Dependency: #3 requires #14 and #2, and must consume the focused structural rese
 
 Dependencies:
 - #5 requires #14, #2, and #3.
-- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors.
+- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors and ADR 0003's exact `hiero` preservation.
 - #7 requires #2, #3, and the relevant parser/writer interfaces.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.
@@ -36,7 +36,7 @@ Dependency: #8 requires #5–#7 sufficiently complete to audit the frozen schema
 
 ## Researcher interfaces
 
-- #9 Standard Text-Fabric advanced app/browser.
+- #9 Standard Text-Fabric advanced app/browser, including exact placeholder/U+FFFD rendering required by ADR 0003.
 - #10 Researcher-facing feature docs and reproducible query examples.
 
 Dependencies:

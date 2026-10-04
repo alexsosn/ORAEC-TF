@@ -169,3 +169,16 @@ ORAEC's 2022 licensing policy says that “our own things we create in the futur
 A VÉgA control case prevents an overbroad inference: its ORAEC post also carries a CC0 footer, but says the mapping was adapted from scraped TLA data and the source README classifies the file CC BY-SA. The Karnak evidence therefore cannot be reduced to a page footer.
 
 Because no explicit licence statement tied to the exact two Karnak TSV files has been located, the intent evidence is insufficient for release-grade file-level licensing. `LICENSE_SCOPE.md` therefore requires distributable builds to exclude the Karnak mappings until explicit upstream clarification is available. Their one-to-many semantics may still be audited and designed under #7 behind that licence gate.
+
+
+## R-006 — ORAEC hieroglyphic placeholder/replacement semantics
+
+Date: 2026-10-03  
+Issue: #21  
+ADR: `docs/adr/0003-hieroglyphic-preservation.md`
+
+The pinned ORAEC corpus contains 13,198 exact `[⯑]` hieroglyphic values and 6,545 values containing U+FFFD. These were checked against real AED stand-off files and ORAEC's own `formerly-mdc-now_unicode` producer repository.
+
+The producer mapping explicitly maps uncertainty/control codes such as `HASH` and `hatching` to `[⯑]`, while numerous custom/unencoded sign identifiers such as `US85Aa1002XT` map to U+FFFD. AED comparison additionally shows that ORAEC may emit `[⯑]` for graphemically uncertain material even when AED contains Unicode signs inside `<unclear>`.
+
+The markers therefore encode upstream transformation state and must remain exact source values in the core corpus. AED/MdC recovery is optional enrichment, not a core dependency, and must never overwrite `hiero`.
