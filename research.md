@@ -142,3 +142,43 @@ The reproducible full-source audit establishes the complete record/sentence/toke
 It also found schema-sensitive cases absent from the initial sample: `material`, duplicated source `idno` pairs, three zero-token sentences, highly non-numeric `lineCount` values with source whitespace, and hieroglyphic placeholders/U+FFFD. Collocation/statistics files are classified as reconstructible ORAEC-derived analytical products rather than primary text semantics.
 
 Follow-up: #17, #19, #20, #21. #3 should consume #19/#20 before freezing structural semantics.
+
+
+## R-004 — zero-token sentence representation
+
+Date: 2026-10-03  
+Issue: #20  
+ADR: `docs/adr/0002-zero-token-sentences.md`
+
+The three zero-token ORAEC sentences were checked against their AED-TEI provenance. They represent three distinct source situations: a sentence containing only a line-break marker, a genuinely empty sentence, and a genuinely empty sentence with a non-empty stand-off translation.
+
+Text-Fabric `v13.1.0` was inspected at commit `dd227ce62b5536de53a0e20eac98c0459da8fd3d`. Although the conceptual data-model documentation mentions nodes with no slots, the released CV/writer/reader path removes or rejects unlinked non-slot nodes and cannot round-trip an empty `oslots` target set.
+
+ADR 0002 therefore requires exactly one explicitly marked technical anchor slot per zero-token source sentence, while rejecting the more misleading alternative of attaching an empty sentence to a neighbouring real token slot. The final slot-type name remains a #3 decision.
+
+
+## R-005 — Karnak mapping licence boundary
+
+Date: 2026-10-03  
+Issue: #17
+
+The two Karnak crosswalk files are absent from the pinned source README's per-file licence table.
+
+ORAEC's 2022 licensing policy says that “our own things we create in the future” will be CC0. The two Karnak mappings were subsequently added directly by the ORAEC GitHub account in commits `edd5e4dc1e567274819ed05c644b6f83cc243579` and `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`. The 2024 Karnak post describes ORAEC as having found the 31 text correspondences and as having created the nearly 2,000-entry lemma mapping table. This is strong evidence of intended CC0 treatment.
+
+A VÉgA control case prevents an overbroad inference: its ORAEC post also carries a CC0 footer, but says the mapping was adapted from scraped TLA data and the source README classifies the file CC BY-SA. The Karnak evidence therefore cannot be reduced to a page footer.
+
+Because no explicit licence statement tied to the exact two Karnak TSV files has been located, the intent evidence is insufficient for release-grade file-level licensing. `LICENSE_SCOPE.md` therefore requires distributable builds to exclude the Karnak mappings until explicit upstream clarification is available. Their one-to-many semantics may still be audited and designed under #7 behind that licence gate.
+
+
+## R-006 — ORAEC hieroglyphic placeholder/replacement semantics
+
+Date: 2026-10-03  
+Issue: #21  
+ADR: `docs/adr/0003-hieroglyphic-preservation.md`
+
+The pinned ORAEC corpus contains 13,198 exact `[⯑]` hieroglyphic values and 6,545 values containing U+FFFD. These were checked against real AED stand-off files and ORAEC's own `formerly-mdc-now_unicode` producer repository.
+
+The producer mapping explicitly maps uncertainty/control codes such as `HASH` and `hatching` to `[⯑]`, while numerous custom/unencoded sign identifiers such as `US85Aa1002XT` map to U+FFFD. AED comparison additionally shows that ORAEC may emit `[⯑]` for graphemically uncertain material even when AED contains Unicode signs inside `<unclear>`.
+
+The markers therefore encode upstream transformation state and must remain exact source values in the core corpus. AED/MdC recovery is optional enrichment, not a core dependency, and must never overwrite `hiero`.

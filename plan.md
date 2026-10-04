@@ -12,7 +12,7 @@ The 0.1.0 path is issue-driven. Dependencies are intentional: do not implement a
 - #2 Complete ORAEC source/schema/licence audit.
 - #3 Freeze the native TF ontology and serialization contract.
 
-Dependency: #3 requires #14 and #2.
+Dependency: #3 requires #14 and #2, and must consume the focused structural research from #19 and #20.
 
 ## Source pipeline
 
@@ -23,7 +23,7 @@ Dependency: #3 requires #14 and #2.
 
 Dependencies:
 - #5 requires #14, #2, and #3.
-- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory.
+- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors and ADR 0003's exact `hiero` preservation.
 - #7 requires #2, #3, and the relevant parser/writer interfaces.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.
@@ -32,11 +32,11 @@ Dependencies:
 
 - #8 Independent whole-corpus semantic conservation and reproducibility gates.
 
-Dependency: #8 requires #5–#7 sufficiently complete to audit the frozen schema.
+Dependency: #8 requires #5–#7 sufficiently complete to audit the frozen schema, including independent verification of ADR 0002's source-token/anchor conservation equations.
 
 ## Researcher interfaces
 
-- #9 Standard Text-Fabric advanced app/browser.
+- #9 Standard Text-Fabric advanced app/browser, including exact placeholder/U+FFFD rendering required by ADR 0003.
 - #10 Researcher-facing feature docs and reproducible query examples.
 
 Dependencies:

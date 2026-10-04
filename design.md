@@ -51,12 +51,12 @@ The repository may ship provenance/validation schemas and reports, but those rep
 
 Until issue #3 is complete:
 
-- `word` is the candidate slot type, following ORAEC token granularity and the BHSA word-slot precedent;
+- a word-like slot layer remains the ergonomic candidate, but #3 must choose the final slot-type name in light of the three technical anchors required by ADR 0002;
 - `sentence` and `text` are expected structural node types;
 - explicit `line` nodes are allowed only if the source audit establishes a defensible line identity/order model from `lineCount`;
 - lexical identity may warrant `lex` nodes, with word→lex relations, if corpus-wide lemma evidence supports stable identity;
 - repeated date/place/object-type/hierarchy values may warrant shared entity or occurrence nodes rather than packed string features;
-- external mappings must preserve multiplicity and provenance;
+- external mappings must preserve multiplicity and provenance; Karnak crosswalks remain behind a fail-closed release/licence gate because project-side CC0 intent is not yet an explicit file-level licence;
 - source hierarchy must remain navigable/queryable if it is in release scope.
 
 These are hypotheses, not implementation permission. No converter writer should freeze them before issue #3.
@@ -72,7 +72,7 @@ Source order is semantically relevant unless the audit proves otherwise.
 The model must retain, where present in ORAEC:
 
 - exact `written_form`;
-- hieroglyphic `hiero`;
+- exact hieroglyphic `hiero`, preserved code-point-for-code-point under ADR 0003;
 - token ID;
 - sentence translation;
 - token/cotext translation;
@@ -98,6 +98,12 @@ Reuse requires semantic equivalence. Examples:
 
 Every deliberate divergence from an applicable BHSA convention belongs in the frozen schema/ADR.
 
+## Zero-token sentence preservation
+
+The supported ORAEC snapshot contains three real sentence records with no source tokens. ADR 0002 requires one explicitly marked technical anchor slot for each so all 101,796 sentence records remain first-class TF sentence nodes without falsely linking an empty sentence to a neighbouring source token.
+
+For the pinned snapshot the conservation contract is 815,026 source tokens plus 3 anchors = 815,029 total slots. Anchor slots carry no fabricated ORAEC token identity or linguistic annotation and render as empty text. The final slot-type name and feature names are frozen by #3.
+
 ## Text-Fabric writer
 
 After #3 freezes the ontology, #6 should implement an ORAEC-specific director over the typed IR using `tf.convert.walker.CV`.
@@ -110,7 +116,7 @@ The emitted dataset must then be loaded through `Fabric` as an independent loada
 
 A standard advanced app/browser is part of the deliverable. `app/config.yaml` is tracked from bootstrap, but display/section contracts are finalized only after the TF graph schema is frozen.
 
-The app should expose useful transliteration and hieroglyphic formats, provenance, feature documentation, and stable ORAEC/source links where possible.
+The app should expose useful transliteration and hieroglyphic formats, provenance, feature documentation, and stable ORAEC/source links where possible. Under ADR 0003 it must render exact ORAEC `hiero` values visibly, including `[⯑]` and U+FFFD, without silently reconstructing or replacing them.
 
 ## Agora materializer
 
@@ -137,4 +143,4 @@ Validation has two independent layers:
 1. converter/unit/schema tests prove implementation contracts;
 2. a separate source→graph audit rereads raw source independently and checks the generated TF graph.
 
-Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data.
+Release validation must detect silent drops, duplicate identities, accidental normalization, flattening of one-to-many relations, and invented data. Exact Unicode equality is part of conservation for source `hiero` values under ADR 0003. Converter-derived technical anchors are allowed only under explicit schema rules such as ADR 0002 and must be independently countable and excluded from source-token conservation.
