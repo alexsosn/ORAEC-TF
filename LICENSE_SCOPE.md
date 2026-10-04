@@ -46,7 +46,9 @@ The mapping files were published directly by the ORAEC project account:
 
 ORAEC's 2024-06-05 “SITH Karnak” post describes the project as having found the 31 text correspondences itself and says **“we have created a table”** with nearly 2,000 ORAEC-lemma ↔ Karnak equivalences. It links directly to `mapping_oraec_lemmata_karnak.tsv`.
 
-Taken together, the prospective CC0 policy, the ORAEC-authored file history, and the project's explicit description of creating/finding these correspondences are sufficient project-side evidence to classify the **ORAEC crosswalk data as published** under CC0.
+Taken together, the prospective CC0 policy, the ORAEC-authored file history, and the project's explicit description of creating/finding these correspondences are **strong evidence of intended CC0** treatment.
+
+They are nevertheless **insufficient for release-grade file-level licensing** because the canonical distribution's licence table does not name either file, and no explicit licence declaration tied to these exact two TSV files has yet been located. ORAEC-TF therefore does not promote the intent evidence into a settled redistribution licence.
 
 ### VÉgA counterexample
 
@@ -58,11 +60,11 @@ The Karnak classification therefore does not use the blog footer as a blanket li
 
 ### External-resource boundary
 
-The CC0 classification here covers the ORAEC-authored mapping/crosswalk data as distributed in these two TSV files: ORAEC identifiers paired with SITH Karnak identifiers/URLs.
+The evidence discussed here concerns only the ORAEC-authored mapping/crosswalk pairs: ORAEC identifiers paired with SITH Karnak identifiers/URLs. It does **not** relicense the external target resource and specifically is **not the content behind SITH URLs**.
 
-It does **not** relicense **the content behind SITH URLs**. ORAEC-TF must not treat this classification as permission to redistribute SITH inscriptions, lexicon entries, images, transliterations, translations, metadata, or other target-resource content.
+Until an **explicit upstream clarification** or canonical file-level licence declaration is available, release/materialization code must **exclude the Karnak mappings from distributable generated corpora**. Local research/audit code may inspect them, and #7 may prepare a native one-to-many graph model behind an explicit licence gate, but the default release path must fail closed rather than infer CC0 or CC BY-SA.
 
-ORAEC-TF may therefore include these crosswalk relations in a generated corpus under the ORAEC-side CC0 classification, while retaining provenance and one-to-many relation semantics.
+If upstream later clarifies the two files explicitly, this section and the release gate should be updated with the exact evidence before inclusion.
 
 ## Generated reports
 
