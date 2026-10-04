@@ -41,7 +41,7 @@ In ORAEC sentence 83:
 
 The aligned AED base sentence has a word, then `<gap reason="lost"/>`, then the following words, with **no intervening `<lb>`**.
 
-Therefore the missing `lineCount` on the gap token does not represent a physical/source line break. **Contiguous-run reconstruction** would incorrectly split one source line into multiple line nodes.
+Therefore the missing `lineCount` on the gap token does not represent a physical/source line break. **contiguous-run reconstruction** would incorrectly split one source line into multiple line nodes.
 
 The same pattern occurs around labels such as `[liS 35]`–`[liS 50]`: AED `<lb n="..."/>` marks real changes, while ORAEC lost-text/gap tokens may lack `lineCount` inside the same line.
 
