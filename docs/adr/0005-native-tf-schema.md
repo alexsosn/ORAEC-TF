@@ -160,7 +160,7 @@ Author and source_ref nodes obtain oslots from all texts that reference them, so
 
 oraec_hierarchical_path.tsv is a path serialization, not an opaque feature value.
 
-Each hierarchy component is represented by a hierarchy path-occurrence node. Its identity is the exact UTF-8 path prefix, encoded deterministically as a namespaced SHA-256 key.
+Each hierarchy component is represented by a hierarchy path-occurrence node. Its identity is the exact ordered prefix of source (label, TLA href) pairs, encoded deterministically as a namespaced SHA-256 key. Including both values prevents equal display labels that point at different upstream objects from collapsing.
 
 This deliberately does not use the TLA URL as the node identity. A stable TLA object/text identifier is valuable upstream identity, but assuming that one TLA entity always has one ORAEC parent/depth could collapse distinct source path contexts.
 
