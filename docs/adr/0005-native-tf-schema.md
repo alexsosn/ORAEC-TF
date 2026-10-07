@@ -213,7 +213,7 @@ Frozen core edge features are:
 - parent: hierarchy child to hierarchy parent;
 - external: text, lex, cv, or author to external_ref, valued by mapping filename.
 
-One-to-many external mappings remain separate edges and are never delimiter-packed.
+One-to-many external mappings remain separate edges and are never delimiter-packed. Mapping-table row order is treated as serialization rather than scholarly semantics: the conserved object is the exact relation pair plus its mapping-file provenance. This is safe for the audited supported files, whose source keys are unique except for the explicitly one-to-many Karnak lemma table, which is currently release-excluded.
 
 ## Sections
 
