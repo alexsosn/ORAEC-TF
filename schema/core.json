@@ -666,30 +666,40 @@
       "sourceDomain": "text.oraec_id",
       "targetSystem": "trismegistos",
       "targetFeature": "external_ref.external_value",
-      "relation": "edge.external"
+      "relation": "edge.external",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
     },
     "mapping_oraec_lemmata_vega.tsv": {
       "sourceDomain": "lex.lemma_id",
       "targetSystem": "vega",
       "targetFeature": "external_ref.external_value",
-      "relation": "edge.external"
+      "relation": "edge.external",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
     },
     "mapping_oraec_wikidata.tsv": {
       "sourceDomain": "author.author_name OR cv.cv_id",
       "targetSystem": "wikidata",
       "targetFeature": "external_ref.external_value",
       "relation": "edge.external",
-      "resolution": "exactly one native source node; ambiguity or no match fails closed"
+      "resolution": "exactly one native source node; ambiguity or no match fails closed",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
     },
     "mapping_oraec_karnak.tsv": {
       "sourceDomain": "text.oraec_id",
       "targetSystem": "karnak",
-      "releaseStatus": "excluded_pending_issue_17"
+      "releaseStatus": "excluded_pending_issue_17",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
     },
     "mapping_oraec_lemmata_karnak.tsv": {
       "sourceDomain": "lex.lemma_id",
       "targetSystem": "karnak",
-      "releaseStatus": "excluded_pending_issue_17"
+      "releaseStatus": "excluded_pending_issue_17",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
     }
   },
   "hierarchyContract": {
