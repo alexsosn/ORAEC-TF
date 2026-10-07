@@ -195,3 +195,20 @@ The dedicated full-corpus analysis found 789,633 annotated tokens, 28,672 exact 
 A real ORAEC/AED comparison falsified contiguous-run reconstruction: in `oraec1:83`, `[Vs 22]` occurs before and after an unlabeled ORAEC `[...]` token; AED shows the middle item as `<gap reason="lost"/>` with no intervening `<lb>`. The missing token annotation is therefore not a line boundary.
 
 ADR 0004 keeps exact `lineCount` as token-level source data and omits core `line` nodes. Any normalized label or reconstructed line layer is explicitly converter-derived and requires separate evidence.
+
+## R-008 — frozen native Text-Fabric ontology
+
+Date: 2026-10-08  
+Issue: #3  
+ADR: `docs/adr/0005-native-tf-schema.md`  
+Machine contract: `schema/core.json`
+
+The complete source audit plus ADRs 0001–0004 were resolved into an executable graph contract.
+
+BHSA conventions are reused where ORAEC semantics align: `word` is the slot type, shared lexical entities are span nodes, `otext` has explicit section types/features, and `text-orig-full` is the default format. Three zero-token source sentences remain sparse compatibility exceptions represented by explicitly marked word slots rather than changing the slot abstraction for the whole corpus.
+
+The schema assigns every audited source field to a native node feature, node type, or edge relation. ID-backed metadata becomes shared `cv` nodes with valued text→CV edges; known duplicate `idno` list items use occurrence nodes; credits become author/source entities; hierarchy uses exact path-prefix occurrence identity with native TLA identity features; supported external mappings use provenance-valued native edges.
+
+The hierarchy identity was tightened during adversarial design review: a TLA URL is retained as upstream identity evidence but is not used to collapse path occurrences, because that would assume one parent/depth context per TLA entity and could lose source path semantics.
+
+All source-vs-derived feature provenance is explicit. Exact source strings remain exact. Karnak mappings remain excluded by the #17 fail-closed licence gate. Unknown shapes, edge-collapsing duplicates, ambiguous Wikidata keys, malformed hierarchy alignment, unlinked semantic nodes, and source-string normalization are fatal schema violations.
