@@ -380,9 +380,9 @@
       "features": {
         "hierarchy_id": {
           "origin": "derived",
-          "derivedFrom": "deterministic oraec-hierarchy:path-prefix:sha256(exact UTF-8 source path prefix)",
+          "derivedFrom": "deterministic oraec-hierarchy:path-prefix:sha256(exact ordered label+TLA-href source prefix)",
           "valueType": "str",
-          "description": "Deterministic identity of an exact hierarchy path-prefix occurrence."
+          "description": "Deterministic identity of an exact ordered hierarchy (label, TLA href) path-prefix occurrence."
         },
         "hierarchy_label": {
           "origin": "source",
@@ -416,7 +416,8 @@
           "valueType": "str",
           "description": "Converter-derived TLA target kind (object or text) parsed from tla_url."
         }
-      }
+      },
+      "sourceIdentityDefinition": "exact_path_prefix means the ordered source (label, TLA href) pairs from root through this occurrence"
     },
     "external_ref": {
       "sourceIdentity": "external_system+external_value",
