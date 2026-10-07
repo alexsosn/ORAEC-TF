@@ -1,0 +1,750 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/oraec/corpus_raw_data.git",
+    "revision": "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd",
+    "semanticSidecars": false,
+    "fields": {
+      "record": [
+        "bibliography",
+        "condition",
+        "credits",
+        "date",
+        "idno",
+        "location",
+        "material",
+        "objecttype",
+        "oraecid",
+        "origplace",
+        "sentences",
+        "title"
+      ],
+      "sentence": [
+        "token",
+        "translation"
+      ],
+      "credits": [
+        "author",
+        "license",
+        "source"
+      ],
+      "token": [
+        "adjective",
+        "adverb",
+        "cotext_translation",
+        "epitheton",
+        "genus",
+        "hiero",
+        "inflection",
+        "lemmaID",
+        "lemma_form",
+        "lineCount",
+        "morphology",
+        "name",
+        "number",
+        "numerus",
+        "particle",
+        "pos",
+        "pronoun",
+        "status",
+        "token",
+        "verbalClass",
+        "voice",
+        "written_form"
+      ]
+    },
+    "derivedFamiliesNotCore": [
+      "collocation",
+      "statistics"
+    ]
+  },
+  "slotType": "word",
+  "nodeTypes": {
+    "word": {
+      "sourceIdentity": "token_id",
+      "oslots": "self",
+      "features": {
+        "token_id": {
+          "origin": "source",
+          "sourceField": "token.token",
+          "valueType": "str",
+          "exact": true,
+          "requiredOnRealWord": true
+        },
+        "written_form": {
+          "origin": "source",
+          "sourceField": "token.written_form",
+          "valueType": "str",
+          "exact": true,
+          "requiredOnRealWord": true
+        },
+        "cotext_translation": {
+          "origin": "source",
+          "sourceField": "token.cotext_translation",
+          "valueType": "str",
+          "exact": true
+        },
+        "hiero": {
+          "origin": "source",
+          "sourceField": "token.hiero",
+          "valueType": "str",
+          "exact": true
+        },
+        "line_count": {
+          "origin": "source",
+          "sourceField": "token.lineCount",
+          "valueType": "str",
+          "exact": true
+        },
+        "pos": {
+          "origin": "source",
+          "sourceField": "token.pos",
+          "valueType": "str",
+          "exact": true
+        },
+        "name_type": {
+          "origin": "source",
+          "sourceField": "token.name",
+          "valueType": "str",
+          "exact": true
+        },
+        "number_type": {
+          "origin": "source",
+          "sourceField": "token.number",
+          "valueType": "str",
+          "exact": true
+        },
+        "voice": {
+          "origin": "source",
+          "sourceField": "token.voice",
+          "valueType": "str",
+          "exact": true
+        },
+        "genus": {
+          "origin": "source",
+          "sourceField": "token.genus",
+          "valueType": "str",
+          "exact": true
+        },
+        "pronoun_type": {
+          "origin": "source",
+          "sourceField": "token.pronoun",
+          "valueType": "str",
+          "exact": true
+        },
+        "numerus": {
+          "origin": "source",
+          "sourceField": "token.numerus",
+          "valueType": "str",
+          "exact": true
+        },
+        "epitheton": {
+          "origin": "source",
+          "sourceField": "token.epitheton",
+          "valueType": "str",
+          "exact": true
+        },
+        "morphology": {
+          "origin": "source",
+          "sourceField": "token.morphology",
+          "valueType": "str",
+          "exact": true
+        },
+        "inflection": {
+          "origin": "source",
+          "sourceField": "token.inflection",
+          "valueType": "str",
+          "exact": true
+        },
+        "adjective_type": {
+          "origin": "source",
+          "sourceField": "token.adjective",
+          "valueType": "str",
+          "exact": true
+        },
+        "particle_type": {
+          "origin": "source",
+          "sourceField": "token.particle",
+          "valueType": "str",
+          "exact": true
+        },
+        "adverb_type": {
+          "origin": "source",
+          "sourceField": "token.adverb",
+          "valueType": "str",
+          "exact": true
+        },
+        "verbal_class": {
+          "origin": "source",
+          "sourceField": "token.verbalClass",
+          "valueType": "str",
+          "exact": true
+        },
+        "status": {
+          "origin": "source",
+          "sourceField": "token.status",
+          "valueType": "str",
+          "exact": true
+        },
+        "is_anchor": {
+          "origin": "derived",
+          "derivedFrom": "ADR 0002 zero-token sentence compatibility",
+          "valueType": "int",
+          "sparseValue": 1
+        },
+        "trailer": {
+          "origin": "derived",
+          "derivedFrom": "text display spacing; empty on anchors",
+          "valueType": "str"
+        }
+      }
+    },
+    "sentence": {
+      "sourceIdentity": "oraec_id+sentence_index",
+      "oslots": "contained_words",
+      "features": {
+        "sentence_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based record.sentences array position",
+          "valueType": "int"
+        },
+        "translation": {
+          "origin": "source",
+          "sourceField": "sentence.translation",
+          "valueType": "str",
+          "exact": true,
+          "supportsEmptyString": true
+        }
+      }
+    },
+    "text": {
+      "sourceIdentity": "oraec_id",
+      "oslots": "contained_words",
+      "features": {
+        "oraec_id": {
+          "origin": "source",
+          "sourceField": "record.oraecid",
+          "valueType": "str",
+          "exact": true
+        },
+        "title": {
+          "origin": "source",
+          "sourceField": "record.title",
+          "valueType": "str",
+          "exact": true
+        },
+        "bibliography": {
+          "origin": "source",
+          "sourceField": "record.bibliography",
+          "valueType": "str",
+          "exact": true
+        },
+        "condition": {
+          "origin": "source",
+          "sourceField": "record.condition",
+          "valueType": "str",
+          "exact": true
+        },
+        "license": {
+          "origin": "source",
+          "sourceField": "credits.license",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    },
+    "lex": {
+      "sourceIdentity": "lemma_id",
+      "oslots": "union_of_occurrence_words",
+      "features": {
+        "lemma_id": {
+          "origin": "source",
+          "sourceField": "token.lemmaID",
+          "valueType": "str",
+          "exact": true
+        },
+        "lemma_form": {
+          "origin": "source",
+          "sourceField": "token.lemma_form",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    },
+    "cv": {
+      "sourceIdentity": "cv_kind+cv_id",
+      "oslots": "union_of_referencing_text_words",
+      "features": {
+        "cv_kind": {
+          "origin": "derived",
+          "derivedFrom": "source record field name",
+          "valueType": "str"
+        },
+        "cv_id": {
+          "origin": "source",
+          "sourceField": "record.<cv_kind>[].id",
+          "valueType": "str",
+          "exact": true
+        },
+        "cv_label": {
+          "origin": "source",
+          "sourceField": "record.<cv_kind>[].<cv_kind>",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    },
+    "author": {
+      "sourceIdentity": "author_name",
+      "oslots": "union_of_referencing_text_words",
+      "features": {
+        "author_name": {
+          "origin": "source",
+          "sourceField": "credits.author",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    },
+    "source_ref": {
+      "sourceIdentity": "source_url",
+      "oslots": "union_of_referencing_text_words",
+      "features": {
+        "source_url": {
+          "origin": "source",
+          "sourceField": "credits.source[]",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    },
+    "idno": {
+      "sourceIdentity": "oraec_id+idno_index",
+      "oslots": "owning_text_words",
+      "preservesDuplicateOccurrences": true,
+      "features": {
+        "idno_value": {
+          "origin": "source",
+          "sourceField": "record.idno[]",
+          "valueType": "str",
+          "exact": true
+        },
+        "idno_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based record.idno list position",
+          "valueType": "int"
+        }
+      }
+    },
+    "hierarchy": {
+      "sourceIdentity": {
+        "preferred": "tla_url",
+        "fallback": "exact_path_prefix",
+        "fallbackAlgorithm": "oraec-hierarchy:path-prefix:sha256(exact UTF-8 path prefix)"
+      },
+      "oslots": "union_of_descendant_text_words",
+      "features": {
+        "hierarchy_id": {
+          "origin": "derived",
+          "derivedFrom": "preferred TLA URL or deterministic exact path-prefix key",
+          "valueType": "str"
+        },
+        "hierarchy_label": {
+          "origin": "source",
+          "sourceField": "oraec_hierarchical_path.tsv.column2.component",
+          "valueType": "str",
+          "exact": true
+        },
+        "hierarchy_depth": {
+          "origin": "derived",
+          "derivedFrom": "1-based hierarchy component position",
+          "valueType": "int"
+        },
+        "tla_url": {
+          "origin": "source",
+          "sourceField": "oraec_hierarchical_path.tsv.column3.href",
+          "valueType": "str",
+          "exact": true
+        },
+        "tla_id": {
+          "origin": "derived",
+          "derivedFrom": "terminal identifier in tla_url",
+          "valueType": "str"
+        },
+        "tla_kind": {
+          "origin": "derived",
+          "derivedFrom": "TLA URL path: object or text",
+          "valueType": "str"
+        }
+      }
+    },
+    "external_ref": {
+      "sourceIdentity": "external_system+external_value",
+      "oslots": "union_of_referencing_native_node_words",
+      "features": {
+        "external_system": {
+          "origin": "derived",
+          "derivedFrom": "mapping filename/domain",
+          "valueType": "str"
+        },
+        "external_value": {
+          "origin": "source",
+          "sourceField": "mapping file target column",
+          "valueType": "str",
+          "exact": true
+        }
+      }
+    }
+  },
+  "edgeFeatures": {
+    "date": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "date"
+      },
+      "origin": "source"
+    },
+    "origplace": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "origplace"
+      },
+      "origin": "source"
+    },
+    "objecttype": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "objecttype"
+      },
+      "origin": "source"
+    },
+    "location": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "location"
+      },
+      "origin": "source"
+    },
+    "material": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "material"
+      },
+      "origin": "source"
+    },
+    "author": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "author"
+      ],
+      "valueType": null,
+      "valueSemantics": null,
+      "origin": "source"
+    },
+    "source": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "source_ref"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "origin": "source"
+    },
+    "idno": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "idno"
+      ],
+      "valueType": null,
+      "valueSemantics": null,
+      "origin": "source"
+    },
+    "hierarchy": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "hierarchy"
+      ],
+      "valueType": null,
+      "valueSemantics": "leaf_membership",
+      "origin": "source"
+    },
+    "parent": {
+      "from": [
+        "hierarchy"
+      ],
+      "to": [
+        "hierarchy"
+      ],
+      "valueType": null,
+      "valueSemantics": "child_to_parent",
+      "origin": "source"
+    },
+    "external": {
+      "from": [
+        "text",
+        "lex",
+        "cv",
+        "author"
+      ],
+      "to": [
+        "external_ref"
+      ],
+      "valueType": "str",
+      "valueSemantics": "source_mapping_filename",
+      "origin": "source"
+    }
+  },
+  "sections": {
+    "types": [
+      "text",
+      "sentence"
+    ],
+    "features": [
+      "oraec_id",
+      "sentence_index"
+    ]
+  },
+  "structures": {
+    "types": [],
+    "features": [],
+    "rationale": "ORAEC hierarchy is a variable-depth entity graph, not a fixed Text API structure."
+  },
+  "formats": {
+    "text-orig-full": "{written_form}{trailer}",
+    "text-translit": "{written_form}{trailer}",
+    "text-hiero": "{hiero}{trailer}",
+    "lex-default": "{lemma_form}"
+  },
+  "sourceCoverage": {
+    "record": {
+      "bibliography": "text.bibliography",
+      "condition": "text.condition",
+      "credits": "credits subfields",
+      "date": "edge.date -> cv",
+      "idno": "idno nodes + edge.idno",
+      "location": "edge.location -> cv",
+      "material": "edge.material -> cv",
+      "objecttype": "edge.objecttype -> cv",
+      "oraecid": "text.oraec_id",
+      "origplace": "edge.origplace -> cv",
+      "sentences": "sentence nodes + contained word slots",
+      "title": "text.title"
+    },
+    "sentence": {
+      "token": "word slots, lex normalization, and anchor rule",
+      "translation": "sentence.translation"
+    },
+    "credits": {
+      "author": "author node + edge.author",
+      "license": "text.license",
+      "source": "source_ref nodes + valued edge.source"
+    },
+    "token": {
+      "adjective": "word.adjective_type",
+      "adverb": "word.adverb_type",
+      "cotext_translation": "word.cotext_translation",
+      "epitheton": "word.epitheton",
+      "genus": "word.genus",
+      "hiero": "word.hiero",
+      "inflection": "word.inflection",
+      "lemmaID": "lex.lemma_id",
+      "lemma_form": "lex.lemma_form",
+      "lineCount": "word.line_count",
+      "morphology": "word.morphology",
+      "name": "word.name_type",
+      "number": "word.number_type",
+      "numerus": "word.numerus",
+      "particle": "word.particle_type",
+      "pos": "word.pos",
+      "pronoun": "word.pronoun_type",
+      "status": "word.status",
+      "token": "word.token_id",
+      "verbalClass": "word.verbal_class",
+      "voice": "word.voice",
+      "written_form": "word.written_form"
+    }
+  },
+  "mappingFamilies": {
+    "mapping_oraec_trismegistos.csv": {
+      "sourceDomain": "text.oraec_id",
+      "targetSystem": "trismegistos",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external"
+    },
+    "mapping_oraec_lemmata_vega.tsv": {
+      "sourceDomain": "lex.lemma_id",
+      "targetSystem": "vega",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external"
+    },
+    "mapping_oraec_wikidata.tsv": {
+      "sourceDomain": "author.author_name OR cv.cv_id",
+      "targetSystem": "wikidata",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "resolution": "exactly one native source node; ambiguity or no match fails closed"
+    },
+    "mapping_oraec_karnak.tsv": {
+      "sourceDomain": "text.oraec_id",
+      "targetSystem": "karnak",
+      "releaseStatus": "excluded_pending_issue_17"
+    },
+    "mapping_oraec_lemmata_karnak.tsv": {
+      "sourceDomain": "lex.lemma_id",
+      "targetSystem": "karnak",
+      "releaseStatus": "excluded_pending_issue_17"
+    }
+  },
+  "hierarchyContract": {
+    "file": "oraec_hierarchical_path.tsv",
+    "textIdColumn": 1,
+    "labelPathColumn": 2,
+    "linkedPathColumn": 3,
+    "separator": "→",
+    "requirements": [
+      "exactly_one_row_per_text",
+      "label_component_count_equals_link_component_count",
+      "every_link_component_has_one_tla_href",
+      "parent_edges_follow_source_component_order",
+      "text_links_to_leaf_component"
+    ]
+  },
+  "featureMetadataPolicy": {
+    "required": [
+      "valueType",
+      "origin",
+      "description"
+    ],
+    "sourceFeaturesAlsoRequire": [
+      "sourceField"
+    ],
+    "derivedFeaturesAlsoRequire": [
+      "derivedFrom"
+    ]
+  },
+  "release": {
+    "includedMappings": [
+      "mapping_oraec_trismegistos.csv",
+      "mapping_oraec_wikidata.tsv",
+      "mapping_oraec_lemmata_vega.tsv"
+    ],
+    "excludedMappings": [
+      "mapping_oraec_karnak.tsv",
+      "mapping_oraec_lemmata_karnak.tsv"
+    ],
+    "excludedDerivedFamilies": [
+      "collocation",
+      "statistics"
+    ]
+  },
+  "failClosed": [
+    "unknown_source_field",
+    "unsupported_source_shape_or_type",
+    "lemma_id_form_conflict",
+    "controlled_vocabulary_id_label_conflict",
+    "duplicate_relation_that_tf_edge_would_collapse",
+    "unresolved_or_ambiguous_wikidata_key",
+    "malformed_hierarchy_path_link_alignment",
+    "hierarchy_identity_label_conflict",
+    "unsupported_or_unlicensed_mapping_family",
+    "unlinked_non_slot_node",
+    "source_string_normalization"
+  ],
+  "invariants": {
+    "pinnedCounts": {
+      "sourceTokens": 815026,
+      "anchorSlots": 3,
+      "totalSlots": 815029,
+      "sentences": 101796,
+      "texts": 13026,
+      "lexemes": 18733
+    },
+    "exactSourceStrings": [
+      "word.token_id",
+      "word.written_form",
+      "word.cotext_translation",
+      "word.hiero",
+      "word.line_count",
+      "word.pos",
+      "word.name_type",
+      "word.number_type",
+      "word.voice",
+      "word.genus",
+      "word.pronoun_type",
+      "word.numerus",
+      "word.epitheton",
+      "word.morphology",
+      "word.inflection",
+      "word.adjective_type",
+      "word.particle_type",
+      "word.adverb_type",
+      "word.verbal_class",
+      "word.status",
+      "sentence.translation",
+      "text.oraec_id",
+      "text.title",
+      "text.bibliography",
+      "text.condition",
+      "text.license",
+      "lex.lemma_id",
+      "lex.lemma_form",
+      "cv.cv_id",
+      "cv.cv_label",
+      "author.author_name",
+      "source_ref.source_url",
+      "idno.idno_value",
+      "hierarchy.hierarchy_label",
+      "hierarchy.tla_url",
+      "external_ref.external_value"
+    ],
+    "anchors": {
+      "count": 3,
+      "marker": "word.is_anchor=1",
+      "sourceTokenFeatures": "must_be_absent",
+      "trailer": "empty_string"
+    }
+  }
+}
