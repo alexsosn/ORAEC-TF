@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import html
 import json
 import re
@@ -292,11 +293,9 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
                     "unsupported_hierarchy_links",
                     {"text": text_id, "depth": depth, "href": href},
                 )
-            prefix.append(label)
+            prefix.append(f"{label}\u241f{href}")
             exact_prefix = "→".join(prefix)
             # Collision detection is intentionally independent of the writer.
-            import hashlib
-
             digest = hashlib.sha256(exact_prefix.encode("utf-8")).hexdigest()
             previous = prefix_hashes.get(digest)
             if previous is not None and previous != exact_prefix:
