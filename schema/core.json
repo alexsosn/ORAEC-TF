@@ -69,133 +69,155 @@
           "sourceField": "token.token",
           "valueType": "str",
           "exact": true,
-          "requiredOnRealWord": true
+          "requiredOnRealWord": true,
+          "description": "Exact ORAEC token identifier for a real source word."
         },
         "written_form": {
           "origin": "source",
           "sourceField": "token.written_form",
           "valueType": "str",
           "exact": true,
-          "requiredOnRealWord": true
+          "requiredOnRealWord": true,
+          "description": "Exact ORAEC transliterated written form."
         },
         "cotext_translation": {
           "origin": "source",
           "sourceField": "token.cotext_translation",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC token-level cotext translation."
         },
         "hiero": {
           "origin": "source",
           "sourceField": "token.hiero",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC Unicode hieroglyphic string; never repaired or normalized."
         },
         "line_count": {
           "origin": "source",
           "sourceField": "token.lineCount",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC lineCount string including source whitespace."
         },
         "pos": {
           "origin": "source",
           "sourceField": "token.pos",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC part-of-speech value."
         },
         "name_type": {
           "origin": "source",
           "sourceField": "token.name",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC name subtype from token.name."
         },
         "number_type": {
           "origin": "source",
           "sourceField": "token.number",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC number subtype from token.number."
         },
         "voice": {
           "origin": "source",
           "sourceField": "token.voice",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC grammatical voice."
         },
         "genus": {
           "origin": "source",
           "sourceField": "token.genus",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC grammatical genus/gender label."
         },
         "pronoun_type": {
           "origin": "source",
           "sourceField": "token.pronoun",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC pronoun subtype."
         },
         "numerus": {
           "origin": "source",
           "sourceField": "token.numerus",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC grammatical number label."
         },
         "epitheton": {
           "origin": "source",
           "sourceField": "token.epitheton",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC epitheton/title subtype."
         },
         "morphology": {
           "origin": "source",
           "sourceField": "token.morphology",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC morphology marker."
         },
         "inflection": {
           "origin": "source",
           "sourceField": "token.inflection",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC inflection label."
         },
         "adjective_type": {
           "origin": "source",
           "sourceField": "token.adjective",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC adjective subtype."
         },
         "particle_type": {
           "origin": "source",
           "sourceField": "token.particle",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC particle subtype."
         },
         "adverb_type": {
           "origin": "source",
           "sourceField": "token.adverb",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC adverb subtype."
         },
         "verbal_class": {
           "origin": "source",
           "sourceField": "token.verbalClass",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC verbalClass value."
         },
         "status": {
           "origin": "source",
           "sourceField": "token.status",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC grammatical status value."
         },
         "is_anchor": {
           "origin": "derived",
           "derivedFrom": "ADR 0002 zero-token sentence compatibility",
           "valueType": "int",
-          "sparseValue": 1
+          "sparseValue": 1,
+          "description": "Marks the three converter-derived compatibility slots required for zero-token source sentences."
         },
         "trailer": {
           "origin": "derived",
           "derivedFrom": "text display spacing; empty on anchors",
-          "valueType": "str"
+          "valueType": "str",
+          "description": "Converter-derived display trailer: one space on real words and empty on technical anchors."
         }
       }
     },
@@ -206,14 +228,16 @@
         "sentence_index": {
           "origin": "derived",
           "derivedFrom": "1-based record.sentences array position",
-          "valueType": "int"
+          "valueType": "int",
+          "description": "One-based source sentence array position within its ORAEC text."
         },
         "translation": {
           "origin": "source",
           "sourceField": "sentence.translation",
           "valueType": "str",
           "exact": true,
-          "supportsEmptyString": true
+          "supportsEmptyString": true,
+          "description": "Exact ORAEC sentence translation; empty string is distinct from absence."
         }
       }
     },
@@ -225,31 +249,36 @@
           "origin": "source",
           "sourceField": "record.oraecid",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact stable ORAEC text identifier."
         },
         "title": {
           "origin": "source",
           "sourceField": "record.title",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC text title."
         },
         "bibliography": {
           "origin": "source",
           "sourceField": "record.bibliography",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC bibliography string when present."
         },
         "condition": {
           "origin": "source",
           "sourceField": "record.condition",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC condition value when present."
         },
         "license": {
           "origin": "source",
           "sourceField": "credits.license",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact per-text ORAEC credits.license value."
         }
       }
     },
@@ -261,13 +290,15 @@
           "origin": "source",
           "sourceField": "token.lemmaID",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC lemmaID used as shared lexical identity."
         },
         "lemma_form": {
           "origin": "source",
           "sourceField": "token.lemma_form",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC lemma_form associated with lemma_id."
         }
       }
     },
@@ -278,19 +309,22 @@
         "cv_kind": {
           "origin": "derived",
           "derivedFrom": "source record field name",
-          "valueType": "str"
+          "valueType": "str",
+          "description": "Converter-derived controlled-vocabulary domain name."
         },
         "cv_id": {
           "origin": "source",
           "sourceField": "record.<cv_kind>[].id",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC controlled-vocabulary identifier."
         },
         "cv_label": {
           "origin": "source",
           "sourceField": "record.<cv_kind>[].<cv_kind>",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC controlled-vocabulary display label."
         }
       }
     },
@@ -302,7 +336,8 @@
           "origin": "source",
           "sourceField": "credits.author",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC credits.author string."
         }
       }
     },
@@ -314,7 +349,8 @@
           "origin": "source",
           "sourceField": "credits.source[]",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC credits.source URL."
         }
       }
     },
@@ -327,54 +363,58 @@
           "origin": "source",
           "sourceField": "record.idno[]",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact ORAEC idno list item, including duplicate occurrences."
         },
         "idno_index": {
           "origin": "derived",
           "derivedFrom": "1-based record.idno list position",
-          "valueType": "int"
+          "valueType": "int",
+          "description": "One-based source idno list position."
         }
       }
     },
     "hierarchy": {
-      "sourceIdentity": {
-        "preferred": "tla_url",
-        "fallback": "exact_path_prefix",
-        "fallbackAlgorithm": "oraec-hierarchy:path-prefix:sha256(exact UTF-8 path prefix)"
-      },
+      "sourceIdentity": "exact_path_prefix",
       "oslots": "union_of_descendant_text_words",
       "features": {
         "hierarchy_id": {
           "origin": "derived",
-          "derivedFrom": "preferred TLA URL or deterministic exact path-prefix key",
-          "valueType": "str"
+          "derivedFrom": "deterministic oraec-hierarchy:path-prefix:sha256(exact UTF-8 source path prefix)",
+          "valueType": "str",
+          "description": "Deterministic identity of an exact hierarchy path-prefix occurrence."
         },
         "hierarchy_label": {
           "origin": "source",
           "sourceField": "oraec_hierarchical_path.tsv.column2.component",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact source label for one hierarchy component."
         },
         "hierarchy_depth": {
           "origin": "derived",
           "derivedFrom": "1-based hierarchy component position",
-          "valueType": "int"
+          "valueType": "int",
+          "description": "One-based component position within the exact source hierarchy path."
         },
         "tla_url": {
           "origin": "source",
           "sourceField": "oraec_hierarchical_path.tsv.column3.href",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact TLA href parsed from the source linked hierarchy component."
         },
         "tla_id": {
           "origin": "derived",
           "derivedFrom": "terminal identifier in tla_url",
-          "valueType": "str"
+          "valueType": "str",
+          "description": "TLA identifier parsed losslessly from tla_url."
         },
         "tla_kind": {
           "origin": "derived",
           "derivedFrom": "TLA URL path: object or text",
-          "valueType": "str"
+          "valueType": "str",
+          "description": "Converter-derived TLA target kind (object or text) parsed from tla_url."
         }
       }
     },
@@ -385,13 +425,15 @@
         "external_system": {
           "origin": "derived",
           "derivedFrom": "mapping filename/domain",
-          "valueType": "str"
+          "valueType": "str",
+          "description": "Converter-derived external namespace determined by the mapping family."
         },
         "external_value": {
           "origin": "source",
           "sourceField": "mapping file target column",
           "valueType": "str",
-          "exact": true
+          "exact": true,
+          "description": "Exact mapping target identifier or URL from the source table."
         }
       }
     }
@@ -409,7 +451,8 @@
       "targetConstraint": {
         "cv_kind": "date"
       },
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an ORAEC date controlled-vocabulary entity; value is the one-based source-list ordinal."
     },
     "origplace": {
       "from": [
@@ -423,7 +466,8 @@
       "targetConstraint": {
         "cv_kind": "origplace"
       },
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an ORAEC original-place controlled-vocabulary entity; value is the one-based source-list ordinal."
     },
     "objecttype": {
       "from": [
@@ -437,7 +481,8 @@
       "targetConstraint": {
         "cv_kind": "objecttype"
       },
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an ORAEC object-type controlled-vocabulary entity; value is the one-based source-list ordinal."
     },
     "location": {
       "from": [
@@ -451,7 +496,8 @@
       "targetConstraint": {
         "cv_kind": "location"
       },
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an ORAEC location controlled-vocabulary entity; value is the one-based source-list ordinal."
     },
     "material": {
       "from": [
@@ -465,7 +511,8 @@
       "targetConstraint": {
         "cv_kind": "material"
       },
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an ORAEC material controlled-vocabulary entity; value is the one-based source-list ordinal."
     },
     "author": {
       "from": [
@@ -476,7 +523,8 @@
       ],
       "valueType": null,
       "valueSemantics": null,
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to its exact ORAEC credits author entity."
     },
     "source": {
       "from": [
@@ -487,7 +535,8 @@
       ],
       "valueType": "int",
       "valueSemantics": "source_list_ordinal",
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an exact ORAEC source URL; value is the one-based credits.source ordinal."
     },
     "idno": {
       "from": [
@@ -498,7 +547,8 @@
       ],
       "valueType": null,
       "valueSemantics": null,
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a text to an idno occurrence node so duplicate source list items remain distinct."
     },
     "hierarchy": {
       "from": [
@@ -509,7 +559,8 @@
       ],
       "valueType": null,
       "valueSemantics": "leaf_membership",
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates an ORAEC text to the leaf occurrence in its exact source hierarchy path."
     },
     "parent": {
       "from": [
@@ -520,7 +571,8 @@
       ],
       "valueType": null,
       "valueSemantics": "child_to_parent",
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a hierarchy child occurrence to its immediate parent occurrence."
     },
     "external": {
       "from": [
@@ -534,7 +586,8 @@
       ],
       "valueType": "str",
       "valueSemantics": "source_mapping_filename",
-      "origin": "source"
+      "origin": "source",
+      "description": "Relates a native ORAEC entity to an external reference; edge value is the exact mapping filename for provenance."
     }
   },
   "sections": {
@@ -691,7 +744,8 @@
     "hierarchy_identity_label_conflict",
     "unsupported_or_unlicensed_mapping_family",
     "unlinked_non_slot_node",
-    "source_string_normalization"
+    "source_string_normalization",
+    "hierarchy_path_prefix_hash_collision"
   ],
   "invariants": {
     "pinnedCounts": {
