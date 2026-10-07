@@ -135,8 +135,9 @@ def test_credits_hierarchy_and_external_mappings_are_native() -> None:
     assert schema["nodeTypes"]["source_ref"]["sourceIdentity"] == "source_url"
 
     hierarchy = schema["nodeTypes"]["hierarchy"]
-    assert hierarchy["sourceIdentity"]["preferred"] == "tla_url"
-    assert hierarchy["sourceIdentity"]["fallback"] == "exact_path_prefix"
+    assert hierarchy["sourceIdentity"] == "exact_path_prefix"
+    assert hierarchy["features"]["tla_url"]["origin"] == "source"
+    assert hierarchy["features"]["tla_id"]["origin"] == "derived"
     assert schema["edgeFeatures"]["parent"]["from"] == ["hierarchy"]
     assert schema["edgeFeatures"]["parent"]["to"] == ["hierarchy"]
     assert schema["edgeFeatures"]["hierarchy"]["from"] == ["text"]
@@ -201,6 +202,11 @@ def test_schema_records_source_vs_derived_provenance() -> None:
     for node_spec in schema["nodeTypes"].values():
         for feature_spec in node_spec.get("features", {}).values():
             assert feature_spec["origin"] in {"source", "derived"}
+            assert feature_spec["description"]
+
+    for edge_spec in schema["edgeFeatures"].values():
+        assert edge_spec["origin"] in {"source", "derived"}
+        assert edge_spec["description"]
 
     assert schema["nodeTypes"]["word"]["features"]["is_anchor"]["origin"] == "derived"
     assert schema["nodeTypes"]["word"]["features"]["trailer"]["origin"] == "derived"
