@@ -1,8 +1,8 @@
 # Design
 
-Status: **working architecture; TF schema not frozen**.
+Status: **native TF schema frozen by ADR 0005 and `schema/core.json`**.
 
-Issue #3 freezes the graph model after issues #2 and #14 establish the complete source contract and source-layer boundary.
+Changes to node types, source-field coverage, identity rules, or serialization semantics now require an explicit schema/ADR revision rather than ad-hoc writer changes.
 
 ## Goals
 
@@ -47,19 +47,25 @@ Text-Fabric Factory is not a runtime dependency. Its useful `CV/director`, conve
 
 The repository may ship provenance/validation schemas and reports, but those reports may only carry build identity, counts, hashes, validation evidence, diagnostics, and other provenance. They are never the sole storage location for corpus semantics.
 
-## Working graph hypothesis
+## Frozen core graph
 
-Until issue #3 is complete:
+The machine-readable authority is `schema/core.json`; ADR 0005 records the rationale.
 
-- a word-like slot layer remains the ergonomic candidate, but #3 must choose the final slot-type name in light of the three technical anchors required by ADR 0002;
-- `sentence` and `text` are expected structural node types;
-- the initial core graph has no `line` node type derived from `lineCount`; ADR 0004 requires exact token-level preservation and rejects run-based line reconstruction;
-- lexical identity may warrant `lex` nodes, with word→lex relations, if corpus-wide lemma evidence supports stable identity;
-- repeated date/place/object-type/hierarchy values may warrant shared entity or occurrence nodes rather than packed string features;
-- external mappings must preserve multiplicity and provenance; Karnak crosswalks remain behind a fail-closed release/licence gate because project-side CC0 intent is not yet an explicit file-level licence;
-- source hierarchy must remain navigable/queryable if it is in release scope.
+Core node types:
 
-These are hypotheses, not implementation permission. No converter writer should freeze them before issue #3.
+- `word` slots, including exactly three explicitly marked technical anchors required by ADR 0002;
+- `sentence`, `text`, `lex`, `cv`, `author`, `source_ref`, `idno`, `hierarchy`, and `external_ref` nodes.
+
+Core edge features:
+
+- metadata relations `date`, `origplace`, `objecttype`, `location`, and `material`;
+- provenance/occurrence relations `author`, `source`, and `idno`;
+- hierarchy relations `hierarchy` and `parent`;
+- provenance-valued `external` mappings.
+
+There is no core `line` node type. Lexical entities use shared `lex` nodes keyed by exact ORAEC lemma IDs. Multi-valued metadata is relational, never delimiter-packed. Known duplicate `idno` values are preserved as occurrence nodes.
+
+Every non-slot entity has an explicit `oslots` strategy because Text-Fabric 13.1 cannot serialize unlinked semantic nodes.
 
 ## Identity
 
@@ -102,7 +108,7 @@ Every deliberate divergence from an applicable BHSA convention belongs in the fr
 
 The supported ORAEC snapshot contains three real sentence records with no source tokens. ADR 0002 requires one explicitly marked technical anchor slot for each so all 101,796 sentence records remain first-class TF sentence nodes without falsely linking an empty sentence to a neighbouring source token.
 
-For the pinned snapshot the conservation contract is 815,026 source tokens plus 3 anchors = 815,029 total slots. Anchor slots carry no fabricated ORAEC token identity or linguistic annotation and render as empty text. The final slot-type name and feature names are frozen by #3.
+For the pinned snapshot the conservation contract is 815,026 source tokens plus 3 anchors = 815,029 total slots. Anchor slots carry no fabricated ORAEC token identity or linguistic annotation and render as empty text. The slot type is frozen as `word`; the anchor marker is `is_anchor=1`.
 
 ## lineCount boundary
 
@@ -112,7 +118,7 @@ Any later reconstructed line/navigation layer is converter-derived, separately p
 
 ## Text-Fabric writer
 
-After #3 freezes the ontology, #6 should implement an ORAEC-specific director over the typed IR using `tf.convert.walker.CV`.
+#6 implements ADR 0005 and `schema/core.json` through an ORAEC-specific director over the typed IR using `tf.convert.walker.CV`.
 
 The director must express the scholarly graph contract; it must not mechanically reproduce JSON nesting when that would flatten or misrepresent ORAEC semantics.
 
