@@ -243,3 +243,34 @@ def test_schema_adr_records_key_design_boundaries() -> None:
     assert "fail closed" in text
     assert "BHSA" in text
     assert "semantic sidecars" in text
+
+
+def test_mapping_families_and_hierarchy_serialization_are_frozen() -> None:
+    schema = _schema()
+    mappings = schema["mappingFamilies"]
+
+    assert mappings["mapping_oraec_trismegistos.csv"]["sourceDomain"] == "text.oraec_id"
+    assert mappings["mapping_oraec_trismegistos.csv"]["targetSystem"] == "trismegistos"
+    assert mappings["mapping_oraec_lemmata_vega.tsv"]["sourceDomain"] == "lex.lemma_id"
+    assert mappings["mapping_oraec_lemmata_vega.tsv"]["targetSystem"] == "vega"
+    assert mappings["mapping_oraec_wikidata.tsv"]["sourceDomain"] == (
+        "author.author_name OR cv.cv_id"
+    )
+    assert mappings["mapping_oraec_wikidata.tsv"]["targetSystem"] == "wikidata"
+    assert mappings["mapping_oraec_karnak.tsv"]["releaseStatus"] == (
+        "excluded_pending_issue_17"
+    )
+    assert mappings["mapping_oraec_lemmata_karnak.tsv"]["releaseStatus"] == (
+        "excluded_pending_issue_17"
+    )
+
+    hierarchy = schema["hierarchyContract"]
+    assert hierarchy["separator"] == "→"
+    assert hierarchy["emptyLabelsAreComponents"] is True
+    assert "label_component_count_equals_link_component_count" in hierarchy["requirements"]
+
+    assert set(schema["release"]["includedMappings"]) == {
+        "mapping_oraec_trismegistos.csv",
+        "mapping_oraec_wikidata.tsv",
+        "mapping_oraec_lemmata_vega.tsv",
+    }
