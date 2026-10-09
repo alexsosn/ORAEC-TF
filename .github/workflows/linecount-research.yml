@@ -9,6 +9,7 @@ on:
       - "tests/test_linecount.py"
       - ".github/workflows/linecount-research.yml"
 
+# Cancel superseded runs for the same workflow and PR/ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

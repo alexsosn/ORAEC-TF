@@ -12,6 +12,7 @@ on:
       - "tests/test_schema_preflight.py"
       - ".github/workflows/schema-preflight.yml"
 
+# Cancel superseded runs for the same workflow and PR/ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
