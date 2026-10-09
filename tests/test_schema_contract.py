@@ -182,7 +182,17 @@ def test_all_non_slot_entity_nodes_have_an_oslots_strategy() -> None:
     assert schema["nodeTypes"]["sentence"]["oslots"] == "contained_words"
     assert schema["nodeTypes"]["text"]["oslots"] == "contained_words"
     assert schema["nodeTypes"]["cv"]["oslots"] == "union_of_referencing_text_words"
+    assert schema["nodeTypes"]["author"]["oslots"] == (
+        "all_corpus_words_if_corpus_author_else_union_of_referencing_text_words"
+    )
+    assert schema["nodeTypes"]["source_ref"]["oslots"] == (
+        "union_of_referencing_text_words"
+    )
+    assert schema["nodeTypes"]["idno"]["oslots"] == "owning_text_words"
     assert schema["nodeTypes"]["hierarchy"]["oslots"] == "union_of_descendant_text_words"
+    assert schema["nodeTypes"]["external_ref"]["oslots"] == (
+        "union_of_referencing_native_node_words"
+    )
 
 
 def test_sections_and_text_formats_follow_text_fabric_contract() -> None:
@@ -219,6 +229,10 @@ def test_schema_records_source_vs_derived_provenance() -> None:
         for feature_spec in node_spec.get("features", {}).values():
             assert feature_spec["origin"] in {"source", "derived"}
             assert feature_spec["description"]
+            if feature_spec["origin"] == "source":
+                assert feature_spec["sourceField"]
+            else:
+                assert feature_spec["derivedFrom"]
 
     for edge_spec in schema["edgeFeatures"].values():
         assert edge_spec["origin"] in {"source", "derived"}
