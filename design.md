@@ -54,7 +54,7 @@ The machine-readable authority is `schema/core.json`; ADR 0005 records the ratio
 Core node types:
 
 - `word` slots, including exactly three explicitly marked technical anchors required by ADR 0002;
-- `sentence`, `text`, `lex`, `cv`, `author`, `source_ref`, `idno`, `hierarchy`, and `external_ref` nodes.
+- `sentence`, `text`, `lex`, `cv`, `author`, `source_ref`, `idno`, `hierarchy`, and `external_ref` nodes; `author` identities include both exact per-text credits and the README corpus-author list.
 
 Core edge features:
 
@@ -65,7 +65,7 @@ Core edge features:
 
 There is no core `line` node type. Lexical entities use shared `lex` nodes keyed by exact ORAEC lemma IDs. Multi-valued metadata is relational, never delimiter-packed. Known duplicate `idno` values are preserved as occurrence nodes.
 
-Every non-slot entity has an explicit `oslots` strategy because Text-Fabric 13.1 cannot serialize unlinked semantic nodes.
+Every non-slot entity has an explicit `oslots` strategy because Text-Fabric 13.1 cannot serialize unlinked semantic nodes. README-level corpus authors span all corpus slots; exact empty hierarchy labels remain real hierarchy components.
 
 ## Identity
 
