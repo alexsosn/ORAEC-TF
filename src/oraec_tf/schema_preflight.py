@@ -51,6 +51,34 @@ def _iter_delimited(path: Path, *, delimiter: str) -> list[list[str]]:
         return list(csv.reader(handle, delimiter=delimiter))
 
 
+def _corpus_authors_from_readme(path: Path) -> set[str]:
+    """Return exact authors declared for the ORAEC JSON family in README."""
+    if not path.is_file():
+        return set()
+
+    authors: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        source_spec = cells[0]
+        if not re.fullmatch(
+            r"oraec\d+\.json\s*\.\.\s*oraec\d+\.json",
+            source_spec,
+        ):
+            continue
+        authors.update(
+            author.strip()
+            for author in cells[2].split(",")
+            if author.strip()
+        )
+
+    return authors
+
+
 def audit_schema_source(root: str | Path) -> dict[str, Any]:
     """Check whether source identities/relations are representable by ADR 0005."""
     source = Path(root).resolve()
@@ -60,7 +88,9 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
     anomalies: dict[str, list[Any]] = {}
     text_ids: set[str] = set()
     lemma_ids: set[str] = set()
-    authors: set[str] = set()
+    credit_authors: set[str] = set()
+    corpus_authors = _corpus_authors_from_readme(source / "README.md")
+    authors: set[str] = set(corpus_authors)
     cv_ids_by_kind: dict[str, set[str]] = {kind: set() for kind in CV_KINDS}
 
     for path in _text_paths(source):
@@ -92,6 +122,7 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
         if isinstance(credits, dict):
             author = credits.get("author")
             if isinstance(author, str):
+                credit_authors.add(author)
                 authors.add(author)
             raw_sources = credits.get("source", [])
             if isinstance(raw_sources, list):
@@ -208,14 +239,14 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
             continue
         external_rows += 1
         key, target = row[0], row[1]
-        domains = set(cv_domains.get(key, set()))
+        key_domains = set(cv_domains.get(key, set()))
         if key in authors:
-            domains.add("author")
-        if not domains:
+            key_domains.add("author")
+        if not key_domains:
             unresolved_wikidata.add(key)
-        elif len(domains) > 1:
+        elif len(key_domains) > 1:
             ambiguous_wikidata.append(
-                {"key": key, "domains": sorted(domains)}
+                {"key": key, "domains": sorted(key_domains)}
             )
         edge = ("mapping_oraec_wikidata.tsv", key, target)
         if edge in seen_external_edges:
@@ -238,6 +269,7 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
     hierarchy_texts: list[str] = []
     seen_hierarchy_texts: set[str] = set()
     prefix_hashes: dict[str, str] = {}
+    hierarchy_empty_labels = 0
 
     for row in hierarchy_rows:
         if len(row) != 3:
@@ -255,7 +287,9 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
         if text_id not in text_ids:
             _record_anomaly(anomalies, "unknown_hierarchy_texts", text_id)
 
-        labels = path_text.split("→") if path_text != "" else []
+        # Empty string is a legitimate exact hierarchy label. Python's split
+        # deliberately yields [""] here, matching a linked empty-label anchor.
+        labels = path_text.split("→")
         links = [
             (href, html.unescape(label))
             for href, label in ANCHOR_RE.findall(linked_text)
@@ -267,6 +301,8 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
                 {"text": text_id, "labels": len(labels), "links": len(links)},
             )
             continue
+
+        hierarchy_empty_labels += sum(1 for label in labels if label == "")
 
         prefix: list[str] = []
         for depth, (label, (href, linked_label)) in enumerate(
@@ -320,8 +356,11 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
             "texts": len(text_ids),
             "lemmas": len(lemma_ids),
             "authors": len(authors),
+            "credit_authors": len(credit_authors),
+            "corpus_authors": len(corpus_authors),
             "cv_ids": sum(len(ids) for ids in cv_ids_by_kind.values()),
             "hierarchy_rows": len(hierarchy_rows),
+            "hierarchy_empty_labels": hierarchy_empty_labels,
             "external_rows": external_rows,
         },
         "anomalies": anomalies,
