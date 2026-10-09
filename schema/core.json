@@ -681,7 +681,7 @@
       "written_form": "word.written_form"
     },
     "corpusMetadata": {
-      "authors": "author nodes + author.is_corpus_author"
+      "authors": "author nodes + author.is_corpus_author + author.corpus_author_index"
     }
   },
   "mappingFamilies": {
