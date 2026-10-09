@@ -145,6 +145,8 @@ def test_credits_hierarchy_and_external_mappings_are_native() -> None:
     ]
     assert author["features"]["is_corpus_author"]["origin"] == "source"
     assert author["features"]["is_corpus_author"]["valueType"] == "int"
+    assert author["features"]["corpus_author_index"]["origin"] == "derived"
+    assert author["features"]["corpus_author_index"]["valueType"] == "int"
     assert schema["nodeTypes"]["source_ref"]["sourceIdentity"] == "source_url"
 
     hierarchy = schema["nodeTypes"]["hierarchy"]
