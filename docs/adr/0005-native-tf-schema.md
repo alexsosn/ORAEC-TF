@@ -150,7 +150,7 @@ The text-to-idno edge is unvalued. This is the intentional idno occurrence model
 
 credits.author becomes a shared author node keyed by exact author_name.
 
-The upstream README also declares an exact corpus-level author list for the `oraec1.json .. oraec13026.json` family. Those names instantiate the same author identity domain. Membership is preserved by sparse source feature `is_corpus_author=1`, and `corpus_author_index` preserves the 1-based order of the README author list. This is required by real data: Wikidata key `Renata Landgrafova` is present in the README author list but does not occur as a per-text `credits.author` value.
+The upstream README also declares an exact corpus-level author list for the `oraec1.json .. oraec13026.json` family. Those names instantiate the same author identity domain. Membership is preserved by sparse source feature `is_corpus_author=1`, and `corpus_author_index` preserves the 1-based order of the README author list. Duplicate names in that ordered corpus-author list fail closed because one shared author identity cannot losslessly carry two source positions. This is required by real data: Wikidata key `Renata Landgrafova` is present in the README author list but does not occur as a per-text `credits.author` value.
 
 credits.source list items become shared source_ref nodes keyed by exact source_url. The text-to-source edge value stores the 1-based source-list ordinal.
 
