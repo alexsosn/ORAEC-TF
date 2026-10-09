@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schema" / "core.json"
@@ -31,7 +31,7 @@ EDGE_FEATURES = {
 
 
 def _schema() -> dict[str, Any]:
-    return json.loads(SCHEMA.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(SCHEMA.read_text(encoding="utf-8")))
 
 
 def test_schema_covers_the_complete_audited_source_contract() -> None:
