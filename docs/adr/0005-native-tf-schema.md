@@ -148,7 +148,7 @@ The text-to-idno edge is unvalued. This is the intentional idno occurrence model
 
 ## Credits and provenance entities
 
-credits.author becomes a shared author node keyed by exact author_name.
+`author_name` is a shared exact-source identity whose provenance may be either per-text `credits.author` or the README corpus-author list. The machine schema records both source loci rather than pretending every author name came from per-text credits.
 
 The upstream README also declares an exact corpus-level author list for the `oraec1.json .. oraec13026.json` family. Those names instantiate the same author identity domain. Membership is preserved by sparse source feature `is_corpus_author=1`, and `corpus_author_index` preserves the 1-based order of the README author list. Duplicate names in that ordered corpus-author list fail closed because one shared author identity cannot losslessly carry two source positions. This is required by real data: Wikidata key `Renata Landgrafova` is present in the README author list but does not occur as a per-text `credits.author` value.
 
