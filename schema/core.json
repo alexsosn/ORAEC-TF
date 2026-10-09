@@ -738,7 +738,8 @@
       "every_link_component_has_one_tla_href",
       "parent_edges_follow_source_component_order",
       "text_links_to_leaf_component"
-    ]
+    ],
+    "emptyLabelsAreComponents": true
   },
   "featureMetadataPolicy": {
     "required": [
