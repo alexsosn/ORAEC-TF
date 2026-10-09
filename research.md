@@ -214,7 +214,7 @@ The hierarchy identity was tightened during adversarial design review: a TLA URL
 All source-vs-derived feature provenance is explicit. Exact source strings remain exact. Karnak mappings remain excluded by the #17 fail-closed licence gate. Unknown shapes, edge-collapsing duplicates, ambiguous Wikidata keys, malformed hierarchy alignment, unlinked semantic nodes, and source-string normalization are fatal schema violations.
 
 
-## R-008 — schema-preflight source anomalies
+## R-009 — schema-preflight source anomalies
 
 Date: 2026-10-08  
 Issue: #3
