@@ -781,7 +781,8 @@
     "unsupported_or_unlicensed_mapping_family",
     "unlinked_non_slot_node",
     "source_string_normalization",
-    "hierarchy_path_prefix_hash_collision"
+    "hierarchy_path_prefix_hash_collision",
+    "duplicate_corpus_author_identity"
   ],
   "invariants": {
     "pinnedCounts": {
