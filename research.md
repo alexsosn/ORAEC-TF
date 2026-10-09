@@ -212,3 +212,16 @@ The schema assigns every audited source field to a native node feature, node typ
 The hierarchy identity was tightened during adversarial design review: a TLA URL is retained as upstream identity evidence but is not used to collapse path occurrences, because that would assume one parent/depth context per TLA entity and could lose source path semantics.
 
 All source-vs-derived feature provenance is explicit. Exact source strings remain exact. Karnak mappings remain excluded by the #17 fail-closed licence gate. Unknown shapes, edge-collapsing duplicates, ambiguous Wikidata keys, malformed hierarchy alignment, unlinked semantic nodes, and source-string normalization are fatal schema violations.
+
+
+## R-008 — schema-preflight source anomalies
+
+Date: 2026-10-08  
+Issue: #3
+
+The first full-source ADR 0005 preflight rejected two real cases, which were investigated before changing the schema.
+
+- Wikidata key `Renata Landgrafova` does not occur as a per-text `credits.author`, but the exact name is present in the upstream README author list for the complete ORAEC JSON family. The author identity domain therefore includes both per-text credit authors and corpus-level README authors; the latter are marked explicitly by `is_corpus_author=1`.
+- Empty hierarchy component labels are legitimate. Five linked hierarchy components have an empty label. Four are trailing empty labels; `oraec12216` has a one-component hierarchy whose plain label is empty and whose linked component is TLA text `JPGGWWBWTBEFXPBJNMCQQSYSW4`. Empty strings are therefore preserved as exact labels rather than interpreted as zero components.
+
+These refinements keep the preflight fail-closed while making ADR 0005 represent the actual pinned source rather than weakening validation.
