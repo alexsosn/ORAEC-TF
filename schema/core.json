@@ -348,6 +348,12 @@
           "valueType": "int",
           "sparseValue": 1,
           "description": "Marks an exact author identity declared for the full ORAEC JSON corpus family in the upstream README."
+        },
+        "corpus_author_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based order in README author column for oraec1.json .. oraec13026.json",
+          "valueType": "int",
+          "description": "Preserves the source order of corpus-level authors declared in the upstream README."
         }
       },
       "sourceIdentitySources": [
