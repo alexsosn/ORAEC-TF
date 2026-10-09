@@ -51,12 +51,12 @@ def _iter_delimited(path: Path, *, delimiter: str) -> list[list[str]]:
         return list(csv.reader(handle, delimiter=delimiter))
 
 
-def _corpus_authors_from_readme(path: Path) -> set[str]:
-    """Return exact authors declared for the ORAEC JSON family in README."""
+def _corpus_authors_from_readme(path: Path) -> list[str]:
+    """Return ordered exact authors declared for the ORAEC JSON family."""
     if not path.is_file():
-        return set()
+        return []
 
-    authors: set[str] = set()
+    authors: list[str] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped.startswith("|"):
@@ -70,7 +70,7 @@ def _corpus_authors_from_readme(path: Path) -> set[str]:
             source_spec,
         ):
             continue
-        authors.update(
+        authors.extend(
             author.strip()
             for author in cells[2].split(",")
             if author.strip()
@@ -90,7 +90,11 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
     lemma_ids: set[str] = set()
     lemma_forms_by_id: dict[str, set[str]] = defaultdict(set)
     credit_authors: set[str] = set()
-    corpus_authors = _corpus_authors_from_readme(source / "README.md")
+    corpus_author_values = _corpus_authors_from_readme(source / "README.md")
+    duplicate_corpus_authors = _duplicate_values(corpus_author_values)
+    if duplicate_corpus_authors:
+        anomalies["duplicate_corpus_authors"] = duplicate_corpus_authors
+    corpus_authors = set(corpus_author_values)
     authors: set[str] = set(corpus_authors)
     cv_ids_by_kind: dict[str, set[str]] = {kind: set() for kind in CV_KINDS}
     cv_labels_by_kind_id: dict[str, dict[str, set[str]]] = {
