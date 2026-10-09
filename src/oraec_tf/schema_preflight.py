@@ -187,6 +187,7 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
         anomalies["cv_id_label_conflicts"] = cv_conflicts
 
     required_files = (
+        "README.md",
         "mapping_oraec_trismegistos.csv",
         "mapping_oraec_lemmata_vega.tsv",
         "mapping_oraec_wikidata.tsv",
