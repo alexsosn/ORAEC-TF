@@ -237,3 +237,38 @@ def test_preflight_rejects_missing_text_mapping_source(tmp_path: Path) -> None:
 
     assert report["ok"] is False
     assert report["anomalies"]["unresolved_trismegistos_text_ids"] == ["oraec999"]
+
+
+def test_preflight_rejects_lemma_identity_conflicts(tmp_path: Path) -> None:
+    root = _fixture(tmp_path)
+    payload = json.loads((root / "oraec2.json").read_text(encoding="utf-8"))
+    payload["oraec2"]["sentences"][0]["token"][0]["lemmaID"] = "10"
+    payload["oraec2"]["sentences"][0]["token"][0]["lemma_form"] = "different"
+    _write_json(root / "oraec2.json", payload)
+
+    report = audit_schema_source(root)
+
+    assert report["ok"] is False
+    assert report["anomalies"]["lemma_id_form_conflicts"] == [
+        {"lemma_id": "10", "forms": ["a", "different"]}
+    ]
+
+
+def test_preflight_rejects_controlled_vocabulary_identity_conflicts(
+    tmp_path: Path,
+) -> None:
+    root = _fixture(tmp_path)
+    payload = json.loads((root / "oraec2.json").read_text(encoding="utf-8"))
+    payload["oraec2"]["date"] = [{"date": "Different label", "id": "D1"}]
+    _write_json(root / "oraec2.json", payload)
+
+    report = audit_schema_source(root)
+
+    assert report["ok"] is False
+    assert report["anomalies"]["cv_id_label_conflicts"] == [
+        {
+            "kind": "date",
+            "cv_id": "D1",
+            "labels": ["Different label", "Period A"],
+        }
+    ]
