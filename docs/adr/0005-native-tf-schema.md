@@ -150,11 +150,13 @@ The text-to-idno edge is unvalued. This is the intentional idno occurrence model
 
 credits.author becomes a shared author node keyed by exact author_name.
 
+The upstream README also declares an exact corpus-level author list for the `oraec1.json .. oraec13026.json` family. Those names instantiate the same author identity domain. Membership is preserved by sparse source feature `is_corpus_author=1`. This is required by real data: Wikidata key `Renata Landgrafova` is present in the README author list but does not occur as a per-text `credits.author` value.
+
 credits.source list items become shared source_ref nodes keyed by exact source_url. The text-to-source edge value stores the 1-based source-list ordinal.
 
 credits.license remains an exact text feature because it is a scalar property of the text record.
 
-Author and source_ref nodes obtain oslots from all texts that reference them, so they remain ordinary loadable Text-Fabric nodes without extra semantic slots.
+Author nodes referenced by per-text credits obtain the union of those text slots. Corpus-level authors obtain all corpus word slots, which supplies a Text-Fabric 13.1 oslots anchor for their corpus-wide provenance scope. `is_corpus_author` distinguishes that source claim from per-text authorship. source_ref nodes obtain slots from referencing texts.
 
 ## Source hierarchy
 
@@ -167,7 +169,7 @@ This deliberately does not use the TLA URL as the node identity. A stable TLA ob
 Hierarchy node features are:
 
 - hierarchy_id — deterministic path-prefix identity;
-- hierarchy_label — exact source component label;
+- hierarchy_label — exact source component label, including the empty string when the source component label is empty;
 - hierarchy_depth — derived 1-based component position;
 - tla_url — exact source href from the linked path;
 - tla_id — identifier parsed from that URL;
@@ -177,7 +179,9 @@ parent edges run child to immediate parent. A text-to-hierarchy edge links each 
 
 Hierarchy oslots are the union of descendant text slots.
 
-Conversion fails closed if label/link component counts disagree, a linked component does not contain exactly one supported TLA href, deterministic identities collide, or the source parentage cannot be reconstructed exactly.
+Empty hierarchy labels are legitimate source values, not missing components. The pinned snapshot has five empty linked labels; four are trailing components and `oraec12216` is a one-component path whose plain label is the empty string and whose linked component points to TLA text `JPGGWWBWTBEFXPBJNMCQQSYSW4`. Exact path-prefix identity includes the empty label plus its href.
+
+Conversion fails closed if label/link component counts disagree after preserving empty components, a linked component does not contain exactly one supported TLA href, deterministic identities collide, or the source parentage cannot be reconstructed exactly.
 
 ## External mappings
 
@@ -259,7 +263,8 @@ Text-Fabric 13.1 removes or cannot serialize unlinked non-slot nodes. Every nati
 
 - sentence and text: contained words;
 - lex: union of occurrence words;
-- cv, author, source_ref: union of words in referencing texts;
+- cv and source_ref: union of words in referencing texts;
+- author: all corpus words for README corpus authors, otherwise union of words in referencing texts;
 - idno: words of its owning text;
 - hierarchy: union of descendant text words;
 - external_ref: union of the slots of native entities that map to it.
