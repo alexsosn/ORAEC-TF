@@ -169,6 +169,8 @@ def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
         stdout = ""
         if args[-2:] == ["rev-parse", "HEAD"]:
             stdout = f"{revision}\n"
+        elif args[-2:] == ["rev-parse", "--show-toplevel"]:
+            stdout = str(Path(args[1]).resolve()) + "\n"
         elif args[-3:] == ["status", "--porcelain", "--untracked-files=all"]:
             stdout = ""
         return subprocess.CompletedProcess(["git", *args], 0, stdout=stdout, stderr="")
@@ -192,6 +194,7 @@ def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
         for args in command_args
     )
     assert any(args[-2:] == ["rev-parse", "HEAD"] for args in command_args)
+    assert any(args[-2:] == ["rev-parse", "--show-toplevel"] for args in command_args)
     assert any(
         args[-3:] == ["status", "--porcelain", "--untracked-files=all"]
         for args in command_args
