@@ -88,10 +88,14 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
     anomalies: dict[str, list[Any]] = {}
     text_ids: set[str] = set()
     lemma_ids: set[str] = set()
+    lemma_forms_by_id: dict[str, set[str]] = defaultdict(set)
     credit_authors: set[str] = set()
     corpus_authors = _corpus_authors_from_readme(source / "README.md")
     authors: set[str] = set(corpus_authors)
     cv_ids_by_kind: dict[str, set[str]] = {kind: set() for kind in CV_KINDS}
+    cv_labels_by_kind_id: dict[str, dict[str, set[str]]] = {
+        kind: defaultdict(set) for kind in CV_KINDS
+    }
 
     for path in _text_paths(source):
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -111,6 +115,9 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
                 if isinstance(raw_id, str):
                     ids.append(raw_id)
                     cv_ids_by_kind[kind].add(raw_id)
+                    raw_label = item.get(kind)
+                    if isinstance(raw_label, str):
+                        cv_labels_by_kind_id[kind][raw_id].add(raw_label)
             for duplicate in _duplicate_values(ids):
                 _record_anomaly(
                     anomalies,
@@ -153,6 +160,31 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
                 lemma_id = token.get("lemmaID")
                 if isinstance(lemma_id, str):
                     lemma_ids.add(lemma_id)
+                    lemma_form = token.get("lemma_form")
+                    if isinstance(lemma_form, str):
+                        lemma_forms_by_id[lemma_id].add(lemma_form)
+
+    lemma_conflicts = [
+        {"lemma_id": lemma_id, "forms": sorted(forms)}
+        for lemma_id, forms in sorted(lemma_forms_by_id.items())
+        if len(forms) > 1
+    ]
+    if lemma_conflicts:
+        anomalies["lemma_id_form_conflicts"] = lemma_conflicts
+
+    cv_conflicts: list[dict[str, Any]] = []
+    for kind in CV_KINDS:
+        for cv_id, labels in sorted(cv_labels_by_kind_id[kind].items()):
+            if len(labels) > 1:
+                cv_conflicts.append(
+                    {
+                        "kind": kind,
+                        "cv_id": cv_id,
+                        "labels": sorted(labels),
+                    }
+                )
+    if cv_conflicts:
+        anomalies["cv_id_label_conflicts"] = cv_conflicts
 
     required_files = (
         "mapping_oraec_trismegistos.csv",
