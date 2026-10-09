@@ -54,7 +54,7 @@ def test_schema_covers_the_complete_audited_source_contract() -> None:
         "authors": "README licence-table author column for oraec1.json .. oraec13026.json"
     }
     assert schema["sourceCoverage"]["corpusMetadata"] == {
-        "authors": "author nodes + author.is_corpus_author"
+        "authors": "author nodes + author.is_corpus_author + author.corpus_author_index"
     }
     assert schema["source"]["revision"] == (
         "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
