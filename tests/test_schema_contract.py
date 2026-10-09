@@ -229,6 +229,10 @@ def test_fail_closed_rules_prevent_lossy_or_ambiguous_materialization() -> None:
 
 def test_schema_records_source_vs_derived_provenance() -> None:
     schema = _schema()
+    assert schema["featureMetadataPolicy"]["sourceFeaturesRequireOneOf"] == [
+        "sourceField",
+        "sourceFields",
+    ]
 
     for node_spec in schema["nodeTypes"].values():
         for feature_spec in node_spec.get("features", {}).values():
