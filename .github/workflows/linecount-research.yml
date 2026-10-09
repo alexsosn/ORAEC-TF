@@ -9,6 +9,10 @@ on:
       - "tests/test_linecount.py"
       - ".github/workflows/linecount-research.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyse:
     runs-on: ubuntu-latest
