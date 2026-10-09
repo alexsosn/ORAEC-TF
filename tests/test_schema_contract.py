@@ -131,7 +131,14 @@ def test_multivalued_metadata_is_relational_not_packed() -> None:
 def test_credits_hierarchy_and_external_mappings_are_native() -> None:
     schema = _schema()
 
-    assert schema["nodeTypes"]["author"]["sourceIdentity"] == "author_name"
+    author = schema["nodeTypes"]["author"]
+    assert author["sourceIdentity"] == "author_name"
+    assert author["sourceIdentitySources"] == [
+        "credits.author",
+        "README corpus author column",
+    ]
+    assert author["features"]["is_corpus_author"]["origin"] == "source"
+    assert author["features"]["is_corpus_author"]["valueType"] == "int"
     assert schema["nodeTypes"]["source_ref"]["sourceIdentity"] == "source_url"
 
     hierarchy = schema["nodeTypes"]["hierarchy"]
@@ -212,6 +219,7 @@ def test_schema_records_source_vs_derived_provenance() -> None:
     assert schema["nodeTypes"]["word"]["features"]["trailer"]["origin"] == "derived"
     assert schema["nodeTypes"]["sentence"]["features"]["sentence_index"]["origin"] == "derived"
     assert schema["nodeTypes"]["hierarchy"]["features"]["hierarchy_id"]["origin"] == "derived"
+    assert schema["nodeTypes"]["author"]["features"]["is_corpus_author"]["origin"] == "source"
 
 
 def test_schema_adr_records_key_design_boundaries() -> None:
