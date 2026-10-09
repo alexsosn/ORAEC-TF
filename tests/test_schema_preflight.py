@@ -13,6 +13,12 @@ def _write_json(path: Path, payload: object) -> None:
 def _fixture(tmp_path: Path) -> Path:
     root = tmp_path / "source"
     root.mkdir()
+    (root / "README.md").write_text(
+        "| file | license | author | source |\n"
+        "| --- | --- | --- | --- |\n"
+        "| oraec1.json .. oraec2.json | cc-by-sa-4.0 | Editor A, Editor B | synthetic |\n",
+        encoding="utf-8",
+    )
 
     _write_json(
         root / "oraec1.json",
@@ -272,3 +278,15 @@ def test_preflight_rejects_controlled_vocabulary_identity_conflicts(
             "labels": ["Different label", "Period A"],
         }
     ]
+
+
+def test_preflight_requires_readme_when_corpus_author_identity_is_in_schema(
+    tmp_path: Path,
+) -> None:
+    root = _fixture(tmp_path)
+    (root / "README.md").unlink()
+
+    report = audit_schema_source(root)
+
+    assert report["ok"] is False
+    assert report["anomalies"]["missing_required_files"] == ["README.md"]
