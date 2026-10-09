@@ -151,6 +151,7 @@ def test_credits_hierarchy_and_external_mappings_are_native() -> None:
 
     hierarchy = schema["nodeTypes"]["hierarchy"]
     assert hierarchy["sourceIdentity"] == "exact_path_prefix"
+    assert hierarchy["features"]["hierarchy_label"]["supportsEmptyString"] is True
     assert hierarchy["features"]["tla_url"]["origin"] == "source"
     assert hierarchy["features"]["tla_id"]["origin"] == "derived"
     assert schema["edgeFeatures"]["parent"]["from"] == ["hierarchy"]
