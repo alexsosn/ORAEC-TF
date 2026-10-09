@@ -139,6 +139,11 @@ def test_credits_hierarchy_and_external_mappings_are_native() -> None:
 
     author = schema["nodeTypes"]["author"]
     assert author["sourceIdentity"] == "author_name"
+    assert author["features"]["author_name"]["sourceFields"] == [
+        "credits.author",
+        "README author column for oraec1.json .. oraec13026.json",
+    ]
+    assert "sourceField" not in author["features"]["author_name"]
     assert author["sourceIdentitySources"] == [
         "credits.author",
         "README corpus author column",
@@ -230,7 +235,7 @@ def test_schema_records_source_vs_derived_provenance() -> None:
             assert feature_spec["origin"] in {"source", "derived"}
             assert feature_spec["description"]
             if feature_spec["origin"] == "source":
-                assert feature_spec["sourceField"]
+                assert feature_spec.get("sourceField") or feature_spec.get("sourceFields")
             else:
                 assert feature_spec["derivedFrom"]
 
