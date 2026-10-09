@@ -337,10 +337,13 @@
       "features": {
         "author_name": {
           "origin": "source",
-          "sourceField": "credits.author",
           "valueType": "str",
           "exact": true,
-          "description": "Exact ORAEC credits.author string."
+          "description": "Exact ORAEC credits.author string.",
+          "sourceFields": [
+            "credits.author",
+            "README author column for oraec1.json .. oraec13026.json"
+          ]
         },
         "is_corpus_author": {
           "origin": "source",
@@ -748,7 +751,7 @@
       "description"
     ],
     "sourceFeaturesAlsoRequire": [
-      "sourceField"
+      "sourceField OR sourceFields"
     ],
     "derivedFeaturesAlsoRequire": [
       "derivedFrom"
