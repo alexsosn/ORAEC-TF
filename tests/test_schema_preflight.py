@@ -108,6 +108,49 @@ def test_preflight_accepts_resolvable_native_domains(tmp_path: Path) -> None:
     assert report["anomalies"] == {}
 
 
+def test_preflight_resolves_corpus_level_readme_author_for_wikidata(
+    tmp_path: Path,
+) -> None:
+    root = _fixture(tmp_path)
+    (root / "README.md").write_text(
+        "| file | license | author | source |\n"
+        "| --- | --- | --- | --- |\n"
+        "| oraec1.json .. oraec2.json | cc-by-sa-4.0 | "
+        "Editor A, Editor B, Corpus Contributor | synthetic |\n",
+        encoding="utf-8",
+    )
+    (root / "mapping_oraec_wikidata.tsv").write_text(
+        "Corpus Contributor\tQ3\n",
+        encoding="utf-8",
+    )
+
+    report = audit_schema_source(root)
+
+    assert report["ok"] is True
+    assert report["counts"]["credit_authors"] == 2
+    assert report["counts"]["corpus_authors"] == 3
+    assert report["counts"]["authors"] == 3
+    assert report["anomalies"] == {}
+
+
+def test_preflight_accepts_one_component_empty_hierarchy_label(tmp_path: Path) -> None:
+    root = _fixture(tmp_path)
+    (root / "oraec_hierarchical_path.tsv").write_text(
+        "oraec1\t\t"
+        '<a href="https://thesaurus-linguae-aegyptiae.de/text/T1"></a>\n'
+        "oraec2\tRoot→Leaf B\t"
+        '<a href="https://thesaurus-linguae-aegyptiae.de/object/ROOT">Root</a>→'
+        '<a href="https://thesaurus-linguae-aegyptiae.de/text/T2">Leaf B</a>\n',
+        encoding="utf-8",
+    )
+
+    report = audit_schema_source(root)
+
+    assert report["ok"] is True
+    assert report["counts"]["hierarchy_empty_labels"] == 1
+    assert report["anomalies"] == {}
+
+
 def test_preflight_rejects_ambiguous_wikidata_key_domain(tmp_path: Path) -> None:
     root = _fixture(tmp_path)
     payload = json.loads((root / "oraec2.json").read_text(encoding="utf-8"))
