@@ -409,7 +409,8 @@
           "sourceField": "oraec_hierarchical_path.tsv.column2.component",
           "valueType": "str",
           "exact": true,
-          "description": "Exact source label for one hierarchy component."
+          "description": "Exact source label for one hierarchy component.",
+          "supportsEmptyString": true
         },
         "hierarchy_depth": {
           "origin": "derived",
