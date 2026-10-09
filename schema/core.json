@@ -56,7 +56,10 @@
     "derivedFamiliesNotCore": [
       "collocation",
       "statistics"
-    ]
+    ],
+    "corpusMetadata": {
+      "authors": "README licence-table author column for oraec1.json .. oraec13026.json"
+    }
   },
   "slotType": "word",
   "nodeTypes": {
@@ -330,7 +333,7 @@
     },
     "author": {
       "sourceIdentity": "author_name",
-      "oslots": "union_of_referencing_text_words",
+      "oslots": "all_corpus_words_if_corpus_author_else_union_of_referencing_text_words",
       "features": {
         "author_name": {
           "origin": "source",
@@ -338,8 +341,19 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact ORAEC credits.author string."
+        },
+        "is_corpus_author": {
+          "origin": "source",
+          "sourceField": "README author column for oraec1.json .. oraec13026.json",
+          "valueType": "int",
+          "sparseValue": 1,
+          "description": "Marks an exact author identity declared for the full ORAEC JSON corpus family in the upstream README."
         }
-      }
+      },
+      "sourceIdentitySources": [
+        "credits.author",
+        "README corpus author column"
+      ]
     },
     "source_ref": {
       "sourceIdentity": "source_url",
@@ -659,6 +673,9 @@
       "verbalClass": "word.verbal_class",
       "voice": "word.voice",
       "written_form": "word.written_form"
+    },
+    "corpusMetadata": {
+      "authors": "author nodes + author.is_corpus_author"
     }
   },
   "mappingFamilies": {
