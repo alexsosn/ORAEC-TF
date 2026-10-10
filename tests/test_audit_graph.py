@@ -215,3 +215,40 @@ def test_independent_relation_audit_rejects_invented_credit_from_readme(
              corpus_metadata=CorpusMetadataIR(("Editor A", "README Only")))
     with pytest.raises(GraphConservationError, match="author"):
         audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_changed_wikidata_mapping(
+    tmp_path: Path,
+) -> None:
+    source, record = _relational_source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf(
+        (record,),
+        output,
+        source_revision=REVISION,
+        corpus_metadata=CorpusMetadataIR(("Editor A", "README Only")),
+        mapping_tables=(
+            MappingTableIR(
+                filename="mapping_oraec_wikidata.tsv",
+                source_domain="author.author_name OR cv.cv_id",
+                target_system="wikidata",
+                release_included=True,
+                rows=(MappingRowIR(source="README Only", target="Q42"),),
+            ),
+        ),
+    )
+    (source / "mapping_oraec_wikidata.tsv").write_text(
+        "README Only\tQ99\n", encoding="utf-8"
+    )
+    with pytest.raises(GraphConservationError, match="mapping|external|wikidata"):
+        audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_lost_readme_contributor_identity(
+    tmp_path: Path,
+) -> None:
+    source, record = _relational_source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match="README|corpus author"):
+        audit_basic_graph(source, output)
