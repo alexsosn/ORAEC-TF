@@ -687,3 +687,19 @@ def test_independent_pinned_hiero_census_accepts_exact_source_counts() -> None:
     _validate_hiero_counts(
         {"present": 267042, "placeholder": 13198, "replacement": 6545}
     )
+
+
+
+def test_independent_auditor_rejects_nonstring_source_hiero_cleanly(
+    tmp_path: Path,
+) -> None:
+    """An invalid raw hiero type must not crash the source auditor with TypeError."""
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    raw["oraec1"]["sentences"][0]["token"][0]["hiero"] = None
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match="hiero"):
+        audit_basic_graph(source, output)
