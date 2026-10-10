@@ -95,9 +95,57 @@ licence remains unresolved (#17). This is a development conversion path;
 independent raw-source-to-TF validation (#8), the TF advanced app (#9),
 researcher documentation (#10), and Agora integration (#11) remain 0.1.0 gates.
 
-## Text-Fabric app/browser
+## Text-Fabric advanced app and browser
 
-The repository includes the standard Text-Fabric advanced-app configuration under `app/`. Its display contract will be completed after the native TF schema is frozen in issue #3. A custom web application is not required to browse the generated corpus.
+The repository ships a **standard TF advanced app** in `app/config.yaml`. You
+can browse an ephemeral or published TF artifact; source JSON and generated
+`.tf` files are **never committed to this software repository**.
+
+After completing the local conversion above, in the repository directory:
+
+```bash
+# Local TF browser using the repository's app and an external TF data folder.
+python -m tf.browser.start "app:$(pwd)/app" --locations="$(pwd)/build/oraec-tf"
+```
+
+The corresponding programmatic interface can reuse a core Fabric API without
+fetching anything:
+
+```python
+from pathlib import Path
+from tf.fabric import Fabric
+from tf.app import use
+
+root = Path.cwd()  # root of the ORAEC-TF checkout
+api = Fabric(locations=str(root / "build" / "oraec-tf"), silent="deep").loadAll(
+    silent="deep"
+)
+A = use(f"app:{root / 'app'}", api=api, silent="deep")
+assert A is not None
+
+# ORAEC identity and Text-Fabric section browsing
+text = next(n for n in api.F.otype.s("text") if api.F.oraec_id.v(n) == "oraec1")
+first_sentence = api.L.d(text, otype="sentence")[0]
+assert api.T.sectionFromNode(first_sentence) == ("oraec1", 1)
+
+# Ordinary TF text formats: Egyptian transliteration and raw hieroglyphic Unicode
+print(api.T.text(first_sentence, fmt="text-orig-full"))
+print(api.T.text(first_sentence, fmt="text-orig-hiero"))
+```
+
+The section hierarchy is `text(oraec_id) → sentence(sentence_index)`.
+`word.written_form` supplies transliteration, `word.hiero` supplies the
+hieroglyphic text when available, and `word.trailer` controls spacing.
+Missing hieroglyphic annotations remain missing; the app does not transliterate,
+normalize, infer signs, or create placeholder glyphs. Text-Fabric has no
+built-in `egy` writing profile, so the app uses the neutral, left-to-right
+writing setting and separately styled `trans` / `orig` text formats.
+
+The app does **not** fabricate links from an ORAEC identifier to a TLA URL.
+The original linked hierarchy is queryable through native `hierarchy.tla_url`
+and the `hierarchy` / `parent` edges. CR-bearing transport values require
+the exact reconstruction described above when compared to upstream source.
+A public TF data release and Agora materializer are separate work (#11–#12).
 
 ## Agora
 
