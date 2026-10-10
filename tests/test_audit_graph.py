@@ -360,3 +360,19 @@ def test_audit_report_hashes_generated_tf_without_semantic_sidecars(
         path.stat().st_size for path in output.glob("*.tf")
     )
     assert all(path.endswith(".tf") for path in report["output_sha256"])
+
+
+@pytest.mark.parametrize("field", ["bibliography", "condition"])
+def test_independent_audit_rejects_fabricated_optional_text_values(
+    tmp_path: Path, field: str
+) -> None:
+    """An absent source annotation must not acquire an invented TF value."""
+    source, text = _source(tmp_path)
+    if field == "bibliography":
+        fabricated = replace(text, bibliography="invented bibliography")
+    else:
+        fabricated = replace(text, condition="invented condition")
+    output = tmp_path / "tf"
+    write_tf((fabricated,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match=field):
+        audit_basic_graph(source, output)
