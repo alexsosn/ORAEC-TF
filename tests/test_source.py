@@ -174,6 +174,46 @@ def test_verify_source_rejects_untracked_files(tmp_path: Path) -> None:
         verify_source(source, expected_revision=revision)
 
 
+
+def test_fetch_materializes_real_local_commit_without_storing_source_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED: old ORAEC fetch leaves the origin URL and FETCH_HEAD in the checkout."""
+    from oraec_tf import source as source_module
+
+    upstream, revision = _make_git_source(tmp_path)
+    monkeypatch.setattr(source_module, "SOURCE_REPOSITORY", str(upstream))
+    target = tmp_path / "acquired"
+    snapshot = fetch_source(target, revision=revision.upper())
+
+    assert snapshot.path == target.resolve()
+    assert snapshot.revision == revision
+    assert (target / "README.md").read_text(encoding="utf-8") == "source\n"
+    assert _git(target, "status", "--porcelain", "--untracked-files=all") == ""
+    assert _git(target, "rev-parse", "HEAD") == revision
+    symbolic = subprocess.run(
+        ["git", "-C", str(target), "symbolic-ref", "-q", "HEAD"],
+        capture_output=True, text=True,
+    )
+    assert symbolic.returncode != 0
+    assert _git(target, "remote") == "", "published source must not retain a remote URL"
+    assert not (target / ".git" / "FETCH_HEAD").exists()
+    assert not tuple(tmp_path.glob(".acquired.tf-build-*"))
+
+
+def test_fetch_uses_source_specific_40_hex_contract_before_acquisition(
+    tmp_path: Path,
+) -> None:
+    from oraec_tf import source as source_module
+
+    with patch.object(source_module, "_run_git") as old_git:
+        with pytest.raises(SourceAcquisitionError, match="40-hex"):
+            fetch_source(tmp_path / "source", revision="f" * 64)
+    old_git.assert_not_called()
+    assert not (tmp_path / "source").exists()
+
+
+
 def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
     revision = DEFAULT_SOURCE_REVISION
     calls: list[tuple[list[str], bool]] = []
