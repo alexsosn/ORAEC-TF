@@ -85,6 +85,14 @@ class NativeCRIndex:
         feature_accessor = getattr(api.F, "cr_feature", None)
         offset_accessor = getattr(api.F, "cr_offset", None)
         owner_edge = getattr(api.E, "cr_owner", None)
+        if owner_edge is not None:
+            # Inspect *all* feature sources, not just expected CR nodes:
+            # otherwise a forged edge from a normal node goes undetected.
+            unknown = set(dict(owner_edge.items())) - set(nodes)
+            if unknown:
+                raise ControlCharacterError(
+                    "CR owner edge originates outside occurrence nodes"
+                )
         if not nodes:
             return
         if (
