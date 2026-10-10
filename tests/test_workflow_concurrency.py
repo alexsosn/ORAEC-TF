@@ -67,3 +67,12 @@ def test_agora_pinned_source_gate_runs_for_source_dependency_changes() -> None:
         "pyproject.toml",
     ):
         assert f'      - "{source_impact}"' in path_filters, source_impact
+
+
+def test_agora_full_source_gate_runs_for_conversion_publication_changes() -> None:
+    """RED: changing the converter CLI must exercise the Agora host path."""
+    workflow = (WORKFLOWS / "agora-materializer.yml").read_text(encoding="utf-8")
+    assert "    paths:\n" in workflow
+    filters = workflow.split("    paths:\n", 1)[1].split("\nconcurrency:", 1)[0]
+    for affected in ("src/oraec_tf/cli.py", "tests/test_cli.py"):
+        assert f'      - "{affected}"' in filters, affected
