@@ -5,6 +5,7 @@ import os
 from contextlib import ExitStack
 from io import StringIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -14,12 +15,12 @@ from tf_build.workspace import BuildWorkspace
 
 from oraec_tf.cli import main
 from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
-from oraec_tf.writer import write_tf as real_write_tf
 from oraec_tf.source import (
     DEFAULT_SOURCE_REVISION,
     SOURCE_REPOSITORY,
     SourceSnapshot,
 )
+from oraec_tf.writer import write_tf as real_write_tf
 
 
 def test_source_info_reports_reproducible_default() -> None:
@@ -280,7 +281,7 @@ def test_convert_rejects_invalid_raw_tf_despite_newer_binary_cache(
     source.mkdir()
     target = tmp_path / "published"
 
-    def corrupt_after_writing(*args: object, **kwargs: object) -> None:
+    def corrupt_after_writing(*args: Any, **kwargs: Any) -> None:
         real_write_tf(*args, **kwargs)
         stage = Path(args[1])
         feature = stage / "sentence_index.tf"
