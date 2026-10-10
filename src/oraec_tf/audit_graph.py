@@ -88,9 +88,67 @@ def _edge_targets(api: Any, feature: str, source_node: int) -> Any:
     return () if accessor is None else accessor.f(source_node)
 
 
+def _decode_transport_value(
+    encoded: str, cr_positions: str, source_feature: str,
+) -> str:
+    """Independently reconstruct exact CR values from the native TF grammar.
+
+    This verifier deliberately does not import the writer's encoder/decoder.
+    Instead of inserting into a string, it walks the original character-index
+    space and interleaves literal CR with the encoded transport characters.
+    """
+    positions_by_field: dict[str, list[int]] = {}
+    for item in cr_positions.split("|"):
+        if item.count("=") != 1:
+            raise GraphConservationError("invalid native CR offset entry")
+        name, data = item.split("=")
+        if re.fullmatch(r"[a-z][a-z0-9_]*", name) is None:
+            raise GraphConservationError("invalid native CR offset feature name")
+        if name in positions_by_field:
+            raise GraphConservationError("duplicate native CR offset feature")
+        numbers = data.split(",")
+        if not numbers or any(
+            re.fullmatch(r"(?:0|[1-9][0-9]*)", digit) is None
+            for digit in numbers
+        ):
+            raise GraphConservationError("invalid native CR offset integer")
+        decoded = [int(n) for n in numbers]
+        if decoded != sorted(set(decoded)):
+            raise GraphConservationError("unordered/repeated native CR offsets")
+        positions_by_field[name] = decoded
+
+    positions = positions_by_field.get(source_feature)
+    if positions is None:
+        return encoded
+    if "\r" in encoded:
+        raise GraphConservationError("native TF feature still contains raw CR")
+    total = len(encoded) + len(positions)
+    if positions[-1] >= total:
+        raise GraphConservationError("native CR position exceeds source length")
+    restored: list[str] = []
+    cr_index = 0
+    for original_index in range(total):
+        if cr_index < len(positions) and positions[cr_index] == original_index:
+            restored.append("\r")
+            cr_index += 1
+        else:
+            restored.append(encoded[original_index - cr_index])
+    if cr_index != len(positions):
+        raise GraphConservationError("native CR offset restoration incomplete")
+    return "".join(restored)
+
+
 def _node_value(api: Any, feature: str, node: int) -> Any:
     accessor = getattr(api.F, feature, None)
-    return None if accessor is None else accessor.v(node)
+    value = None if accessor is None else accessor.v(node)
+    if not isinstance(value, str) or feature.endswith("_cr_offsets"):
+        return value
+    node_type = api.F.otype.v(node)
+    offset_accessor = getattr(api.F, f"{node_type}_cr_offsets", None)
+    serial = None if offset_accessor is None else offset_accessor.v(node)
+    return (
+        value if not serial else _decode_transport_value(value, serial, feature)
+    )
 
 
 def _verify_text_relations(api: Any, text_node: int, source: dict[str, Any],
@@ -630,7 +688,7 @@ def audit_basic_graph(
         raise GraphConservationError("generated Text-Fabric output did not load")
 
     tf_texts = {
-        api.F.oraec_id.v(n): n for n in api.F.otype.s("text")
+        _node_value(api, "oraec_id", n): n for n in api.F.otype.s("text")
     }
     if len(tf_texts) != len(api.F.otype.s("text")):
         raise GraphConservationError("duplicate Text-Fabric text identity")
@@ -671,10 +729,10 @@ def audit_basic_graph(
         if text_node is None:
             raise GraphConservationError(f"missing TF text {text_id}")
         _expect_equal(
-            api.F.title.v(text_node), source_text["title"], context=f"{text_id}.title"
+            _node_value(api, "title", text_node), source_text["title"], context=f"{text_id}.title"
         )
         _expect_equal(
-            api.F.license.v(text_node),
+            _node_value(api, "license", text_node),
             source_text["credits"]["license"],
             context=f"{text_id}.credits.license",
         )
@@ -708,7 +766,7 @@ def audit_basic_graph(
                 context=f"{text_id}.sentence_index",
             )
             _expect_equal(
-                api.F.translation.v(sentence_node),
+                _node_value(api, "translation", sentence_node),
                 raw_sentence["translation"],
                 context=f"{text_id}.sentence[{index}].translation",
             )
@@ -725,7 +783,7 @@ def audit_basic_graph(
                     context=f"{text_id}.sentence[{index}].is_anchor",
                 )
                 _expect_equal(
-                    api.F.token_id.v(anchor),
+                    _node_value(api, "token_id", anchor),
                     None,
                     context=f"{text_id}.sentence[{index}].anchor.token_id",
                 )
@@ -752,8 +810,7 @@ def audit_basic_graph(
                         )
                     for raw_field, tf_feature in SOURCE_WORD_FIELDS.items():
                         expected = raw_token.get(raw_field)
-                        tf_feature_obj = getattr(api.F, tf_feature, None)
-                        actual = None if tf_feature_obj is None else tf_feature_obj.v(slot)
+                        actual = _node_value(api, tf_feature, slot)
                         _expect_equal(
                             actual,
                             expected,
