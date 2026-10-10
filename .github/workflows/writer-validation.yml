@@ -3,6 +3,7 @@ name: Native Text-Fabric writer source validation
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "src/oraec_tf/writer.py"
       - "src/oraec_tf/cli.py"
@@ -27,6 +28,9 @@ concurrency:
 
 jobs:
   validate:
+    # Draft pushes run cheap CI only; a ready-for-review event guarantees
+    # the exact current head is validated before eligibility for merge.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
