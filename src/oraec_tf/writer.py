@@ -1,24 +1,26 @@
-"""Native Text-Fabric writer for the core ORAEC word/sentence/text spine.
+"""Write a native ORAEC Text-Fabric graph directly from the typed source IR.
 
-The graph is deliberately incomplete while #6 is a draft. It must not be
-published as a corpus materializer until the remaining ADR 0005 node/edge
-families are implemented and independently validated.
+Issue #6 is still a draft until hierarchy, complete CLI conversion, whole-source
+loadability, and the independent source-to-TF audit are implemented. No semantic
+sidecars or raw JSON feature values are emitted.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from collections import defaultdict
 from collections.abc import Iterable
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 from tf.convert.walker import CV
 from tf.fabric import Fabric
 
-from .ir import TextIR
+from .ir import CorpusMetadataIR, MappingTableIR, TextIR
 
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
-
 WORD_FIELDS = (
     "token_id",
     "written_form",
@@ -41,7 +43,18 @@ WORD_FIELDS = (
     "verbal_class",
     "status",
 )
-INT_FEATURES = {"sentence_index", "is_anchor"}
+CV_FIELDS = {
+    "date": "dates",
+    "origplace": "original_places",
+    "objecttype": "object_types",
+    "location": "locations",
+    "material": "materials",
+}
+INCLUDED_MAPPINGS = {
+    "trismegistos": "mapping_oraec_trismegistos.csv",
+    "vega": "mapping_oraec_lemmata_vega.tsv",
+    "wikidata": "mapping_oraec_wikidata.tsv",
+}
 OTEXT = {
     "sectionTypes": "text,sentence",
     "sectionFeatures": "oraec_id,sentence_index",
@@ -50,45 +63,68 @@ OTEXT = {
 
 
 class WriterError(ValueError):
-    """The typed source cannot be emitted as a valid native TF graph."""
+    """The source or schema cannot be serialized into the frozen TF graph."""
 
 
-def _feature_metadata(used_features: set[str]) -> dict[str, dict[str, str]]:
-    """Read frozen feature declarations; avoid writing conflicting metadata."""
-    import json
-    from importlib.resources import files
-
-    schema_path = Path(__file__).resolve().parents[2] / "schema" / "core.json"
-    if schema_path.is_file():
-        # Editable source checkout: read the authoritative repository contract.
-        schema_content = schema_path.read_text(encoding="utf-8")
+def _schema() -> dict[str, Any]:
+    path = Path(__file__).resolve().parents[2] / "schema" / "core.json"
+    if path.is_file():
+        content = path.read_text(encoding="utf-8")
     else:
-        # Wheel: setup.py bundles an exact build-time copy of that same file.
-        schema_content = files("oraec_tf").joinpath("schema_core.json").read_text(
+        content = files("oraec_tf").joinpath("schema_core.json").read_text(
             encoding="utf-8"
         )
-    schema = json.loads(schema_content)
-    names = used_features
-    result: dict[str, dict[str, str]] = {}
-    for node_type in ("word", "sentence", "text"):
-        for feature, spec in schema["nodeTypes"][node_type]["features"].items():
-            if feature not in names:
-                continue
-            result[feature] = {
+    result: dict[str, Any] = json.loads(content)
+    return result
+
+
+def _feature_contract() -> tuple[dict[str, dict[str, str]], set[str]]:
+    contract = _schema()
+    metadata: dict[str, dict[str, str]] = {}
+    int_features: set[str] = set()
+    for kind in contract["nodeTypes"].values():
+        for name, spec in kind["features"].items():
+            if name in metadata:
+                raise WriterError(f"duplicate feature metadata definition: {name}")
+            metadata[name] = {
                 "description": spec["description"],
                 "origin": spec["origin"],
             }
             if "sourceField" in spec:
-                result[feature]["sourceField"] = spec["sourceField"]
-    if set(result) != names:
-        raise WriterError(f"schema metadata mismatch: {sorted(names - set(result))}")
-    return result
+                metadata[name]["sourceField"] = spec["sourceField"]
+            if spec["valueType"] == "int":
+                int_features.add(name)
+    for name, spec in contract["edgeFeatures"].items():
+        if name in metadata:
+            raise WriterError(f"node and edge feature name collision: {name}")
+        metadata[name] = {
+            "description": spec["description"],
+            "origin": spec["origin"],
+        }
+        if "sourceField" in spec:
+            metadata[name]["sourceField"] = spec["sourceField"]
+        if spec["valueType"] == "int":
+            int_features.add(name)
+    return metadata, int_features
+
+
+def _feature_metadata(used_features: set[str]) -> dict[str, dict[str, str]]:
+    metadata, _ = _feature_contract()
+    unknown = used_features - metadata.keys()
+    if unknown:
+        raise WriterError(f"schema metadata mismatch: {sorted(unknown)}")
+    return {name: meta for name, meta in metadata.items() if name in used_features}
 
 
 def write_tf(
-    texts: Iterable[TextIR], output_dir: str | Path, *, source_revision: str
+    texts: Iterable[TextIR],
+    output_dir: str | Path,
+    *,
+    source_revision: str,
+    corpus_metadata: CorpusMetadataIR | None = None,
+    mapping_tables: Iterable[MappingTableIR] = (),
 ) -> None:
-    """Write the initial source-token spine; #6 remains draft until full graph."""
+    """Materialize the current draft of the native graph into standard TF files."""
     if COMMIT_RE.fullmatch(source_revision) is None:
         raise WriterError("source_revision must be an immutable 40-hex Git commit")
     records = tuple(texts)
@@ -104,65 +140,221 @@ def write_tf(
             range(1, len(record.sentences) + 1)
         ):
             raise WriterError(f"non-contiguous sentence indices: {record.oraec_id}")
+    corpus_authors = () if corpus_metadata is None else corpus_metadata.corpus_authors
+    if len(corpus_authors) != len(set(corpus_authors)):
+        raise WriterError("duplicate corpus author names")
+    tables = tuple(mapping_tables)
+    for table in tables:
+        if table.release_included and (
+            INCLUDED_MAPPINGS.get(table.target_system) != table.filename
+        ):
+            raise WriterError(f"unapproved mapping family: {table.filename}")
 
-    used_features = {
-        "oraec_id", "title", "license", "sentence_index", "translation", "trailer"
-    }
-    for record in records:
-        if record.bibliography is not None:
-            used_features.add("bibliography")
-        if record.condition is not None:
-            used_features.add("condition")
-        for sentence in record.sentences:
-            if not sentence.tokens:
-                used_features.add("is_anchor")
-            for token in sentence.tokens:
-                used_features.update(
-                    field for field in WORD_FIELDS if getattr(token, field) is not None
-                )
-    if "written_form" not in used_features:
-        raise WriterError("cannot produce a text format without real ORAEC words")
-
+    metadata, int_features = _feature_contract()
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
-    tf = Fabric(locations=str(output), silent="deep")
-    cv = CV(tf, silent="deep")
+    fabric = Fabric(locations=str(output), silent="deep")
+    cv = CV(fabric, silent="deep")
 
     def director(walker: Any) -> None:
+        text_handles: dict[str, Any] = {}
+        text_slots: dict[str, set[int]] = {}
+        lex_occurrences: dict[str, tuple[str, set[int]]] = {}
+        all_slots: set[int] = set()
+
+        # First pass: sections and exact slots in canonical source order.
         for record in records:
-            text = walker.node("text")
-            text_features: dict[str, str] = {
+            t = walker.node("text")
+            text_handles[record.oraec_id] = t
+            text_data = {
                 "oraec_id": record.oraec_id,
                 "title": record.title,
                 "license": record.credits.license,
             }
             if record.bibliography is not None:
-                text_features["bibliography"] = record.bibliography
+                text_data["bibliography"] = record.bibliography
             if record.condition is not None:
-                text_features["condition"] = record.condition
-            walker.feature(text, **text_features)
-
+                text_data["condition"] = record.condition
+            walker.feature(t, **text_data)
+            slots: set[int] = set()
             for sentence in record.sentences:
-                section = walker.node("sentence")
+                s = walker.node("sentence")
                 walker.feature(
-                    section,
-                    sentence_index=sentence.index,
-                    translation=sentence.translation,
+                    s, sentence_index=sentence.index, translation=sentence.translation
                 )
                 if not sentence.tokens:
                     anchor = walker.slot()
                     walker.feature(anchor, is_anchor=1, trailer="")
+                    slots.add(anchor[1])
                 else:
                     for token in sentence.tokens:
-                        slot = walker.slot()
+                        w = walker.slot()
+                        slots.add(w[1])
                         values = {
-                            name: value
-                            for name in WORD_FIELDS
-                            if (value := getattr(token, name)) is not None
+                            field: val
+                            for field in WORD_FIELDS
+                            if (val := getattr(token, field)) is not None
                         }
-                        walker.feature(slot, **values, trailer=" ")
-                walker.terminate(section)
-            walker.terminate(text)
+                        walker.feature(w, **values, trailer=" ")
+                        if token.lemma_id is not None:
+                            if token.lemma_form is None:
+                                raise WriterError(
+                                    f"lemma form missing for {token.lemma_id}"
+                                )
+                            existing = lex_occurrences.get(token.lemma_id)
+                            if existing is None:
+                                lex_occurrences[token.lemma_id] = (
+                                    token.lemma_form, {w[1]}
+                                )
+                            else:
+                                if existing[0] != token.lemma_form:
+                                    raise WriterError(
+                                        f"conflicting lemma_form for {token.lemma_id}"
+                                    )
+                                existing[1].add(w[1])
+                walker.terminate(s)
+            walker.terminate(t)
+            text_slots[record.oraec_id] = slots
+            all_slots.update(slots)
+
+        # Shared lexical identities: oslots is the set of occurrence words.
+        lex_handles: dict[str, Any] = {}
+        for lemma_id, (lemma_form, slots) in sorted(lex_occurrences.items()):
+            n = walker.node("lex", slots=sorted(slots))
+            walker.feature(n, lemma_id=lemma_id, lemma_form=lemma_form)
+            lex_handles[lemma_id] = n
+
+        # Shared controlled vocabulary; text edges preserve source ordinals.
+        cv_occurrences: dict[tuple[str, str], tuple[str, set[int]]] = {}
+        for record in records:
+            for kind, attr in CV_FIELDS.items():
+                for value in getattr(record, attr):
+                    if value.kind != kind:
+                        raise WriterError(f"CV kind mismatch: {value.kind} != {kind}")
+                    key = (kind, value.cv_id)
+                    existing = cv_occurrences.get(key)
+                    if existing is None:
+                        cv_occurrences[key] = (value.label, set(text_slots[record.oraec_id]))
+                    else:
+                        if existing[0] != value.label:
+                            raise WriterError(f"conflicting CV labels for {key}")
+                        existing[1].update(text_slots[record.oraec_id])
+        cv_handles: dict[tuple[str, str], Any] = {}
+        for (kind, cv_id), (label, slots) in sorted(cv_occurrences.items()):
+            n = walker.node("cv", slots=sorted(slots))
+            walker.feature(n, cv_kind=kind, cv_id=cv_id, cv_label=label)
+            cv_handles[kind, cv_id] = n
+        for record in records:
+            text_node = text_handles[record.oraec_id]
+            for kind, attr in CV_FIELDS.items():
+                seen: set[tuple[str, str]] = set()
+                for index, value in enumerate(getattr(record, attr), start=1):
+                    key = (kind, value.cv_id)
+                    if key in seen:
+                        raise WriterError(f"duplicate CV edge target in {record.oraec_id}")
+                    seen.add(key)
+                    walker.edge(text_node, cv_handles[key], **{kind: index})
+
+        # README corpus-contribution is node provenance, not a text credit edge.
+        credited_slots: dict[str, set[int]] = defaultdict(set)
+        for record in records:
+            credited_slots[record.credits.author].update(text_slots[record.oraec_id])
+        corpus_positions = {name: idx for idx, name in enumerate(corpus_authors, 1)}
+        authors: dict[str, Any] = {}
+        for author in sorted(set(credited_slots) | set(corpus_positions)):
+            slots = (
+                all_slots if author in corpus_positions else credited_slots[author]
+            )
+            n = walker.node("author", slots=sorted(slots))
+            fields: dict[str, Any] = {"author_name": author}
+            if author in corpus_positions:
+                fields["is_corpus_author"] = 1
+                fields["corpus_author_index"] = corpus_positions[author]
+            walker.feature(n, **fields)
+            authors[author] = n
+        for record in records:
+            walker.edge(
+                text_handles[record.oraec_id],
+                authors[record.credits.author],
+                author=None,
+            )
+
+        # Source URLs are shared by exact string; ordinal edge values retain order.
+        urls: dict[str, set[int]] = defaultdict(set)
+        for record in records:
+            if len(set(record.credits.sources)) != len(record.credits.sources):
+                raise WriterError(f"duplicate source URL in {record.oraec_id}")
+            for url in record.credits.sources:
+                urls[url].update(text_slots[record.oraec_id])
+        sources: dict[str, Any] = {}
+        for url, slots in sorted(urls.items()):
+            n = walker.node("source_ref", slots=sorted(slots))
+            walker.feature(n, source_url=url)
+            sources[url] = n
+        for record in records:
+            for index, url in enumerate(record.credits.sources, start=1):
+                walker.edge(
+                    text_handles[record.oraec_id],
+                    sources[url],
+                    source=index,
+                )
+
+        # Duplicate source identifier strings have distinct occurrence nodes.
+        for record in records:
+            for index, identifier in enumerate(record.idnos, start=1):
+                n = walker.node("idno", slots=sorted(text_slots[record.oraec_id]))
+                walker.feature(n, idno_value=identifier, idno_index=index)
+                walker.edge(text_handles[record.oraec_id], n, idno=None)
+
+        # Included external crosswalks; unlicensed Karnak never enters release TF.
+        mapping_edges: dict[tuple[str, str], list[tuple[Any, str]]] = defaultdict(list)
+        for table in tables:
+            if not table.release_included:
+                continue
+            for row in table.rows:
+                if table.target_system == "trismegistos":
+                    source_handle = text_handles.get(row.source)
+                elif table.target_system == "vega":
+                    source_handle = lex_handles.get(row.source)
+                elif table.target_system == "wikidata":
+                    matches = [authors[row.source]] if row.source in authors else []
+                    matches += [
+                        handle
+                        for (kind, cv_id), handle in cv_handles.items()
+                        if cv_id == row.source
+                    ]
+                    if len(matches) != 1:
+                        raise WriterError(
+                            f"ambiguous or missing Wikidata source {row.source}"
+                        )
+                    source_handle = matches[0]
+                else:
+                    raise WriterError(f"unknown mapping family: {table.target_system}")
+                if source_handle is None:
+                    raise WriterError(
+                        f"unresolved {table.target_system} source {row.source}"
+                    )
+                mapping_edges[(table.target_system, row.target)].append(
+                    (source_handle, table.filename)
+                )
+        observed_edges: set[tuple[Any, str, str]] = set()
+        for (system, value), edges in sorted(mapping_edges.items()):
+            slots = set().union(*(set(walker.linked(handle)) for handle, _ in edges))
+            if not slots:
+                raise WriterError(f"external ref {system}:{value} has no slots")
+            n = walker.node("external_ref", slots=sorted(slots))
+            walker.feature(n, external_system=system, external_value=value)
+            for source_handle, filename in edges:
+                key = (source_handle, system, value)
+                if key in observed_edges:
+                    raise WriterError("duplicate external mapping target would collapse")
+                observed_edges.add(key)
+                walker.edge(source_handle, n, external=filename)
+
+        # Remove contracts for absent optional features before Walker's checks.
+        for feature in metadata:
+            if not walker.occurs(feature):
+                walker.meta(feature)
 
     good = cv.walk(
         director,
@@ -173,8 +365,8 @@ def write_tf(
             "sourceRevision": source_revision,
             "license": "CC BY-SA 4.0",
         },
-        intFeatures=INT_FEATURES & used_features,
-        featureMeta=_feature_metadata(used_features),
+        intFeatures=int_features,
+        featureMeta=metadata,
         warn=True,
         force=False,
     )
