@@ -334,6 +334,7 @@
     "author": {
       "sourceIdentity": "author_name",
       "oslots": "all_corpus_words_if_corpus_author_else_union_of_referencing_text_words",
+      "corpusContributionDoesNotImplyTextCredit": true,
       "features": {
         "author_name": {
           "origin": "source",
@@ -549,7 +550,8 @@
       "valueType": null,
       "valueSemantics": null,
       "origin": "source",
-      "description": "Relates a text to its exact ORAEC credits author entity."
+      "sourceField": "credits.author",
+      "description": "Relates a text exclusively to the exact ORAEC credits.author for that text. README corpus-level contribution does not create a credit edge."
     },
     "source": {
       "from": [
