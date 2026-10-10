@@ -50,6 +50,11 @@ print(api.T.text(sentence, fmt="text-translit"))
 print(api.T.text(sentence, fmt="text-hiero"))
 ```
 
+A complete researcher-facing reference is available in
+[the frozen feature catalogue](feature-reference.md) and
+[the executable query cookbook](query-recipes.md). The catalogue is generated
+from `schema/core.json` and CI verifies that it has not drifted.
+
 The advanced-app smoke runner also supports arbitrary ephemeral outputs without
 moving files or contacting a server:
 
