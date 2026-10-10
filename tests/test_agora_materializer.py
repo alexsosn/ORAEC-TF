@@ -153,7 +153,7 @@ def test_agora_publishes_into_preexisting_empty_output_directory(
             ("oslots.tf", "@edge"),
             ("otext.tf", "@config"),
         ):
-            (tf_dir / name).write_text(f"{marker}\\n\\n", encoding="utf-8")
+            (tf_dir / name).write_text(f"{marker}\n\n", encoding="utf-8")
         print(json.dumps({
             "output": str(tf_dir.resolve()),
             "revision": DEFAULT_SOURCE_REVISION,
