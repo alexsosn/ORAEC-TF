@@ -123,3 +123,32 @@ def test_native_cr_index_rejects_forged_orphan_and_duplicate_offsets(
     api.F.cr_feature.data[offset] = "not_existing_feature"
     with pytest.raises(ControlCharacterError, match="feature"):
         NativeCRIndex(api)
+
+
+
+def test_native_cr_occurrence_rejects_orphaned_and_wrong_span_owner(
+    tmp_path: Path,
+) -> None:
+    """Tampering with real TF edge data must never silently transfer CR."""
+    corpus = tmp_path / "tf"
+    _sample(corpus)
+    api = Fabric(locations=str(corpus), silent="deep").loadAll(silent="deep")
+    assert api
+    cr = api.F.otype.s("cr_occurrence")[0]
+    original_owners = api.E.cr_owner.data[cr]
+    api.E.cr_owner.data[cr] = set()
+    with pytest.raises(ControlCharacterError, match="owner"):
+        NativeCRIndex(api)
+    api.E.cr_owner.data[cr] = original_owners
+
+    # A different valid owner node does not have the same source slot span.
+    actual_owner = next(iter(original_owners))
+    other = next(
+        n for n in api.F.otype.s("word")
+        if n not in api.L.d(actual_owner, otype="word")
+    ) if api.F.otype.v(actual_owner) != "word" else next(
+        n for n in api.F.otype.s("word") if n != actual_owner
+    )
+    api.E.cr_owner.data[cr] = {other}
+    with pytest.raises(ControlCharacterError, match="feature|oslots|owner"):
+        NativeCRIndex(api)
