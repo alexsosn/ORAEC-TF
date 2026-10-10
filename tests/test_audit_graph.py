@@ -432,3 +432,18 @@ def test_audit_detects_incorrect_hierarchy_tla_metadata(
     write_tf((text,), output, source_revision=REVISION, hierarchy_rows=(broken,))
     with pytest.raises(GraphConservationError, match=field):
         audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_invented_extra_author(
+    tmp_path: Path,
+) -> None:
+    source, record = _relational_source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf(
+        (record,), output, source_revision=REVISION,
+        corpus_metadata=CorpusMetadataIR(
+            ("Editor A", "README Only", "Invented third contributor")
+        ),
+    )
+    with pytest.raises(GraphConservationError, match="author|invented"):
+        audit_basic_graph(source, output)
