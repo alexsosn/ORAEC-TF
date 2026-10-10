@@ -22,11 +22,11 @@ TOKEN_FIELDS = {
 }
 NODE_TYPES = {
     "word", "sentence", "text", "lex", "cv", "author", "source_ref",
-    "idno", "hierarchy", "external_ref",
+    "idno", "hierarchy", "external_ref", "cr_occurrence",
 }
 EDGE_FEATURES = {
     "date", "origplace", "objecttype", "location", "material", "author",
-    "source", "idno", "hierarchy", "parent", "external",
+    "source", "idno", "hierarchy", "parent", "external", "cr_owner",
 }
 
 
@@ -197,6 +197,16 @@ def test_all_non_slot_entity_nodes_have_an_oslots_strategy() -> None:
     assert schema["nodeTypes"]["hierarchy"]["oslots"] == "union_of_descendant_text_words"
     assert schema["nodeTypes"]["external_ref"]["oslots"] == (
         "union_of_referencing_native_node_words"
+    )
+    cr = schema["nodeTypes"]["cr_occurrence"]
+    assert cr["oslots"] == "same_as_owner"
+    assert cr["features"]["cr_offset"]["valueType"] == "int"
+    assert cr["features"]["cr_feature"]["valueType"] == "str"
+    assert schema["edgeFeatures"]["cr_owner"]["from"] == ["cr_occurrence"]
+    assert "text" in schema["edgeFeatures"]["cr_owner"]["to"]
+    assert all(
+        not any(name.endswith("_cr_offsets") for name in item["features"])
+        for item in schema["nodeTypes"].values()
     )
 
 
