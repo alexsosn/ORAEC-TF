@@ -437,13 +437,13 @@ def test_audit_detects_incorrect_hierarchy_tla_metadata(
 def test_independent_audit_rejects_invented_extra_author(
     tmp_path: Path,
 ) -> None:
-    source, record = _relational_source(tmp_path)
+    # No README-level contributors exist in this fixture. This extra author
+    # must not be accepted merely because a TF node claims corpus-wide scope.
+    source, record = _source(tmp_path)
     output = tmp_path / "tf"
     write_tf(
         (record,), output, source_revision=REVISION,
-        corpus_metadata=CorpusMetadataIR(
-            ("Editor A", "README Only", "Invented third contributor")
-        ),
+        corpus_metadata=CorpusMetadataIR(("Invented third contributor",)),
     )
     with pytest.raises(GraphConservationError, match="author|invented"):
         audit_basic_graph(source, output)
