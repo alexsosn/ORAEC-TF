@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from tf.fabric import Fabric
 
-from oraec_tf.ir import CreditsIR, SentenceIR, TextIR, TokenIR
+from oraec_tf.ir import (
+    ControlledValueIR,
+    CorpusMetadataIR,
+    CreditsIR,
+    MappingRowIR,
+    MappingTableIR,
+    SentenceIR,
+    TextIR,
+    TokenIR,
+)
 from oraec_tf.writer import write_tf
 
 REVISION = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
@@ -131,3 +141,120 @@ def test_walker_metadata_uses_int_features_not_value_type_override() -> None:
     assert all("valueType" not in fields for fields in metadata.values())
     assert metadata["written_form"]["sourceField"] == "token.written_form"
     assert metadata["sentence_index"]["origin"] == "derived"
+
+
+def test_write_tf_preserves_shared_entities_and_occurrence_relations(
+    tmp_path: Path,
+) -> None:
+    a, b = _texts()
+    first_sentence = a.sentences[0]
+    first_token = first_sentence.tokens[0]
+    second_sentence = b.sentences[0]
+    second_token = second_sentence.tokens[0]
+    a = replace(
+        a,
+        sentences=(
+            replace(
+                first_sentence,
+                tokens=(replace(first_token, lemma_id="L1", lemma_form="nṯr"),),
+            ),
+            a.sentences[1],
+        ),
+        dates=(ControlledValueIR(kind="date", cv_id="D1", label="Dynasty"),),
+        idnos=("Duplicate", "Duplicate"),
+    )
+    b = replace(
+        b,
+        sentences=(
+            replace(
+                second_sentence,
+                tokens=(replace(second_token, lemma_id="L1", lemma_form="nṯr"),),
+            ),
+        ),
+        dates=(ControlledValueIR(kind="date", cv_id="D1", label="Dynasty"),),
+    )
+    tables = (
+        MappingTableIR(
+            filename="mapping_oraec_wikidata.tsv",
+            source_domain="author.author_name OR cv.cv_id",
+            target_system="wikidata",
+            release_included=True,
+            rows=(MappingRowIR(source="README Only", target="Q42"),),
+        ),
+        MappingTableIR(
+            filename="mapping_oraec_karnak.tsv",
+            source_domain="text.oraec_id",
+            target_system="karnak",
+            release_included=False,
+            rows=(MappingRowIR(source="oraec1", target="https://karnak.invalid/1"),),
+        ),
+    )
+    output = tmp_path / "tf"
+    write_tf(
+        (a, b),
+        output,
+        source_revision=REVISION,
+        corpus_metadata=CorpusMetadataIR(corpus_authors=("Credited A", "README Only")),
+        mapping_tables=tables,
+    )
+
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id token_id lemma_id lemma_form cv_kind cv_id cv_label "
+        "author_name is_corpus_author corpus_author_index source_url "
+        "idno_value idno_index external_system external_value "
+        "date author source idno external",
+        silent="deep",
+    )
+    texts = {api.F.oraec_id.v(t): t for t in api.F.otype.s("text")}
+    assert len(api.F.otype.s("lex")) == 1
+    lex = api.F.otype.s("lex")[0]
+    assert api.F.lemma_id.v(lex) == "L1"
+    assert api.F.lemma_form.v(lex) == "nṯr"
+    assert {
+        api.F.token_id.v(w) for w in api.L.d(lex, otype="word")
+    } == {"oraec1-1-1", "oraec2-1-1"}
+
+    assert len(api.F.otype.s("cv")) == 1
+    cv = api.F.otype.s("cv")[0]
+    assert (api.F.cv_kind.v(cv), api.F.cv_id.v(cv), api.F.cv_label.v(cv)) == (
+        "date", "D1", "Dynasty",
+    )
+    assert api.E.date.f(texts["oraec1"]) == {cv: 1}
+    assert api.E.date.f(texts["oraec2"]) == {cv: 1}
+
+    idnos = tuple(api.E.idno.f(texts["oraec1"]))
+    assert len(idnos) == 2
+    assert [(api.F.idno_index.v(n), api.F.idno_value.v(n)) for n in
+            sorted(idnos, key=lambda n: api.F.idno_index.v(n))] == [
+        (1, "Duplicate"), (2, "Duplicate")
+    ]
+
+    authors = {
+        api.F.author_name.v(n): n for n in api.F.otype.s("author")
+    }
+    assert "README Only" in authors
+    assert api.F.is_corpus_author.v(authors["README Only"]) == 1
+    assert api.F.corpus_author_index.v(authors["README Only"]) == 2
+    assert set(api.E.author.f(texts["oraec1"])) == {authors["Credited A"]}
+    assert set(api.E.author.f(texts["oraec2"])) == {authors["Credited B"]}
+    assert authors["README Only"] not in set(api.E.author.f(texts["oraec1"]))
+
+    assert len(api.F.otype.s("source_ref")) == 1
+    src = api.F.otype.s("source_ref")[0]
+    assert api.F.source_url.v(src) == "https://example.invalid/source"
+    assert api.E.source.f(texts["oraec1"]) == {src: 1}
+    assert api.E.source.f(texts["oraec2"]) == {src: 1}
+
+    targets = tuple(api.E.external.f(authors["README Only"]))
+    assert len(targets) == 1
+    target = targets[0]
+    assert (api.F.external_system.v(target), api.F.external_value.v(target)) == (
+        "wikidata", "Q42",
+    )
+    assert api.E.external.f(authors["README Only"])[target] == (
+        "mapping_oraec_wikidata.tsv"
+    )
+    assert all(
+        api.F.external_system.v(n) != "karnak"
+        for n in api.F.otype.s("external_ref")
+    )
