@@ -1,7 +1,42 @@
-# Bootstrap advanced-app configuration.
-# Issue #9 finalizes display, sections, formats, and source links after #3 freezes the TF schema.
+# Standard Text-Fabric advanced app; the generated corpus is always external.
+# Egyptian is not an upstream tf.advanced.settings writing profile: use the
+# neutral left-to-right profile without inventing a Unicode/romanization codec.
 apiVersion: 3
+writing: ""
 provenanceSpec:
   corpus: ORAEC-TF = Open Richly Annotated Egyptian Corpus in Text-Fabric
   version: 0.1.0-dev
-writing: egy
+dataDisplay:
+  browseNavLevel: 1
+  exampleSection: "oraec1 1"
+  exampleSectionHtml: "<code>oraec1 1</code>"
+  textFormats:
+    text-orig-full:
+      style: trans
+    text-orig-hiero:
+      style: orig
+docs:
+  docBase: "https://github.com/alexsosn/ORAEC-TF/blob/main"
+  docPage: README.md
+  featureBase: "https://github.com/alexsosn/ORAEC-TF/blob/main/schema/core.json"
+  featurePage: ""
+typeDisplay:
+  text:
+    label: "{title}"
+    featuresBare: oraec_id
+  sentence:
+    label: "{sentence_index}"
+    featuresBare: translation
+  word:
+    base: true
+    features: pos lemma_id line_count
+  lex:
+    label: "{lemma_form}"
+    featuresBare: lemma_id
+  hierarchy:
+    label: "{hierarchy_label}"
+    featuresBare: tla_url
+  author:
+    label: "{author_name}"
+  cv:
+    label: "{cv_label}"
