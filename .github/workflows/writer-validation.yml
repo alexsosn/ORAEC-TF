@@ -1,0 +1,77 @@
+name: Native Text-Fabric writer source validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/oraec_tf/writer.py"
+      - "src/oraec_tf/cli.py"
+      - "src/oraec_tf/ir.py"
+      - "src/oraec_tf/parser.py"
+      - "schema/core.json"
+      - "setup.py"
+      - "tests/test_writer.py"
+      - "tests/test_writer_wheel.py"
+      - "tests/test_cli.py"
+      - ".github/workflows/writer-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Fetch and verify immutable ORAEC source
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+
+      - name: Convert complete source and independently reload TF
+        run: |
+          mkdir -p reports/generated
+          oraec-tf convert upstream/corpus_raw_data \
+            --output reports/generated/tf \
+            --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            > reports/generated/native-tf-validation.json
+
+      - name: Check the immutable corpus totals
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("reports/generated/native-tf-validation.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert report["counts"] == {
+              "texts": 13026,
+              "sentences": 101796,
+              "tokens": 815026,
+              "technical_anchors": 3,
+              "slots": 815029,
+          }, report
+          print(report["counts"])
+          PY
+
+      - name: Upload counts and provenance only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-writer-conservation-counts
+          path: reports/generated/native-tf-validation.json
+          if-no-files-found: warn
