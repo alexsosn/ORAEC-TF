@@ -336,3 +336,189 @@ def test_write_tf_rejects_incomplete_hierarchy_rows(tmp_path: Path) -> None:
             source_revision=REVISION,
             hierarchy_rows=partial,
         )
+
+
+def test_multitext_bibliography_is_attached_to_correct_oraec_identity(
+    tmp_path: Path,
+) -> None:
+    """#40: sparse, multiline bibliographies must never move between texts."""
+    first, second = _texts()
+    # Lexicographic filenames and iteration order deliberately disagree;
+    # several metadata features are missing and one value begins with newline.
+    text_10 = replace(
+        second,
+        oraec_id="oraec10",
+        title="Balsamierungsritual",
+        bibliography=(
+            "- A. Mariette, Les Papyrus égyptiens du Musée Boulaq.\n"
+            "- Rituel de l&#039;embaumement."
+        ),
+        sentences=(
+            replace(
+                second.sentences[0],
+                tokens=(
+                    replace(second.sentences[0].tokens[0], token_id="oraec10-1-1"),
+                ),
+            ),
+        ),
+    )
+    text_100 = replace(
+        first,
+        oraec_id="oraec100",
+        title="Papyrus Berlin",
+        bibliography="\n- http://www.medizinische-papyri.de/PapyrusBerlin3038/",
+        sentences=(
+            replace(
+                first.sentences[0],
+                tokens=(
+                    replace(first.sentences[0].tokens[0], token_id="oraec100-1-1"),
+                ),
+            ),
+            first.sentences[1],
+        ),
+    )
+    text_2 = replace(
+        first,
+        oraec_id="oraec2",
+        title="No bibliography",
+        bibliography=None,
+        sentences=(
+            replace(
+                first.sentences[0],
+                tokens=(replace(first.sentences[0].tokens[0], token_id="oraec2-1-1"),),
+            ),
+            first.sentences[1],
+        ),
+    )
+    records = (text_10, text_2, text_100)
+    destination = tmp_path / "tf"
+    write_tf(records, destination, source_revision=REVISION)
+
+    api = Fabric(locations=str(destination), silent="deep").load(
+        "oraec_id title bibliography token_id",
+        silent="deep",
+    )
+    actual = {
+        api.F.oraec_id.v(t): (
+            api.F.title.v(t),
+            api.F.bibliography.v(t),
+        )
+        for t in api.F.otype.s("text")
+    }
+    assert actual == {
+        item.oraec_id: (item.title, item.bibliography) for item in records
+    }
+
+
+def test_carriage_return_is_losslessly_reconstructible_from_native_tf(
+    tmp_path: Path,
+) -> None:
+    """#40: preserve literal CRLF and CR despite Text-Fabric transport limits."""
+    from oraec_tf.text_codec import restore_source_string
+
+    first, second = _texts()
+    raw = "Editionen:\r\n- Papyrus Berlin\r\n- Other\r\rOriginal\nEnd"
+    first = replace(first, bibliography=raw)
+    second = replace(second, bibliography="ordinary\ntext")
+    output = tmp_path / "tf"
+    write_tf((first, second), output, source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id bibliography text_cr_offsets",
+        silent="deep",
+    )
+    texts = {api.F.oraec_id.v(n): n for n in api.F.otype.s("text")}
+    a = texts[first.oraec_id]
+    b = texts[second.oraec_id]
+    assert api.F.bibliography.v(a) == raw.replace("\r", "")
+    assert restore_source_string(
+        api.F.bibliography.v(a), api.F.text_cr_offsets.v(a), "bibliography"
+    ) == raw
+    assert api.F.bibliography.v(b) == second.bibliography
+    assert api.F.text_cr_offsets.v(b) is None
+
+
+def test_carriage_return_transport_covers_word_sentence_and_shared_lex_cv(
+    tmp_path: Path,
+) -> None:
+    """CR in any text-bearing node must not shift sparse native TF features."""
+    from oraec_tf.text_codec import restore_source_string
+
+    first, second = _texts()
+    original_sentence = first.sentences[0]
+    original_token = original_sentence.tokens[0]
+    first = replace(
+        first,
+        title="Ti\rtle",
+        sentences=(
+            replace(
+                original_sentence,
+                translation="First\r\ntranslation",
+                tokens=(
+                    replace(
+                        original_token,
+                        written_form="n\rṯr",
+                        lemma_id="L-CR",
+                        lemma_form="lex\r-form",
+                    ),
+                ),
+            ),
+            first.sentences[1],
+        ),
+        dates=(ControlledValueIR(kind="date", cv_id="D1", label="Era\rlabel"),),
+    )
+    output = tmp_path / "tf"
+    write_tf((first, second), output, source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id title text_cr_offsets translation sentence_cr_offsets "
+        "token_id written_form word_cr_offsets lemma_id lemma_form lex_cr_offsets "
+        "cv_id cv_label cv_cr_offsets",
+        silent="deep",
+    )
+    text_node = next(
+        n for n in api.F.otype.s("text") if api.F.oraec_id.v(n) == "oraec1"
+    )
+    sentence_node = api.L.d(text_node, otype="sentence")[0]
+    word = api.L.d(sentence_node, otype="word")[0]
+    lex = next(n for n in api.F.otype.s("lex") if api.F.lemma_id.v(n) == "L-CR")
+    cv = next(n for n in api.F.otype.s("cv") if api.F.cv_id.v(n) == "D1")
+    for node, name, meta, original in (
+        (text_node, "title", "text_cr_offsets", "Ti\rtle"),
+        (sentence_node, "translation", "sentence_cr_offsets", "First\r\ntranslation"),
+        (word, "written_form", "word_cr_offsets", "n\rṯr"),
+        (lex, "lemma_form", "lex_cr_offsets", "lex\r-form"),
+        (cv, "cv_label", "cv_cr_offsets", "Era\rlabel"),
+    ):
+        assert restore_source_string(
+            getattr(api.F, name).v(node),
+            getattr(api.F, meta).v(node),
+            name,
+        ) == original
+
+
+def test_schema_v2_documents_sparse_carriage_return_features() -> None:
+    import json
+
+    schema = json.loads(
+        (Path(__file__).resolve().parents[1] / "schema" / "core.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert schema["schemaVersion"] == 2
+    assert schema["source"]["semanticSidecars"] is False
+    for node_type, spec in schema["nodeTypes"].items():
+        metadata = spec["features"][f"{node_type}_cr_offsets"]
+        assert metadata["valueType"] == "str"
+        assert metadata["origin"] == "derived"
+    assert schema["controlCharacterTransport"]["rawStringRoundTrip"] is True
+
+
+def test_control_transport_contract_is_declared_in_native_tf_metadata(
+    tmp_path: Path,
+) -> None:
+    first, second = _texts()
+    first = replace(first, bibliography="A\r\nB")
+    output = tmp_path / "tf"
+    write_tf((first, second), output, source_revision=REVISION)
+    text_feature = (output / "bibliography.tf").read_text(encoding="utf-8")
+    assert "@schemaVersion=2" in text_feature
+    assert "@controlCharacterTransport=cr-offsets-v1" in text_feature

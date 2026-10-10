@@ -78,6 +78,18 @@ reloaded through Text-Fabric for node-count checks before being published.
 
 The pinned source has 13,026 texts, 101,796 sentences and 815,026 real tokens,
 plus three explicitly marked technical anchor slots for zero-token sentences.
+**Lossless carriage-return transport (ADR 0006, schema v2):** Text-Fabric 13.1
+cannot safely read a literal carriage return (U+000D) in a `.tf` feature value.
+For source strings containing CR (notably the bibliography of `oraec6`),
+the display feature omits only those CR characters and stores their exact
+original codepoint offsets in `<node_type>_cr_offsets`, a normal native TF
+node feature. To obtain the **exact source string**, reconstruct it with
+`oraec_tf.text_codec.restore_source_string(api.F.bibliography.v(text),
+api.F.text_cr_offsets.v(text), "bibliography")`. Both pieces are in the TF
+graph, so no corpus sidecar is needed. Never use the transport value alone
+for literal provenance comparisons. The compiler and source audit check
+the restoration against pinned raw JSON.
+
 The default generated corpus excludes Karnak crosswalks while their distribution
 licence remains unresolved (#17). This is a development conversion path;
 independent raw-source-to-TF validation (#8), the TF advanced app (#9),

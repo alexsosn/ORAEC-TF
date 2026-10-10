@@ -20,6 +20,7 @@ from tf.convert.walker import CV
 from tf.fabric import Fabric
 
 from .ir import CorpusMetadataIR, HierarchyRowIR, MappingTableIR, TextIR
+from .text_codec import encode_node_features
 
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 WORD_FIELDS = (
@@ -168,6 +169,12 @@ def write_tf(
     cv = CV(fabric, silent="deep")
 
     def director(walker: Any) -> None:
+        def assign(node: Any, **values: Any) -> None:
+            # TF 13.1 cannot serialize CR inside a feature value: it becomes
+            # an extra physical row and silently shifts later node IDs.
+            # Preserve each original U+000D offset in a native TF feature.
+            walker.feature(node, **encode_node_features(node[0], values))
+
         text_handles: dict[str, Any] = {}
         text_slots: dict[str, set[int]] = {}
         lex_occurrences: dict[str, tuple[str, set[int]]] = {}
@@ -186,16 +193,16 @@ def write_tf(
                 text_data["bibliography"] = record.bibliography
             if record.condition is not None:
                 text_data["condition"] = record.condition
-            walker.feature(t, **text_data)
+            assign(t, **text_data)
             slots: set[int] = set()
             for sentence in record.sentences:
                 s = walker.node("sentence")
-                walker.feature(
+                assign(
                     s, sentence_index=sentence.index, translation=sentence.translation
                 )
                 if not sentence.tokens:
                     anchor = walker.slot()
-                    walker.feature(anchor, is_anchor=1, trailer="")
+                    assign(anchor, is_anchor=1, trailer="")
                     slots.add(anchor[1])
                 else:
                     for token in sentence.tokens:
@@ -206,7 +213,7 @@ def write_tf(
                             for field in WORD_FIELDS
                             if (val := getattr(token, field)) is not None
                         }
-                        walker.feature(w, **values, trailer=" ")
+                        assign(w, **values, trailer=" ")
                         if token.lemma_id is not None:
                             if token.lemma_form is None:
                                 raise WriterError(
@@ -232,7 +239,7 @@ def write_tf(
         lex_handles: dict[str, Any] = {}
         for lemma_id, (lemma_form, slots) in sorted(lex_occurrences.items()):
             n = walker.node("lex", slots=sorted(slots))
-            walker.feature(n, lemma_id=lemma_id, lemma_form=lemma_form)
+            assign(n, lemma_id=lemma_id, lemma_form=lemma_form)
             lex_handles[lemma_id] = n
 
         # Shared controlled vocabulary; text edges preserve source ordinals.
@@ -253,7 +260,7 @@ def write_tf(
         cv_handles: dict[tuple[str, str], Any] = {}
         for (kind, cv_id), (label, slots) in sorted(cv_occurrences.items()):
             n = walker.node("cv", slots=sorted(slots))
-            walker.feature(n, cv_kind=kind, cv_id=cv_id, cv_label=label)
+            assign(n, cv_kind=kind, cv_id=cv_id, cv_label=label)
             cv_handles[kind, cv_id] = n
         for record in records:
             text_node = text_handles[record.oraec_id]
@@ -281,7 +288,7 @@ def write_tf(
             if author in corpus_positions:
                 fields["is_corpus_author"] = 1
                 fields["corpus_author_index"] = corpus_positions[author]
-            walker.feature(n, **fields)
+            assign(n, **fields)
             authors[author] = n
         for record in records:
             walker.edge(
@@ -300,7 +307,7 @@ def write_tf(
         sources: dict[str, Any] = {}
         for url, slots in sorted(urls.items()):
             n = walker.node("source_ref", slots=sorted(slots))
-            walker.feature(n, source_url=url)
+            assign(n, source_url=url)
             sources[url] = n
         for record in records:
             for index, url in enumerate(record.credits.sources, start=1):
@@ -314,7 +321,7 @@ def write_tf(
         for record in records:
             for index, identifier in enumerate(record.idnos, start=1):
                 n = walker.node("idno", slots=sorted(text_slots[record.oraec_id]))
-                walker.feature(n, idno_value=identifier, idno_index=index)
+                assign(n, idno_value=identifier, idno_index=index)
                 walker.edge(text_handles[record.oraec_id], n, idno=None)
 
         # Distinct ordered source path prefixes are distinct native graph nodes.
@@ -343,7 +350,7 @@ def write_tf(
                 node = walker.node("hierarchy", slots=sorted(prefix_slots[prefix]))
                 tla_kind, tla_id = prefix_meta[prefix]
                 label, url = prefix[-1]
-                walker.feature(
+                assign(
                     node,
                     hierarchy_id=f"oraec-hierarchy:path-prefix:{digest}",
                     hierarchy_label=label,
@@ -395,7 +402,7 @@ def write_tf(
             if not slots:
                 raise WriterError(f"external ref {system}:{value} has no slots")
             n = walker.node("external_ref", slots=sorted(slots))
-            walker.feature(n, external_system=system, external_value=value)
+            assign(n, external_system=system, external_value=value)
             for source_handle, filename in edges:
                 mapping_edge_key = (source_handle, system, value)
                 if mapping_edge_key in observed_edges:
@@ -416,6 +423,8 @@ def write_tf(
             "source": "https://github.com/oraec/corpus_raw_data",
             "sourceRevision": source_revision,
             "license": "CC BY-SA 4.0",
+            "schemaVersion": str(_schema()["schemaVersion"]),
+            "controlCharacterTransport": "cr-offsets-v1",
         },
         intFeatures=int_features,
         featureMeta=metadata,
