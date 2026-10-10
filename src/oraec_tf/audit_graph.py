@@ -152,7 +152,8 @@ def _verify_text_relations(api: Any, text_node: int, source: dict[str, Any],
 
 
 def _verify_readme_and_external_crosswalks(
-    api: Any, root: Path, tf_texts: dict[str, int]
+    api: Any, root: Path, tf_texts: dict[str, int],
+    credited_authors: set[str],
 ) -> None:
     """Independently resolve external edges and README contributor identities."""
     tf_authors = {
@@ -170,6 +171,7 @@ def _verify_readme_and_external_crosswalks(
         tf_cvs.setdefault(cv_id, []).append(n)
 
     readme = root / "README.md"
+    declared: tuple[str, ...] = ()
     if readme.is_file():
         matching_rows = []
         for line in readme.read_text(encoding="utf-8").splitlines():
@@ -214,6 +216,11 @@ def _verify_readme_and_external_crosswalks(
             raise GraphConservationError(
                 f"invented README corpus authors: {unexpected}"
             )
+
+    _expect_equal(
+        set(tf_authors), credited_authors | set(declared),
+        context="complete source-declared author identities (no invented authors)",
+    )
 
     families = (
         ("mapping_oraec_trismegistos.csv", ",", "trismegistos"),
@@ -482,6 +489,7 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     counts = {"texts": 0, "sentences": 0, "tokens": 0, "anchors": 0}
     observed_words: set[int] = set()
     expected_lemmas: dict[str, tuple[str, set[int]]] = {}
+    credited_authors: set[str] = set()
     for path in paths:
         text_id = path.stem
         try:
@@ -519,6 +527,7 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
             source_text["credits"]["license"],
             context=f"{text_id}.credits.license",
         )
+        credited_authors.add(credits["author"])
         _verify_text_relations(api, text_node, source_text, text_id=text_id)
         for raw_name in ("bibliography", "condition"):
             # Absence is meaningful: reject invented annotations as well as
@@ -647,7 +656,9 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     _expect_equal(
         len(api.F.otype.s("word")), expected_word_count, context="TF total slots"
     )
-    _verify_readme_and_external_crosswalks(api, root, tf_texts)
+    _verify_readme_and_external_crosswalks(
+        api, root, tf_texts, credited_authors,
+    )
     _verify_hierarchy(api, root, tf_texts)
     return counts
 
