@@ -85,7 +85,9 @@ def verify_source(
     if not path.is_dir():
         raise SourceAcquisitionError(f"source directory does not exist: {path}")
     try:
-        verified = verify_git_source(path, expected_revision=expected)
+        verified = verify_git_source(
+            path, expected_revision=expected, reject_ignored_files=True,
+        )
     except GitSourceError as exc:
         raise SourceAcquisitionError(str(exc)) from exc
     if verified.path != verified.repository_root:
