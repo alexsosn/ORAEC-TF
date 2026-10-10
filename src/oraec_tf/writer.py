@@ -363,30 +363,30 @@ def write_tf(
         for table in tables:
             if not table.release_included:
                 continue
-            for row in table.rows:
+            for mapping_row in table.rows:
                 if table.target_system == "trismegistos":
-                    source_handle = text_handles.get(row.source)
+                    source_handle = text_handles.get(mapping_row.source)
                 elif table.target_system == "vega":
-                    source_handle = lex_handles.get(row.source)
+                    source_handle = lex_handles.get(mapping_row.source)
                 elif table.target_system == "wikidata":
-                    matches = [authors[row.source]] if row.source in authors else []
+                    matches = [authors[mapping_row.source]] if mapping_row.source in authors else []
                     matches += [
                         handle
                         for (kind, cv_id), handle in cv_handles.items()
-                        if cv_id == row.source
+                        if cv_id == mapping_row.source
                     ]
                     if len(matches) != 1:
                         raise WriterError(
-                            f"ambiguous or missing Wikidata source {row.source}"
+                            f"ambiguous or missing Wikidata source {mapping_row.source}"
                         )
                     source_handle = matches[0]
                 else:
                     raise WriterError(f"unknown mapping family: {table.target_system}")
                 if source_handle is None:
                     raise WriterError(
-                        f"unresolved {table.target_system} source {row.source}"
+                        f"unresolved {table.target_system} source {mapping_row.source}"
                     )
-                mapping_edges[(table.target_system, row.target)].append(
+                mapping_edges[(table.target_system, mapping_row.target)].append(
                     (source_handle, table.filename)
                 )
         observed_edges: set[tuple[Any, str, str]] = set()
@@ -397,10 +397,10 @@ def write_tf(
             n = walker.node("external_ref", slots=sorted(slots))
             walker.feature(n, external_system=system, external_value=value)
             for source_handle, filename in edges:
-                key = (source_handle, system, value)
-                if key in observed_edges:
+                mapping_edge_key = (source_handle, system, value)
+                if mapping_edge_key in observed_edges:
                     raise WriterError("duplicate external mapping target would collapse")
-                observed_edges.add(key)
+                observed_edges.add(mapping_edge_key)
                 walker.edge(source_handle, n, external=filename)
 
         # Remove contracts for absent optional features before Walker's checks.
