@@ -434,7 +434,7 @@ def test_carriage_return_is_losslessly_reconstructible_from_native_tf(
     positions = sorted(
         api.F.cr_offset.v(node)
         for node in api.F.otype.s("cr_occurrence")
-        if api.E.cr_owner.f(node) == {a}
+        if set(api.E.cr_owner.f(node)) == {a}
         and api.F.cr_feature.v(node) == "bibliography"
     )
     assert positions == [i for i, ch in enumerate(raw) if ch == "\r"]
