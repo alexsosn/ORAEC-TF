@@ -118,3 +118,37 @@ def test_adapter_failure_does_not_publish_partial_output(
             source_revision=DEFAULT_SOURCE_REVISION,
         )
     assert not (tmp_path / "output").exists()
+
+
+def test_fingerprints_skip_real_text_fabric_dot_tf_cache_directory(
+    tmp_path: Path,
+) -> None:
+    """Full ORAEC CI hit a TF-generated '.tf' cache directory during hashing."""
+    import hashlib
+
+    from oraec_tf.agora import _fingerprints
+
+    (tmp_path / ".tf").mkdir()
+    (tmp_path / ".tf" / "otype.tfx").write_text("cache", encoding="utf-8")
+    expected = b"@node\n1\tword\n"
+    (tmp_path / "otype.tf").write_bytes(expected)
+    (tmp_path / "oslots.tf").write_bytes(b"@edge\n")
+
+    # The file fingerprint inventory should contain only actual feature
+    # files, not the dot-prefixed TF cache directory matched by glob('*.tf').
+    hashes = _fingerprints(tmp_path)
+    assert set(hashes) == {"otype.tf", "oslots.tf"}
+    assert hashes["otype.tf"] == hashlib.sha256(expected).hexdigest()
+
+
+def test_fingerprints_refuse_symlinked_feature_data(tmp_path: Path) -> None:
+    """Never hash or publish feature bytes through an unexpected symlink."""
+    from oraec_tf.agora import _fingerprints
+
+    external = tmp_path / "external.txt"
+    external.write_text("not corpus data", encoding="utf-8")
+    tf_dir = tmp_path / "tf"
+    tf_dir.mkdir()
+    (tf_dir / "otype.tf").symlink_to(external)
+    with pytest.raises(ValueError, match="symlink"):
+        _fingerprints(tf_dir)
