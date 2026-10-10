@@ -313,3 +313,17 @@ def test_independent_audit_rejects_dropped_hierarchy_component(
     write_tf((text,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match="hierarchy"):
         audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_unmodeled_new_raw_token_field(
+    tmp_path: Path,
+) -> None:
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    path = source / "oraec1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["oraec1"]["sentences"][0]["token"][0]["newSourceAnnotation"] = "lost"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(GraphConservationError, match="unmodeled|unknown"):
+        audit_basic_graph(source, output)
