@@ -79,7 +79,7 @@ def test_adapter_delegates_to_public_cli_without_fetching(
     )
     assert report["source_revision"] == DEFAULT_SOURCE_REVISION
     assert report["counts"]["texts"] == 1
-    assert "source" not in str(report).lower() or report["source_revision"]
+    assert set(report["tf_sha256"]) >= {"otype.tf", "oslots.tf", "otext.tf"}
     assert not destination.joinpath("verified-source").exists()
 
 
