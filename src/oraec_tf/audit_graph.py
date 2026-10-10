@@ -511,6 +511,14 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
                 ):
                     if api.F.is_anchor.v(slot) is not None:
                         raise GraphConservationError("fabricated anchor in real sentence")
+                    unknown = set(raw_token) - set(SOURCE_WORD_FIELDS) - {
+                        "lemmaID", "lemma_form",
+                    }
+                    if unknown:
+                        raise GraphConservationError(
+                            f"unmodeled raw token annotations in {text_id}: "
+                            f"{sorted(unknown)}"
+                        )
                     for raw_field, tf_feature in SOURCE_WORD_FIELDS.items():
                         expected = raw_token.get(raw_field)
                         tf_feature_obj = getattr(api.F, tf_feature, None)
