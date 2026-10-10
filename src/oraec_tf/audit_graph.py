@@ -370,25 +370,25 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
             raise GraphConservationError(
                 f"hierarchy leaf membership missing or duplicated: {oraec_id}"
             )
-        node = links[0]
+        current_hierarchy_node: int = links[0]
         observed_path: list[tuple[str, str]] = []
         visited: set[int] = set()
         while True:
-            if node in visited:
+            if current_hierarchy_node in visited:
                 raise GraphConservationError("hierarchy parent cycle")
-            visited.add(node)
+            visited.add(current_hierarchy_node)
             observed_path.append(
                 (
-                    _node_value(api, "hierarchy_label", node),
-                    _node_value(api, "tla_url", node),
+                    _node_value(api, "hierarchy_label", current_hierarchy_node),
+                    _node_value(api, "tla_url", current_hierarchy_node),
                 )
             )
-            parents = tuple(_edge_targets(api, "parent", node))
+            parents = tuple(_edge_targets(api, "parent", current_hierarchy_node))
             if not parents:
                 break
             if len(parents) != 1:
                 raise GraphConservationError("hierarchy has multiple parents")
-            node = parents[0]
+            current_hierarchy_node = parents[0]
         observed_path.reverse()
         _expect_equal(
             tuple(observed_path), expected,
