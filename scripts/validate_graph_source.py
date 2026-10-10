@@ -32,7 +32,7 @@ def main() -> int:
         json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({"ok": True, "counts": report["counts"]}, sort_keys=True))
+    print(json.dumps({"ok": True, "counts": report["counts"], "native_cr_occurrences": report["native_cr_occurrences"]}, sort_keys=True))
     return 0
 
 
