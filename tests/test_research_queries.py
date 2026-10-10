@@ -54,6 +54,7 @@ def test_research_queries_run_against_real_native_fabric(tmp_path: Path) -> None
     api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     assert api
     text = find_text(api, "oraec42")
+    assert text is not None
     assert text in api.F.otype.s("text")
     assert find_text(api, "oraec-no-such-text") is None
 
