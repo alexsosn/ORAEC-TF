@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import csv
 import hashlib
-from html.parser import HTMLParser
 import json
 import re
+from html.parser import HTMLParser
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -394,7 +394,7 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
             tuple(observed_path), expected,
             context=f"hierarchy exact source path for {oraec_id}",
         )
-        for position, component in enumerate(observed_path, start=1):
+        for position in range(1, len(observed_path) + 1):
             observed_prefixes.add(tuple(observed_path[:position]))
     _expect_equal(
         observed_prefixes, expected_prefixes,
@@ -415,8 +415,15 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
 
     output = Path(tf_dir)
     # Load every emitted node/edge feature, not a writer-internal feature list.
-    features = " ".join(sorted(path.stem for path in output.glob("*.tf")
-                               if path.stem not in {"otype", "oslots"}))
+    features = " ".join(
+        sorted(
+            path.stem
+            for path in output.glob("*.tf")
+            if path.is_file()
+            and not path.name.startswith(".")
+            and path.stem not in {"otype", "oslots"}
+        )
+    )
     api = Fabric(locations=str(output), silent="deep").load(features, silent="deep")
     if not api:
         raise GraphConservationError("generated Text-Fabric output did not load")
