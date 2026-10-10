@@ -1,82 +1,57 @@
-"""TDD controls for lossless native carriage-return transport (ADR 0006)."""
+"""TDD controls for lossless native CR occurrences under ADR 0007."""
 
 from __future__ import annotations
 
 import pytest
 
-from oraec_tf.text_codec import (
-    ControlCharacterError,
-    encode_node_features,
-    restore_source_string,
-)
+from oraec_tf.text_codec import ControlCharacterError, encode_node_features
 
 
 @pytest.mark.parametrize(
-    ("value", "transport", "positions"),
+    ("original", "transport", "offsets"),
     [
-        ("A\r\nB", "A\nB", "1"),
-        ("A\rB", "AB", "1"),
-        ("\r\rA", "A", "0,1"),
-        ("A\nB", "A\nB", None),
-        ("", "", None),
-        ("\\r literal and \r real", "\\r literal and  real", "15"),
-        ("𓀀\r𓃀", "𓀀𓃀", "1"),
+        ("A\r\nB", "A\nB", (1,)),
+        ("A\rB", "AB", (1,)),
+        ("\r\rA", "A", (0, 1)),
+        ("A\nB", "A\nB", ()),
+        ("", "", ()),
+        ("\\r literal and \r real", "\\r literal and  real", (15,)),
+        ("𓀀\r𓃀", "𓀀𓃀", (1,)),
     ],
 )
-def test_roundtrip_exact_source_unicode(
-    value: str, transport: str, positions: str | None,
+def test_native_codec_retains_exact_codepoint_locations(
+    original: str, transport: str, offsets: tuple[int, ...],
 ) -> None:
-    result = encode_node_features("text", {"bibliography": value})
-    assert result["bibliography"] == transport
-    assert result.get("text_cr_offsets") == (
-        None if positions is None else f"bibliography={positions}"
-    )
-    assert restore_source_string(
-        result["bibliography"], result.get("text_cr_offsets"), "bibliography"
-    ) == value
+    data, occurrences = encode_node_features("text", {"bibliography": original})
+    assert data == {"bibliography": transport}
+    assert occurrences == tuple(("bibliography", i) for i in offsets)
 
 
-def test_multiple_original_features_share_one_sparse_node_metadata_field() -> None:
+def test_multiple_fields_are_individual_native_occurrences() -> None:
     fields = {"title": "one\rtwo", "bibliography": "a\r\nb", "license": "cc"}
-    encoded = encode_node_features("text", fields)
-    assert encoded["title"] == "onetwo"
-    assert encoded["bibliography"] == "a\nb"
-    assert encoded["text_cr_offsets"] == "bibliography=1|title=3"
-    for feature in ("title", "bibliography"):
-        assert restore_source_string(
-            encoded[feature], encoded["text_cr_offsets"], feature
-        ) == fields[feature]
-    assert restore_source_string(
-        encoded["license"], encoded["text_cr_offsets"], "license"
-    ) == "cc"
+    scalars, occurrences = encode_node_features("text", fields)
+    assert scalars == {"title": "onetwo", "bibliography": "a\nb", "license": "cc"}
+    assert occurrences == (("title", 3), ("bibliography", 1))
+    assert all(not key.endswith("_cr_offsets") for key in scalars)
 
 
-@pytest.mark.parametrize(
-    "corrupt",
-    [
-        "bibliography=2,1",
-        "bibliography=1,1",
-        "bibliography=-1",
-        "bibliography=a",
-        "bibliography=999",
-        "bibliography=",
-        "bibliography=1|bibliography=2",
-        "bibliography=0|not-an-identifier=1",
-    ],
-)
-def test_reconstruction_fails_closed_on_invalid_offset_grammar(
-    corrupt: str,
+def test_missing_and_empty_source_fields_are_unchanged() -> None:
+    clean, positions = encode_node_features(
+        "sentence", {"translation": "", "sentence_index": 1}
+    )
+    assert clean == {"translation": "", "sentence_index": 1}
+    assert positions == ()
+
+
+@pytest.mark.parametrize("node_type", ["bogus", "cr_occurrence", ""])
+def test_unknown_annotated_source_owner_is_rejected(node_type: str) -> None:
+    with pytest.raises(ControlCharacterError, match="node type"):
+        encode_node_features(node_type, {"translation": "x\ry"})
+
+
+@pytest.mark.parametrize("feature", ["word_cr_offsets", "cr_feature", "cr_offset"])
+def test_old_packed_or_internal_native_features_cannot_enter_source(
+    feature: str,
 ) -> None:
-    with pytest.raises(ControlCharacterError):
-        restore_source_string("a", corrupt, "bibliography")
-
-
-def test_unspecified_source_strings_have_no_transport_metadata() -> None:
-    result = encode_node_features("sentence", {"translation": "\nordinary"})
-    assert result == {"translation": "\nordinary"}
-    assert restore_source_string(result["translation"], None, "translation") == "\nordinary"
-
-
-def test_reserved_codec_field_cannot_be_supplied_by_source() -> None:
     with pytest.raises(ControlCharacterError, match="reserved"):
-        encode_node_features("word", {"word_cr_offsets": "token_id=0"})
+        encode_node_features("word", {feature: "x"})

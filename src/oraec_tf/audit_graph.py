@@ -110,66 +110,100 @@ def _edge_targets(api: Any, feature: str, source_node: int) -> Any:
     return () if accessor is None else accessor.f(source_node)
 
 
-def _decode_transport_value(
-    encoded: str, cr_positions: str, source_feature: str,
+def _restore_original_cr_positions(
+    scalar: str, positions: tuple[int, ...],
 ) -> str:
-    """Independently reconstruct exact CR values from the native TF grammar.
-
-    This verifier deliberately does not import the writer's encoder/decoder.
-    Instead of inserting into a string, it walks the original character-index
-    space and interleaves literal CR with the encoded transport characters.
-    """
-    positions_by_field: dict[str, list[int]] = {}
-    for item in cr_positions.split("|"):
-        if item.count("=") != 1:
-            raise GraphConservationError("invalid native CR offset entry")
-        name, data = item.split("=")
-        if re.fullmatch(r"[a-z][a-z0-9_]*", name) is None:
-            raise GraphConservationError("invalid native CR offset feature name")
-        if name in positions_by_field:
-            raise GraphConservationError("duplicate native CR offset feature")
-        numbers = data.split(",")
-        if not numbers or any(
-            re.fullmatch(r"(?:0|[1-9][0-9]*)", digit) is None
-            for digit in numbers
-        ):
-            raise GraphConservationError("invalid native CR offset integer")
-        decoded = [int(n) for n in numbers]
-        if decoded != sorted(set(decoded)):
-            raise GraphConservationError("unordered/repeated native CR offsets")
-        positions_by_field[name] = decoded
-
-    positions = positions_by_field.get(source_feature)
-    if positions is None:
-        return encoded
-    if "\r" in encoded:
-        raise GraphConservationError("native TF feature still contains raw CR")
-    total = len(encoded) + len(positions)
-    if positions[-1] >= total:
-        raise GraphConservationError("native CR position exceeds source length")
+    """Independent native CR reconstruction; no writer codec import."""
+    if "\r" in scalar:
+        raise GraphConservationError("TF scalar contains unescaped source CR")
+    if positions != tuple(sorted(set(positions))):
+        raise GraphConservationError("unordered or duplicate native CR offset")
+    total = len(scalar) + len(positions)
+    if positions and (positions[0] < 0 or positions[-1] >= total):
+        raise GraphConservationError("native CR offset outside source bounds")
     restored: list[str] = []
-    cr_index = 0
-    for original_index in range(total):
-        if cr_index < len(positions) and positions[cr_index] == original_index:
+    cr_i = 0
+    for source_i in range(total):
+        if cr_i < len(positions) and positions[cr_i] == source_i:
             restored.append("\r")
-            cr_index += 1
+            cr_i += 1
         else:
-            restored.append(encoded[original_index - cr_index])
-    if cr_index != len(positions):
-        raise GraphConservationError("native CR offset restoration incomplete")
+            restored.append(scalar[source_i - cr_i])
     return "".join(restored)
+
+
+def _independent_native_cr_index(api: Any) -> dict[tuple[int, str], tuple[int, ...]]:
+    """Independently verify typed CR nodes, exact owners and owner oslots.
+
+    Must be called once per loaded graph, *before* source scalar comparisons:
+    that catches orphaned/forged native annotations even on node families
+    without any actual source CR in the selected corpus.
+    """
+    nodes = tuple(api.F.otype.s("cr_occurrence"))
+    fields = getattr(api.F, "cr_feature", None)
+    offsets = getattr(api.F, "cr_offset", None)
+    edges = getattr(api.E, "cr_owner", None)
+    if edges is not None:
+        # Audit the entire edge feature, including forged sources that are not
+        # occurrence nodes; looking only at occurrences misses stray edges.
+        extraneous = set(dict(edges.items())) - set(nodes)
+        if extraneous:
+            raise GraphConservationError(
+                "CR owner edges originate outside native occurrence nodes"
+            )
+    if not nodes:
+        return {}
+    if fields is None or offsets is None or edges is None:
+        raise GraphConservationError("missing native CR occurrence features/edge")
+    known_owners = {
+        "word", "sentence", "text", "lex", "cv", "author", "source_ref",
+        "idno", "hierarchy", "external_ref",
+    }
+    result: dict[tuple[int, str], list[int]] = {}
+    for node in nodes:
+        name = fields.v(node)
+        offset = offsets.v(node)
+        if not isinstance(name, str) or re.fullmatch(
+            r"[a-z][a-z0-9_]*", name
+        ) is None:
+            raise GraphConservationError("invalid native CR source feature")
+        if type(offset) is not int or offset < 0:
+            raise GraphConservationError("invalid native CR original position")
+        owners = tuple(edges.f(node))
+        if len(owners) != 1:
+            raise GraphConservationError("native CR occurrence has no unique owner")
+        owner = owners[0]
+        node_type = api.F.otype.v(owner)
+        if node_type not in known_owners:
+            raise GraphConservationError("unknown native CR occurrence owner")
+        value_feature = getattr(api.F, name, None)
+        transport = None if value_feature is None else value_feature.v(owner)
+        if not isinstance(transport, str):
+            raise GraphConservationError("CR occurrence references missing scalar feature")
+        expected_words = (
+            (owner,) if node_type == "word"
+            else tuple(api.L.d(owner, otype="word"))
+        )
+        if set(expected_words) != set(api.L.d(node, otype="word")):
+            raise GraphConservationError("native CR occurrence/owner oslots mismatch")
+        result.setdefault((owner, name), []).append(offset)
+    frozen: dict[tuple[int, str], tuple[int, ...]] = {}
+    for (owner, name), found in result.items():
+        positions = tuple(sorted(found))
+        scalar = getattr(api.F, name).v(owner)
+        _restore_original_cr_positions(scalar, positions)
+        frozen[owner, name] = positions
+    return frozen
 
 
 def _node_value(api: Any, feature: str, node: int) -> Any:
     accessor = getattr(api.F, feature, None)
     value = None if accessor is None else accessor.v(node)
-    if not isinstance(value, str) or feature.endswith("_cr_offsets"):
+    if not isinstance(value, str):
         return value
-    node_type = api.F.otype.v(node)
-    offset_accessor = getattr(api.F, f"{node_type}_cr_offsets", None)
-    serial = None if offset_accessor is None else offset_accessor.v(node)
-    return (
-        value if not serial else _decode_transport_value(value, serial, feature)
+    cr_map = getattr(api, "_oraec_native_cr_index", {})
+    return _restore_original_cr_positions(
+        value, cr_map.get((node, feature), ())
     )
 
 
@@ -681,6 +715,7 @@ REQUIRED_SOURCE_COMPANIONS = (
 def audit_basic_graph(
     source: str | Path, tf_dir: str | Path, *,
     require_complete_source: bool = False,
+    cr_census: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     """Independently compare raw ORAEC semantics against loaded TF."""
     root = Path(source)
@@ -708,6 +743,23 @@ def audit_basic_graph(
     api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     if not api:
         raise GraphConservationError("generated Text-Fabric output did not load")
+
+    # Audit every native CR node, even if its owner feature is never queried.
+    # This is a separate implementation from the converter/reader codec.
+    api._oraec_native_cr_index = _independent_native_cr_index(api)
+    if cr_census is not None:
+        by_owner: dict[str, int] = defaultdict(int)
+        by_feature: dict[str, int] = defaultdict(int)
+        occurrences = tuple(api.F.otype.s("cr_occurrence"))
+        for occurrence in occurrences:
+            owner = next(iter(api.E.cr_owner.f(occurrence)))
+            by_owner[api.F.otype.v(owner)] += 1
+            by_feature[api.F.cr_feature.v(occurrence)] += 1
+        cr_census.update({
+            "total": len(occurrences),
+            "by_owner_type": dict(sorted(by_owner.items())),
+            "by_feature": dict(sorted(by_feature.items())),
+        })
 
     tf_texts = {
         _node_value(api, "oraec_id", n): n for n in api.F.otype.s("text")
@@ -822,11 +874,13 @@ def audit_basic_graph(
                         None,
                         context=f"{text_id}.sentence[{index}].anchor.{tf_feature}",
                     )
-                _expect_equal(
-                    _node_value(api, "word_cr_offsets", anchor),
-                    None,
-                    context=f"{text_id}.sentence[{index}].anchor.word_cr_offsets",
-                )
+                if any(
+                    owner == anchor
+                    for owner, _feature in api._oraec_native_cr_index
+                ):
+                    raise GraphConservationError(
+                        f"{text_id}.sentence[{index}]: fabricated CR on anchor"
+                    )
                 _expect_equal(
                     _node_value(api, "trailer", anchor),
                     "",
@@ -953,8 +1007,10 @@ def audit_graph_with_provenance(
             raise GraphConservationError(f"{kind} must be a full commit SHA")
     if schema_version < 1:
         raise GraphConservationError("schema version must be a positive integer")
+    cr_census: dict[str, Any] = {}
     counts = audit_basic_graph(
         source, tf_dir, require_complete_source=require_complete_source,
+        cr_census=cr_census,
     )
     paths = sorted(
         path for path in Path(tf_dir).glob("*.tf")
@@ -980,5 +1036,6 @@ def audit_graph_with_provenance(
         "schema_version": schema_version,
         "tf_version": version("text-fabric"),
         "counts": counts,
+        "native_cr_occurrences": cr_census,
         "output_sha256": output_hashes,
     }

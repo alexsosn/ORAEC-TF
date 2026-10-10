@@ -69,7 +69,7 @@ jobs:
             upstream/corpus_raw_data reports/generated/tf \
             --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
             --converter-revision "$(git rev-parse HEAD)" \
-            --schema-version 2 \
+            --schema-version 3 \
             --report reports/generated/graph-conservation.json
 
       - name: Smoke local standard Text-Fabric advanced app and browser

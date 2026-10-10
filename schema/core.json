@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "source": {
     "repository": "https://github.com/oraec/corpus_raw_data.git",
     "revision": "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd",
@@ -221,12 +221,6 @@
           "derivedFrom": "text display spacing; empty on anchors",
           "valueType": "str",
           "description": "Converter-derived display trailer: one space on real words and empty on technical anchors."
-        },
-        "word_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-word-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -247,12 +241,6 @@
           "exact": true,
           "supportsEmptyString": true,
           "description": "Exact ORAEC sentence translation; empty string is distinct from absence."
-        },
-        "sentence_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-sentence-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -294,12 +282,6 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact per-text ORAEC credits.license value."
-        },
-        "text_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-text-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -320,12 +302,6 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact ORAEC lemma_form associated with lemma_id."
-        },
-        "lex_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-lex-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -352,12 +328,6 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact ORAEC controlled-vocabulary display label."
-        },
-        "cv_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-cv-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -388,12 +358,6 @@
           "derivedFrom": "1-based order in README author column for oraec1.json .. oraec13026.json",
           "valueType": "int",
           "description": "Preserves the source order of corpus-level authors declared in the upstream README."
-        },
-        "author_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-author-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       },
       "sourceIdentitySources": [
@@ -411,12 +375,6 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact ORAEC credits.source URL."
-        },
-        "source_ref_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-source_ref-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -437,12 +395,6 @@
           "derivedFrom": "1-based record.idno list position",
           "valueType": "int",
           "description": "One-based source idno list position."
-        },
-        "idno_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-idno-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       }
     },
@@ -488,12 +440,6 @@
           "derivedFrom": "TLA URL path: object or text",
           "valueType": "str",
           "description": "Converter-derived TLA target kind (object or text) parsed from tla_url."
-        },
-        "hierarchy_cr_offsets": {
-          "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
-          "valueType": "str",
-          "description": "Sparse per-hierarchy-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
         }
       },
       "sourceIdentityDefinition": "exact_path_prefix means the ordered source (label, TLA href) pairs from root through this occurrence"
@@ -514,12 +460,24 @@
           "valueType": "str",
           "exact": true,
           "description": "Exact mapping target identifier or URL from the source table."
-        },
-        "external_ref_cr_offsets": {
+        }
+      }
+    },
+    "cr_occurrence": {
+      "sourceIdentity": "owner+source_feature+original_codepoint_offset",
+      "oslots": "same_as_owner",
+      "features": {
+        "cr_feature": {
           "origin": "derived",
-          "derivedFrom": "exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)",
+          "derivedFrom": "name of exact source-bearing TF string feature on cr_owner target",
           "valueType": "str",
-          "description": "Sparse per-external_ref-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode."
+          "description": "Original feature name containing a literal U+000D character at cr_offset."
+        },
+        "cr_offset": {
+          "origin": "derived",
+          "derivedFrom": "zero-based Unicode code-point position of original U+000D in the exact source string",
+          "valueType": "int",
+          "description": "Integer index into the original unescaped source Unicode string, counting code points rather than UTF-8 bytes."
         }
       }
     }
@@ -675,6 +633,27 @@
       "valueSemantics": "source_mapping_filename",
       "origin": "source",
       "description": "Relates a native ORAEC entity to an external reference; edge value is the exact mapping filename for provenance."
+    },
+    "cr_owner": {
+      "from": [
+        "cr_occurrence"
+      ],
+      "to": [
+        "word",
+        "sentence",
+        "text",
+        "lex",
+        "cv",
+        "author",
+        "source_ref",
+        "idno",
+        "hierarchy",
+        "external_ref"
+      ],
+      "valueType": null,
+      "valueSemantics": "one_exact_source_owner",
+      "origin": "derived",
+      "description": "Each literal U+000D occurrence points to exactly one original native TF owner node; occurrence oslots exactly match its owner."
     }
   },
   "sections": {
@@ -905,23 +884,19 @@
     }
   },
   "controlCharacterTransport": {
-    "schemaVersion": 2,
-    "problem": "Standard Text-Fabric 13.1 escapes U+000A and TAB but not U+000D; unescaped CR splits sparse .tf feature rows.",
-    "nodeFeatures": {
-      "word": "word_cr_offsets",
-      "sentence": "sentence_cr_offsets",
-      "text": "text_cr_offsets",
-      "lex": "lex_cr_offsets",
-      "cv": "cv_cr_offsets",
-      "author": "author_cr_offsets",
-      "source_ref": "source_ref_cr_offsets",
-      "idno": "idno_cr_offsets",
-      "hierarchy": "hierarchy_cr_offsets",
-      "external_ref": "external_ref_cr_offsets"
-    },
-    "serialization": "feature=zero-based-original-codepoint-offset[,offset...]|feature=...; entries sorted by feature name",
-    "reconstruction": "Insert U+000D into the CR-stripped TF feature value at each ascending original offset.",
-    "semantics": "Both normalized text and exact CR offsets live as native TF node features; no semantic sidecars. Reconstruct before exact raw-source comparison.",
+    "schemaVersion": 3,
+    "problem": "Text-Fabric 13.1 escapes TAB and LF but not U+000D; literal CR splits sparse TF rows.",
+    "nodeType": "cr_occurrence",
+    "nodeFeatures": [
+      "cr_feature",
+      "cr_offset"
+    ],
+    "ownerEdge": "cr_owner",
+    "originalCodepoint": "U+000D",
+    "reconstruction": "Insert native cr_occurrence cr_offset integer positions into the CR-free transport scalar for the exact cr_owner node and cr_feature.",
+    "semantics": "Ordinary native TF feature values are CR-stripped transport scalars where source CR existed; one explicit typed TF occurrence per source CR. No packed strings, source semantic sidecars, or inferred text.",
+    "identity": "(cr_owner target, cr_feature, cr_offset), unique",
+    "oslots": "same-as-owner, no added word/technical anchor slots",
     "rawStringRoundTrip": true
   }
 }
