@@ -56,9 +56,18 @@ class WriterError(ValueError):
 def _feature_metadata(used_features: set[str]) -> dict[str, dict[str, str]]:
     """Read frozen feature declarations; avoid writing conflicting metadata."""
     import json
+    from importlib.resources import files
 
     schema_path = Path(__file__).resolve().parents[2] / "schema" / "core.json"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    if schema_path.is_file():
+        # Editable source checkout: read the authoritative repository contract.
+        schema_content = schema_path.read_text(encoding="utf-8")
+    else:
+        # Wheel: setup.py bundles an exact build-time copy of that same file.
+        schema_content = files("oraec_tf").joinpath("schema_core.json").read_text(
+            encoding="utf-8"
+        )
+    schema = json.loads(schema_content)
     names = used_features
     result: dict[str, dict[str, str]] = {}
     for node_type in ("word", "sentence", "text"):
