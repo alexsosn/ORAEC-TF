@@ -95,5 +95,6 @@ Generated corpus content adapts CC BY-SA 4.0 input. See
 Karnak mappings pending explicit file-level licence evidence.
 
 The standard local TF advanced app and complete schema reference remain in
-`app/` and `docs/`. The CR offset transport limitation, still natively
-round-trippable but not the final queryable ontology, is tracked in issue #42.
+`app/` and `docs/`. Schema v3 models original CR characters as queryable typed native TF nodes
+while preserving TF 13.1-safe scalar transport. The full source audit checks
+lossless Unicode reconstruction; see ADR 0007 and issue #42.
