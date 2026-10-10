@@ -5,6 +5,11 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from tf.fabric import Fabric
+
+from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
+
 from oraec_tf.cli import main
 from oraec_tf.source import (
     DEFAULT_SOURCE_REVISION,
@@ -56,3 +61,76 @@ def test_verify_source_cli_uses_same_identity_contract() -> None:
         "path": "/verified/source",
         "revision": DEFAULT_SOURCE_REVISION,
     }
+
+
+def test_convert_cli_builds_and_reloads_native_tf(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    destination = tmp_path / "tf"
+    record = TextIR(
+        oraec_id="oraec1",
+        title="A",
+        sentences=(
+            SentenceIR(
+                index=1,
+                translation="",
+                tokens=(TokenIR(token_id="oraec1-1-1", written_form="nṯr"),),
+            ),
+        ),
+        credits=CreditsIR(
+            license="cc-by-sa-4.0", author="Editor", sources=("https://a.invalid",)
+        ),
+    )
+    counts = {
+        "texts": 1, "sentences": 1, "tokens": 1, "empty_token_sentences": 0,
+    }
+    output = StringIO()
+    with (
+        patch(
+            "oraec_tf.cli.verify_source",
+            return_value=SourceSnapshot(path=source, revision=DEFAULT_SOURCE_REVISION),
+        ) as verify,
+        patch("oraec_tf.cli.validate_corpus_source", return_value={"counts": counts}),
+        patch("oraec_tf.cli.iter_texts", return_value=iter((record,))),
+        patch(
+            "oraec_tf.cli.parse_corpus_metadata",
+            return_value=CorpusMetadataIR(("README Contributor",)),
+        ),
+        patch("oraec_tf.cli.parse_hierarchy", return_value=()),
+        patch("oraec_tf.cli.parse_mapping_tables", return_value=()),
+        patch("sys.stdout", output),
+    ):
+        assert main([
+            "convert", str(source), "--output", str(destination),
+            "--upstream-commit", DEFAULT_SOURCE_REVISION,
+        ]) == 0
+    verify.assert_called_once_with(str(source), expected_revision=DEFAULT_SOURCE_REVISION)
+    api = Fabric(locations=str(destination), silent="deep").load(
+        "oraec_id token_id title", silent="deep"
+    )
+    assert len(api.F.otype.s("word")) == 1
+    assert len(api.F.otype.s("text")) == 1
+    assert api.F.token_id.v(api.F.otype.s("word")[0]) == "oraec1-1-1"
+    assert json.loads(output.getvalue())["counts"]["tokens"] == 1
+
+
+def test_convert_cli_rejects_output_inside_verified_source(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    with patch(
+        "oraec_tf.cli.verify_source",
+        return_value=SourceSnapshot(path=source, revision=DEFAULT_SOURCE_REVISION),
+    ):
+        with pytest.raises(ValueError, match="output"):
+            main([
+                "convert", str(source), "--output", str(source / "generated"),
+                "--upstream-commit", DEFAULT_SOURCE_REVISION,
+            ])
+
+
+def test_convert_cli_refuses_revision_not_in_frozen_schema(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="revision"):
+        main([
+            "convert", str(tmp_path), "--output", str(tmp_path / "tf"),
+            "--upstream-commit", "a" * 40,
+        ])
