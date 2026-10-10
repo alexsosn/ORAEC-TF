@@ -510,3 +510,15 @@ def test_schema_v2_documents_sparse_carriage_return_features() -> None:
         assert metadata["valueType"] == "str"
         assert metadata["origin"] == "derived"
     assert schema["controlCharacterTransport"]["rawStringRoundTrip"] is True
+
+
+def test_control_transport_contract_is_declared_in_native_tf_metadata(
+    tmp_path: Path,
+) -> None:
+    first, second = _texts()
+    first = replace(first, bibliography="A\r\nB")
+    output = tmp_path / "tf"
+    write_tf((first, second), output, source_revision=REVISION)
+    text_feature = (output / "bibliography.tf").read_text(encoding="utf-8")
+    assert "@schemaVersion=2" in text_feature
+    assert "@controlCharacterTransport=cr-offsets-v1" in text_feature
