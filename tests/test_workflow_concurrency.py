@@ -63,7 +63,9 @@ def test_agora_pinned_source_gate_runs_for_source_dependency_changes() -> None:
     path_filters = text.split("    paths:\n", 1)[1].split("\nconcurrency:", 1)[0]
     for source_impact in (
         "src/oraec_tf/source.py",
+        "src/oraec_tf/cli.py",
         "tests/test_source.py",
+        "tests/test_cli.py",
         "pyproject.toml",
     ):
         assert f'      - "{source_impact}"' in path_filters, source_impact
