@@ -35,7 +35,7 @@ def test_reference_provides_exact_source_and_derived_provenance() -> None:
     assert "|Source|" in result
     assert "|Derived|" in result
     assert "token.lineCount" in result
-    assert "schema v2 source U+000D" in result
+    assert "Schema v2 source U+000D" in result
 
 
 def test_reference_does_not_claim_unknown_corpus_count_or_web_url() -> None:
