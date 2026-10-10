@@ -522,10 +522,21 @@ def parse_hierarchy(root: str | Path) -> tuple[HierarchyRowIR, ...]:
             seen_texts.add(text_id)
 
             labels = path_text.split("→")
-            links = [
-                (href, html.unescape(label))
-                for href, label in ANCHOR_RE.findall(linked_text)
-            ]
+            matches = list(ANCHOR_RE.finditer(linked_text))
+            cursor = 0
+            links: list[tuple[str, str]] = []
+            for position, match in enumerate(matches):
+                expected_separator = "" if position == 0 else "→"
+                if linked_text[cursor:match.start()] != expected_separator:
+                    raise ParseError(
+                        f"hierarchy linked path has unparsed bytes for {text_id}"
+                    )
+                links.append((match.group(1), html.unescape(match.group(2))))
+                cursor = match.end()
+            if cursor != len(linked_text):
+                raise ParseError(
+                    f"hierarchy linked path has unparsed bytes for {text_id}"
+                )
             if len(labels) != len(links):
                 raise ParseError(
                     f"hierarchy component mismatch for {text_id}: "
