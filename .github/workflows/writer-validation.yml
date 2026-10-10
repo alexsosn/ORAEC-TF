@@ -5,10 +5,12 @@ on:
   pull_request:
     paths:
       - "src/oraec_tf/writer.py"
+      - "src/oraec_tf/text_codec.py"
       - "src/oraec_tf/cli.py"
       - "src/oraec_tf/ir.py"
       - "src/oraec_tf/parser.py"
       - "schema/core.json"
+      - "docs/adr/0006-lossless-carriage-returns.md"
       - "setup.py"
       - "tests/test_writer.py"
       - "tests/test_writer_wheel.py"
@@ -54,6 +56,7 @@ jobs:
           import json
           from pathlib import Path
           from tf.fabric import Fabric
+          from oraec_tf.text_codec import restore_source_string
 
           raw = json.loads(
               Path("upstream/corpus_raw_data/oraec10.json").read_text(
@@ -61,31 +64,40 @@ jobs:
               )
           )["oraec10"]
           api = Fabric(locations="reports/generated/tf", silent="deep").load(
-              "oraec_id title bibliography", silent="deep"
+              "oraec_id title bibliography text_cr_offsets", silent="deep"
           )
           texts = {
               api.F.oraec_id.v(n): n for n in api.F.otype.s("text")
           }
           n = texts["oraec10"]
           source = raw["bibliography"]
-          actual = api.F.bibliography.v(n)
+          transport = api.F.bibliography.v(n)
+          actual = restore_source_string(
+              transport, api.F.text_cr_offsets.v(n), "bibliography"
+          )
           matches = [
               api.F.oraec_id.v(other)
               for other in api.F.otype.s("text")
-              if api.F.bibliography.v(other) == source
+              if restore_source_string(
+                  api.F.bibliography.v(other),
+                  api.F.text_cr_offsets.v(other),
+                  "bibliography",
+              ) == source
           ]
           print(json.dumps({
               "oraec_id": "oraec10",
               "tf_node": n,
               "title_equal": api.F.title.v(n) == raw["title"],
-              "bibliography_equal": actual == source,
+              "bibliography_equal_after_native_reconstruction": actual == source,
+              "source_cr_count": source.count("\\r"),
+              "transport_cr_count": transport.count("\\r"),
               "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
               "actual_sha256": hashlib.sha256(
                   (actual or "").encode()
               ).hexdigest(),
               "source_match_elsewhere": matches,
           }))
-          assert actual == source, "real source bibliography was misattributed"
+          assert actual == source, "exact source bibliography was not reconstructible"
           PY
 
       - name: Check the immutable corpus totals
