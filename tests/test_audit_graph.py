@@ -13,6 +13,8 @@ from oraec_tf.ir import (
     ControlledValueIR,
     CorpusMetadataIR,
     CreditsIR,
+    HierarchyComponentIR,
+    HierarchyRowIR,
     MappingRowIR,
     MappingTableIR,
     SentenceIR,
@@ -251,4 +253,63 @@ def test_independent_audit_rejects_lost_readme_contributor_identity(
     output = tmp_path / "tf"
     write_tf((record,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match="README|corpus author"):
+        audit_basic_graph(source, output)
+
+
+def _source_hierarchy(source: Path) -> tuple[HierarchyRowIR, ...]:
+    root = HierarchyComponentIR(
+        label="Root",
+        tla_url="https://thesaurus-linguae-aegyptiae.de/object/R",
+        tla_kind="object",
+        tla_id="R",
+    )
+    leaf = HierarchyComponentIR(
+        label="",
+        tla_url="https://thesaurus-linguae-aegyptiae.de/text/T1",
+        tla_kind="text",
+        tla_id="T1",
+    )
+    (source / "oraec_hierarchical_path.tsv").write_text(
+        "oraec1\tRoot→\t"
+        '<a href="https://thesaurus-linguae-aegyptiae.de/object/R">Root</a>→'
+        '<a href="https://thesaurus-linguae-aegyptiae.de/text/T1"></a>\n',
+        encoding="utf-8",
+    )
+    return (HierarchyRowIR(oraec_id="oraec1", components=(root, leaf)),)
+
+
+def test_independent_audit_checks_exact_empty_hierarchy_label(
+    tmp_path: Path,
+) -> None:
+    source, text = _source(tmp_path)
+    hierarchy = _source_hierarchy(source)
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION, hierarchy_rows=hierarchy)
+    assert audit_basic_graph(source, output)["sentences"] == 2
+
+
+def test_independent_audit_rejects_unparsed_linked_hierarchy_suffix(
+    tmp_path: Path,
+) -> None:
+    source, text = _source(tmp_path)
+    hierarchy = _source_hierarchy(source)
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION, hierarchy_rows=hierarchy)
+    path = source / "oraec_hierarchical_path.tsv"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("</a>\n", "</a>GARBAGE\n"),
+        encoding="utf-8",
+    )
+    with pytest.raises(GraphConservationError, match="hierarchy|linked"):
+        audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_dropped_hierarchy_component(
+    tmp_path: Path,
+) -> None:
+    source, text = _source(tmp_path)
+    _source_hierarchy(source)
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match="hierarchy"):
         audit_basic_graph(source, output)
