@@ -222,8 +222,8 @@ def test_write_tf_preserves_shared_entities_and_occurrence_relations(
     assert (api.F.cv_kind.v(cv), api.F.cv_id.v(cv), api.F.cv_label.v(cv)) == (
         "date", "D1", "Dynasty",
     )
-    assert api.E.date.f(texts["oraec1"]) == {cv: 1}
-    assert api.E.date.f(texts["oraec2"]) == {cv: 1}
+    assert dict(api.E.date.f(texts["oraec1"])) == {cv: 1}
+    assert dict(api.E.date.f(texts["oraec2"])) == {cv: 1}
 
     idnos = tuple(api.E.idno.f(texts["oraec1"]))
     assert len(idnos) == 2
@@ -245,8 +245,8 @@ def test_write_tf_preserves_shared_entities_and_occurrence_relations(
     assert len(api.F.otype.s("source_ref")) == 1
     src = api.F.otype.s("source_ref")[0]
     assert api.F.source_url.v(src) == "https://example.invalid/source"
-    assert api.E.source.f(texts["oraec1"]) == {src: 1}
-    assert api.E.source.f(texts["oraec2"]) == {src: 1}
+    assert dict(api.E.source.f(texts["oraec1"])) == {src: 1}
+    assert dict(api.E.source.f(texts["oraec2"])) == {src: 1}
 
     targets = tuple(api.E.external.f(authors["README Only"]))
     assert len(targets) == 1
@@ -254,7 +254,7 @@ def test_write_tf_preserves_shared_entities_and_occurrence_relations(
     assert (api.F.external_system.v(target), api.F.external_value.v(target)) == (
         "wikidata", "Q42",
     )
-    assert api.E.external.f(authors["README Only"])[target] == (
+    assert dict(api.E.external.f(authors["README Only"]))[target] == (
         "mapping_oraec_wikidata.tsv"
     )
     assert all(
