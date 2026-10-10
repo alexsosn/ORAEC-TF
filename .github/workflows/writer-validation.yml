@@ -13,6 +13,9 @@ on:
       - "tests/test_writer.py"
       - "tests/test_writer_wheel.py"
       - "tests/test_cli.py"
+      - "src/oraec_tf/audit_graph.py"
+      - "scripts/validate_graph_source.py"
+      - "tests/test_audit_graph.py"
       - ".github/workflows/writer-validation.yml"
 
 concurrency:
@@ -68,10 +71,21 @@ jobs:
           print(report["counts"])
           PY
 
+      - name: Independently audit raw source against generated TF
+        run: |
+          python scripts/validate_graph_source.py \
+            upstream/corpus_raw_data reports/generated/tf \
+            --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --converter-revision "$(git rev-parse HEAD)" \
+            --schema-version 1 \
+            --report reports/generated/graph-conservation.json
+
       - name: Upload counts and provenance only
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: oraec-writer-conservation-counts
-          path: reports/generated/native-tf-validation.json
+          path: |
+            reports/generated/native-tf-validation.json
+            reports/generated/graph-conservation.json
           if-no-files-found: warn
