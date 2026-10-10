@@ -77,6 +77,15 @@ def verify_source(
     expected = (
         None if expected_revision is None else validate_revision(expected_revision)
     )
+    top_level = _run_git(
+        ["-C", str(path), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+    ).stdout.strip()
+    if not top_level or Path(top_level).resolve() != path:
+        raise SourceAcquisitionError(
+            f"source path must be the Git worktree root: {path}"
+        )
+
     resolved = resolve_revision(path)
 
     if expected is not None and resolved != expected:
