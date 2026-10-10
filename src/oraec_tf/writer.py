@@ -185,11 +185,18 @@ def write_tf(
     cv = CV(fabric, silent="deep")
 
     def director(walker: Any) -> None:
+        # Keep exact owner handles until all ordinary node slots are linked.
+        # Occurrences are emitted once, after the source graph is finalized.
+        pending_cr: list[tuple[Any, str, int]] = []
+
         def assign(node: Any, **values: Any) -> None:
-            # TF 13.1 cannot serialize CR inside a feature value: it becomes
-            # an extra physical row and silently shifts later node IDs.
-            # Preserve each original U+000D offset in a native TF feature.
-            walker.feature(node, **encode_node_features(node[0], values))
+            # TF 13.1 cannot safely serialize literal CR in a feature row.
+            # Each original code point receives its own native TF occurrence.
+            scalars, offsets = encode_node_features(node[0], values)
+            walker.feature(node, **scalars)
+            pending_cr.extend(
+                (node, feature, offset) for feature, offset in offsets
+            )
 
         text_handles: dict[str, Any] = {}
         text_slots: dict[str, set[int]] = {}
@@ -426,6 +433,21 @@ def write_tf(
                 observed_edges.add(mapping_edge_key)
                 walker.edge(source_handle, n, external=filename)
 
+        # Native typed CR occurrences have exact owner identities and slots.
+        # No string packs coordinates, and no new word/anchor slots are added.
+        # Every previously emitted owner now has finalized word membership.
+        for owner, source_feature, original_offset in pending_cr:
+            owner_words = tuple(sorted(walker.linked(owner)))
+            if not owner_words:
+                raise WriterError("CR occurrence owner has no TF slots")
+            occurrence = walker.node("cr_occurrence", slots=owner_words)
+            walker.feature(
+                occurrence,
+                cr_feature=source_feature,
+                cr_offset=original_offset,
+            )
+            walker.edge(occurrence, owner, cr_owner=None)
+
         # Remove contracts for absent optional features before Walker's checks.
         for feature in metadata:
             if not walker.occurs(feature):
@@ -440,7 +462,7 @@ def write_tf(
             "sourceRevision": source_revision,
             "license": "CC BY-SA 4.0",
             "schemaVersion": str(_schema()["schemaVersion"]),
-            "controlCharacterTransport": "cr-offsets-v1",
+            "controlCharacterTransport": "native-cr-occurrences-v1",
         },
         intFeatures=int_features,
         featureMeta=metadata,
