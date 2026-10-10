@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from tarfile import open as open_tar
 from pathlib import Path
+from tarfile import open as open_tar
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
