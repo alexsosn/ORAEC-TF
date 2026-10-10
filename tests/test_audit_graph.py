@@ -491,3 +491,63 @@ def test_full_source_audit_rejects_missing_companion_semantic_files(
     write_tf((record,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match="required.*source"):
         audit_basic_graph(source, output, require_complete_source=True)
+
+
+@pytest.mark.parametrize(
+    "node_type",
+    ["author", "source_ref", "idno", "cv", "hierarchy", "external_ref"],
+)
+def test_independent_audit_rejects_corrupt_native_entity_oslots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, node_type: str,
+) -> None:
+    """Real Fabric graph with a deliberately corrupted native entity span.
+
+    The independent auditor must not trust oslots on shared native entities
+    merely because their source labels and mapping edges remain intact.
+    """
+    import oraec_tf.audit_graph as audit_module
+    from tf.fabric import Fabric
+
+    source, record = _relational_source(tmp_path)
+    hierarchy = _source_hierarchy(source)
+    output = tmp_path / "tf"
+    write_tf(
+        (record,),
+        output,
+        source_revision=REVISION,
+        corpus_metadata=CorpusMetadataIR(("Editor A", "README Only")),
+        mapping_tables=(
+            MappingTableIR(
+                filename="mapping_oraec_wikidata.tsv",
+                source_domain="author.author_name OR cv.cv_id",
+                target_system="wikidata",
+                release_included=True,
+                rows=(MappingRowIR(source="README Only", target="Q42"),),
+            ),
+        ),
+        hierarchy_rows=hierarchy,
+    )
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    nodes = tuple(api.F.otype.s(node_type))
+    assert nodes
+    target = nodes[0]
+    original_descend = api.L.d
+    assert original_descend(target, otype="word")
+
+    def corrupt_descend(node: int, otype: str | None = None) -> tuple[int, ...]:
+        if node == target and otype == "word":
+            return ()
+        return original_descend(node, otype=otype)
+
+    monkeypatch.setattr(api.L, "d", corrupt_descend)
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
+    with pytest.raises(GraphConservationError, match="oslots"):
+        audit_basic_graph(source, output)
