@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import re
-import shutil
 import subprocess
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from tf_build.source import (
+    GitSourceError,
+    fetch_git_source,
+    validate_git_revision,
+    verify_git_source,
+)
 
 SOURCE_REPOSITORY = "https://github.com/oraec/corpus_raw_data.git"
 DEFAULT_SOURCE_REVISION = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
@@ -47,7 +52,10 @@ def validate_revision(revision: str) -> str:
         raise SourceAcquisitionError(
             "source revision must be a full 40-hex immutable Git commit id"
         )
-    return revision.lower()
+    try:
+        return validate_git_revision(revision)
+    except GitSourceError as exc:
+        raise SourceAcquisitionError(str(exc)) from exc
 
 
 def resolve_revision(source: Path) -> str:
@@ -69,44 +77,22 @@ def verify_source(
     *,
     expected_revision: str | None = None,
 ) -> SourceSnapshot:
-    """Verify that *source* is a clean Git checkout at the expected commit."""
-    path = Path(source).resolve()
-    if not path.is_dir():
-        raise SourceAcquisitionError(f"source directory does not exist: {path}")
-
+    """Verify a clean ORAEC Git worktree root at an immutable 40-hex commit."""
     expected = (
         None if expected_revision is None else validate_revision(expected_revision)
     )
-    top_level = _run_git(
-        ["-C", str(path), "rev-parse", "--show-toplevel"],
-        capture_output=True,
-    ).stdout.strip()
-    if not top_level or Path(top_level).resolve() != path:
+    path = Path(source).resolve()
+    if not path.is_dir():
+        raise SourceAcquisitionError(f"source directory does not exist: {path}")
+    try:
+        verified = verify_git_source(path, expected_revision=expected)
+    except GitSourceError as exc:
+        raise SourceAcquisitionError(str(exc)) from exc
+    if verified.path != verified.repository_root:
         raise SourceAcquisitionError(
             f"source path must be the Git worktree root: {path}"
         )
-
-    resolved = resolve_revision(path)
-
-    if expected is not None and resolved != expected:
-        raise SourceAcquisitionError(
-            f"source revision mismatch: expected {expected}, resolved {resolved}"
-        )
-
-    status = _run_git(
-        [
-            "-C",
-            str(path),
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-        ],
-        capture_output=True,
-    ).stdout
-    if status.strip():
-        raise SourceAcquisitionError(f"source checkout is dirty: {path}")
-
-    return SourceSnapshot(path=path, revision=resolved)
+    return SourceSnapshot(path=verified.path, revision=validate_revision(verified.revision))
 
 
 def fetch_source(
@@ -114,77 +100,18 @@ def fetch_source(
     *,
     revision: str = DEFAULT_SOURCE_REVISION,
 ) -> SourceSnapshot:
-    """Fetch one immutable ORAEC commit and atomically install a clean checkout."""
-    requested_revision = validate_revision(revision)
-    target = Path(destination)
-    # Path.exists() ignores dangling symlinks; never replace caller-owned links.
-    target_preexisted = target.exists() or target.is_symlink()
-
-    if target_preexisted:
-        if target.is_symlink():
-            raise SourceAcquisitionError(f"destination must not be a symlink: {target}")
-        if not target.is_dir():
-            raise SourceAcquisitionError(
-                f"destination exists and is not a directory: {target}"
-            )
-        if any(target.iterdir()):
-            raise SourceAcquisitionError(f"destination is not empty: {target}")
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    staging = Path(
-        tempfile.mkdtemp(
-            prefix=f".{target.name}.oraec-tf-",
-            dir=target.parent,
-        )
-    )
-
+    """Acquire one pinned 40-hex ORAEC commit without publishing remote credentials."""
+    requested = validate_revision(revision)
     try:
-        _run_git(["-C", str(staging), "init", "--quiet"])
-        _run_git(
-            [
-                "-C",
-                str(staging),
-                "remote",
-                "add",
-                "origin",
-                SOURCE_REPOSITORY,
-            ]
+        verified = fetch_git_source(
+            SOURCE_REPOSITORY,
+            destination,
+            revision=requested,
         )
-        _run_git(
-            [
-                "-C",
-                str(staging),
-                "fetch",
-                "--depth",
-                "1",
-                "origin",
-                requested_revision,
-            ]
-        )
-        _run_git(
-            [
-                "-C",
-                str(staging),
-                "checkout",
-                "--detach",
-                "FETCH_HEAD",
-            ]
-        )
-        snapshot = verify_source(
-            staging,
-            expected_revision=requested_revision,
-        )
-
-        if target_preexisted:
-            target.rmdir()
-        staging.replace(target)
-
-        return SourceSnapshot(
-            path=target.resolve(),
-            revision=snapshot.revision,
-        )
-    except Exception:
-        shutil.rmtree(staging, ignore_errors=True)
-        if target_preexisted and not target.exists():
-            target.mkdir(parents=False, exist_ok=True)
-        raise
+    except (GitSourceError, OSError) as exc:
+        # Preserve ORAEC's public error contract while delegating atomic
+        # no-clobber publication, Git timeouts and staging cleanup to tf-build.
+        raise SourceAcquisitionError(str(exc)) from exc
+    return SourceSnapshot(
+        path=verified.path, revision=validate_revision(verified.revision)
+    )
