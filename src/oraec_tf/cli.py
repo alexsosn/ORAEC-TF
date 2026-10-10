@@ -157,7 +157,7 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
         raise
 
     return {
-        "output": str(target.resolve()),
+        "output": str(canonical_target),
         "revision": snapshot.revision,
         "counts": {
             "texts": text_count,
