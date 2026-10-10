@@ -34,6 +34,13 @@ def _fingerprints(tf_path: Path) -> dict[str, str]:
     """Hash research features without copying their source contents."""
     result: dict[str, str] = {}
     for path in sorted(tf_path.glob("*.tf")):
+        # Text-Fabric creates a cache directory literally named ".tf" after
+        # loading the graph. pathlib.glob("*.tf") includes that directory.
+        # Refuse feature symlinks rather than hashing arbitrary external data.
+        if path.is_symlink():
+            raise ValueError(f"unexpected symlinked TF feature: {path.name}")
+        if not path.is_file():
+            continue
         digest = hashlib.sha256()
         with path.open("rb") as handle:
             for block in iter(lambda: handle.read(1024 * 1024), b""):
