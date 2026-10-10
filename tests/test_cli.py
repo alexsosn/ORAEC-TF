@@ -399,3 +399,34 @@ def test_convert_rejects_parent_symlink_swapped_into_verified_source(
 
     assert not (source / "generated").exists()
     assert not tuple(source.glob(".generated.tf-build-*"))
+
+
+
+def test_convert_reports_actual_canonical_artifact_after_parent_symlink_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Do not report a rival's symlink target instead of our published graph."""
+    source = tmp_path / "source"
+    source.mkdir()
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    output = alias / "graph"
+    original_publish = BuildWorkspace.publish
+
+    def swap_at_publication(workspace: BuildWorkspace) -> Path:
+        assert workspace.destination == safe / "graph"
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        return original_publish(workspace)
+
+    monkeypatch.setattr(BuildWorkspace, "publish", swap_at_publication)
+    captured = StringIO()
+    with _synthetic_conversion_inputs(source), patch("sys.stdout", captured):
+        assert _synthetic_convert(source, output) == 0
+
+    result = json.loads(captured.getvalue())
+    assert (safe / "graph" / "otype.tf").is_file()
+    assert not (source / "graph").exists()
+    assert result["output"] == str((safe / "graph").resolve())
