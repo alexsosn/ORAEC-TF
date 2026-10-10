@@ -787,6 +787,27 @@ def audit_basic_graph(
                     None,
                     context=f"{text_id}.sentence[{index}].anchor.token_id",
                 )
+                # A technical anchor represents zero source tokens; it may
+                # never receive invented written forms, morphology, source
+                # hieroglyphs, line annotations or cotext values.
+                for tf_feature in SOURCE_WORD_FIELDS.values():
+                    if tf_feature == "token_id":
+                        continue
+                    _expect_equal(
+                        _node_value(api, tf_feature, anchor),
+                        None,
+                        context=f"{text_id}.sentence[{index}].anchor.{tf_feature}",
+                    )
+                _expect_equal(
+                    _node_value(api, "word_cr_offsets", anchor),
+                    None,
+                    context=f"{text_id}.sentence[{index}].anchor.word_cr_offsets",
+                )
+                _expect_equal(
+                    _node_value(api, "trailer", anchor),
+                    "",
+                    context=f"{text_id}.sentence[{index}].anchor.trailer",
+                )
                 counts["anchors"] += 1
                 observed_words.add(anchor)
             else:
