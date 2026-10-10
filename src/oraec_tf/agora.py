@@ -14,9 +14,9 @@ import io
 import json
 import shutil
 import tempfile
+from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
-from collections.abc import Sequence
 from typing import Any
 
 from . import cli
