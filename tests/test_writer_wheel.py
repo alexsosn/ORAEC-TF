@@ -12,10 +12,21 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _checked_build(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    """Keep build stdout/stderr visible when wheel/sdist gates fail in CI."""
+    try:
+        return subprocess.run(*args, **kwargs)  # type: ignore[call-overload]
+    except subprocess.CalledProcessError as exc:
+        raise AssertionError(
+            f"package build failed ({exc.returncode}):\\n"
+            f"stdout:\\n{exc.stdout}\\nstderr:\\n{exc.stderr}"
+        ) from exc
+
+
 def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
     wheelhouse = tmp_path / "wheels"
     wheelhouse.mkdir()
-    subprocess.run(
+    _checked_build(
         [
             sys.executable,
             "-m",
@@ -49,7 +60,7 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
         "assert m['written_form']['sourceField'] == 'token.written_form'"
     )
     env = {**os.environ, "PYTHONPATH": str(installed)}
-    subprocess.run(
+    _checked_build(
         [sys.executable, "-c", code],
         cwd=tmp_path,
         check=True,
@@ -65,7 +76,7 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
 ) -> None:
     source_dist = tmp_path / "sdist"
     source_dist.mkdir()
-    subprocess.run(
+    _checked_build(
         [sys.executable, "setup.py", "sdist", "--dist-dir", str(source_dist)],
         cwd=ROOT,
         check=True,
@@ -88,7 +99,7 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
 
     wheelhouse = tmp_path / "from_sdist"
     wheelhouse.mkdir()
-    subprocess.run(
+    _checked_build(
         [
             sys.executable,
             "-m",
