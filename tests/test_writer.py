@@ -556,3 +556,21 @@ def test_advanced_app_loads_local_ephemeral_tf_with_egyptian_formats(
     )
     first_sentence = api.L.d(text, otype="sentence")[0]
     assert api.T.sectionFromNode(first_sentence) == ("oraec1", 1)
+
+
+def test_offline_tf_browser_can_serve_local_egyptian_corpus(
+    tmp_path: Path,
+) -> None:
+    """#9: a Flask TF browser route must be created without a custom web app."""
+    from tf.browser.web import setup
+
+    output = tmp_path / "tf"
+    write_tf(_texts(), output, source_revision=REVISION)
+    app_path = Path(__file__).resolve().parents[1] / "app"
+
+    # Same arguments as the documented stock Text-Fabric browser command.
+    webapp = setup(False, f"app:{app_path}", f"--locations={output}")
+    assert webapp is not None
+    assert "/query" in {rule.rule for rule in webapp.url_map.iter_rules()}
+    response = webapp.test_client().get("/")
+    assert response.status_code == 200
