@@ -15,3 +15,5 @@ Issue #54, following already merged source acquisition PR #53.
 4. Update README to describe atomic no-clobber promotion, source-backed exhaustive validation, and the preexisting-empty compatibility interval.
 5. Exact-head fast Ruff/strict mypy/pytest on 3.11–3.13; then ready-state full pinned-source writer, independent conservation, advanced-app and Agora CI on **the same exact head**.
 6. Perform a truly independent adversarial review based on source code, actual emitted features and pinned-source logs; re-run gates after any behavior-changing fix and only then squash-merge.
+
+7. Independent CI gap: add RED-first check that the Agora pinned-source workflow's `pull_request.paths` includes both `src/oraec_tf/cli.py` and `tests/test_cli.py`. Patch only this path filter and rerun fast CI, then ready-state full native writer **and** Agora full pinned-source workflows on the exact new head. Treat missing/skipped Agora runs as failure of the merge gate.
