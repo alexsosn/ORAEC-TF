@@ -8,9 +8,8 @@ from unittest.mock import patch
 import pytest
 from tf.fabric import Fabric
 
-from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
-
 from oraec_tf.cli import main
+from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
 from oraec_tf.source import (
     DEFAULT_SOURCE_REVISION,
     SOURCE_REPOSITORY,
