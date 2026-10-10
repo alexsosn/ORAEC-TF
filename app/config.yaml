@@ -12,7 +12,7 @@ dataDisplay:
 docs:
   docBase: '{urlGh}/{org}/{repo}/blob/{branch}/docs'
   docExt: .md
-  docPage: researcher-guide
+  docPage: app-browser
   featureBase: '{urlGh}/{org}/{repo}/blob/{branch}/schema/core.json'
   featurePage: ''
 
