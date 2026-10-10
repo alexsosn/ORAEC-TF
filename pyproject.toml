@@ -48,3 +48,9 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests", "scripts"]
+
+# Text-Fabric 13.1 ships without a PEP 561 py.typed marker or stubs.
+# Keep strict typing for ORAEC-TF code; ignore missing types only at this boundary.
+[[tool.mypy.overrides]]
+module = ["tf.fabric", "tf.convert.walker"]
+ignore_missing_imports = true
