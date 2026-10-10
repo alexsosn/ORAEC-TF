@@ -21,12 +21,9 @@ def _pull_request_workflows() -> list[Path]:
 def test_every_pull_request_workflow_cancels_superseded_heads() -> None:
     workflows = _pull_request_workflows()
 
-    assert {path.name for path in workflows} == {
-        "ci.yml",
-        "linecount-research.yml",
-        "schema-preflight.yml",
-        "source-audit.yml",
-    }
+    # Discover all PR workflows instead of freezing the current file list.
+    # Future workflows must inherit the same concurrency policy.
+    assert workflows, "no pull-request workflows found"
 
     for path in workflows:
         text = path.read_text(encoding="utf-8")
