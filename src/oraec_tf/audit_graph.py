@@ -605,14 +605,18 @@ def audit_graph_with_provenance(
     if not paths:
         raise GraphConservationError("generated TF contains no feature files")
     output_hashes: dict[str, str] = {}
+    output_bytes: dict[str, int] = {}
     for path in paths:
         digest = hashlib.sha256()
         with path.open("rb") as handle:
             for block in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(block)
         output_hashes[path.name] = digest.hexdigest()
+        output_bytes[path.name] = path.stat().st_size
     return {
         "ok": True,
+        "output_bytes": output_bytes,
+        "total_tf_bytes": sum(output_bytes.values()),
         "source_revision": source_revision,
         "converter_revision": converter_revision,
         "schema_version": schema_version,
