@@ -3,6 +3,7 @@ name: Agora materializer pinned-source integration
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "agora.materializer.json"
       - "src/oraec_tf/agora.py"
@@ -15,6 +16,9 @@ concurrency:
 
 jobs:
   materialize:
+    # Do not consume pinned source CI minutes on draft RED/GREEN pushes.
+    # Ready/non-draft commits and explicit manual runs still execute all gates.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
