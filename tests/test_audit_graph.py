@@ -528,6 +528,8 @@ def test_independent_audit_rejects_corrupt_native_entity_oslots(
         ),
         hierarchy_rows=hierarchy,
     )
+    # Positive control: the unmodified real graph must be conserved.
+    assert audit_basic_graph(source, output)["tokens"] == 1
     api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     nodes = tuple(api.F.otype.s(node_type))
     assert nodes
