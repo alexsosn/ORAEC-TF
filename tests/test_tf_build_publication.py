@@ -6,10 +6,12 @@ writer, TF reader and tf-build's atomic file publication are *real*.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
+from tf.fabric import Fabric
 
 from oraec_tf import cli
 from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
@@ -95,11 +97,24 @@ def test_reject_unselected_corrupt_feature_even_if_counts_still_load(
     def corrupt_title(*args: Any, **kwargs: Any) -> None:
         genuine_writer(*args, **kwargs)
         stage = Path(args[1])
-        assert (stage / "title.tf").is_file()
-        # 'title' isn't among the three features selected by old _convert.
-        (stage / "title.tf").write_text(
-            "@node\n@valueType=wrong\n1\tchanged\n", encoding="utf-8"
+        title = stage / "title.tf"
+        assert title.is_file()
+        # Create a real compiled cache from the original good source value.
+        # Deliberately make the compiled cache newer than the damaged .tf
+        # source to falsify validators that trust cache timestamps.
+        api = Fabric(locations=str(stage), silent="deep").load(
+            "title", silent="deep"
         )
+        assert api and api.F.title.v(api.F.otype.s("text")[0]) == "Source title"
+        cache_files = tuple((stage / ".tf").rglob("*.tfx"))
+        assert cache_files, "real TF load must have created compiled feature caches"
+        # Title isn't in the old count-only ORAEC reload feature selection.
+        title.write_text(
+            "@node\\n@valueType=wrong\\n1\\tchanged\\n", encoding="utf-8"
+        )
+        future_ns = title.stat().st_mtime_ns + 5_000_000_000
+        for cache_file in cache_files:
+            os.utime(cache_file, ns=(future_ns, future_ns))
 
     monkeypatch.setattr(cli, "write_tf", corrupt_title)
     with pytest.raises(ValueError, match="title|value type|valueType|feature"):
