@@ -208,10 +208,10 @@ def test_fetch_uses_source_specific_40_hex_contract_before_acquisition(
 ) -> None:
     from oraec_tf import source as source_module
 
-    with patch.object(source_module, "_run_git") as old_git:
+    with patch.object(source_module, "fetch_git_source") as delegated:
         with pytest.raises(SourceAcquisitionError, match="40-hex"):
             fetch_source(tmp_path / "source", revision="f" * 64)
-    old_git.assert_not_called()
+    delegated.assert_not_called()
     assert not (tmp_path / "source").exists()
 
 
