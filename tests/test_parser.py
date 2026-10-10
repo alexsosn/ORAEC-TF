@@ -434,3 +434,28 @@ def test_parser_rejects_present_empty_idno_list(tmp_path: Path) -> None:
 
     with pytest.raises(ParseError, match="cardinality"):
         parse_text(path)
+
+
+@pytest.mark.parametrize("corruption", ["suffix", "between_links"])
+def test_parse_hierarchy_rejects_unparsed_linked_path_bytes(
+    tmp_path: Path, corruption: str
+) -> None:
+    root = _source_fixture(tmp_path)
+    path = root / "oraec_hierarchical_path.tsv"
+    original = path.read_text(encoding="utf-8")
+    if corruption == "suffix":
+        corrupted = original.replace(
+            '<a href="https://thesaurus-linguae-aegyptiae.de/text/T1"></a>',
+            '<a href="https://thesaurus-linguae-aegyptiae.de/text/T1"></a>UNPARSED',
+        )
+    else:
+        corrupted = original.replace(
+            "</a>→<a href=",
+            "</a>UNPARSED→<a href=",
+            1,
+        )
+    assert corrupted != original
+    path.write_text(corrupted, encoding="utf-8")
+
+    with pytest.raises(ParseError, match="hierarchy.*linked|linked.*hierarchy"):
+        parse_hierarchy(root)
