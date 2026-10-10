@@ -42,8 +42,7 @@ def test_manifest_declares_pinned_offline_native_tf_materializer() -> None:
 def test_adapter_delegates_to_public_cli_without_fetching(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    from oraec_tf import agora
-    from oraec_tf import cli
+    from oraec_tf import agora, cli
 
     called: list[list[str]] = []
 
@@ -86,8 +85,7 @@ def test_adapter_delegates_to_public_cli_without_fetching(
 def test_adapter_rejects_mutable_or_unapproved_source_revision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    from oraec_tf import agora
-    from oraec_tf import cli
+    from oraec_tf import agora, cli
 
     def should_not_run(argv: list[str]) -> int:
         raise AssertionError("conversion was invoked for an invalid revision")
@@ -105,8 +103,7 @@ def test_adapter_rejects_mutable_or_unapproved_source_revision(
 def test_adapter_failure_does_not_publish_partial_output(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    from oraec_tf import agora
-    from oraec_tf import cli
+    from oraec_tf import agora, cli
 
     def fail_after_partial_output(argv: list[str]) -> int:
         tf_dir = Path(argv[3])
