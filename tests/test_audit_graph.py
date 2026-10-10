@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from oraec_tf.audit_graph import GraphConservationError, audit_basic_graph
+from oraec_tf.audit_graph import (
+    GraphConservationError,
+    audit_basic_graph,
+    audit_graph_with_provenance,
+)
 from oraec_tf.ir import (
     ControlledValueIR,
     CorpusMetadataIR,
@@ -327,3 +332,27 @@ def test_independent_audit_rejects_unmodeled_new_raw_token_field(
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     with pytest.raises(GraphConservationError, match="unmodeled|unknown"):
         audit_basic_graph(source, output)
+
+
+def test_audit_report_hashes_generated_tf_without_semantic_sidecars(
+    tmp_path: Path,
+) -> None:
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    report = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION,
+        converter_revision="a" * 40,
+        schema_version=1,
+    )
+    assert report["ok"] is True
+    assert report["source_revision"] == REVISION
+    assert report["converter_revision"] == "a" * 40
+    assert report["schema_version"] == 1
+    assert report["counts"]["tokens"] == 1
+    assert report["tf_version"]
+    assert report["output_sha256"]["otype.tf"] == hashlib.sha256(
+        (output / "otype.tf").read_bytes()
+    ).hexdigest()
+    assert all(path.endswith(".tf") for path in report["output_sha256"])
