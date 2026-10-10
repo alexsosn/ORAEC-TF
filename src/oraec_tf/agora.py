@@ -19,7 +19,12 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from . import cli
-from .source import DEFAULT_SOURCE_REVISION, SOURCE_REPOSITORY, validate_revision
+from .source import (
+    DEFAULT_SOURCE_REVISION,
+    SOURCE_REPOSITORY,
+    SourceAcquisitionError,
+    validate_revision,
+)
 
 REQUIRED_WARP = ("otype.tf", "oslots.tf", "otext.tf")
 
@@ -45,7 +50,10 @@ def materialize(
     No partial artifact can be published: conversion happens in a private
     sibling staging directory; final destination is renamed only on success.
     """
-    revision = validate_revision(source_revision)
+    try:
+        revision = validate_revision(source_revision)
+    except SourceAcquisitionError as exc:
+        raise ValueError(f"invalid source revision: {source_revision!r}") from exc
     if revision != DEFAULT_SOURCE_REVISION:
         raise ValueError("unsupported source revision for frozen ORAEC schema")
 
