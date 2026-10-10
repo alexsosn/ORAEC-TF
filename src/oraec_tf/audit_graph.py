@@ -54,6 +54,7 @@ SOURCE_WORD_FIELDS = {
 
 PINNED_HIERO_COUNTS = {
     "present": 267_042,
+    "distinct": 40_686,
     "placeholder": 13_198,
     "replacement": 6_545,
 }
@@ -717,7 +718,8 @@ def audit_basic_graph(
         raise GraphConservationError("missing or extra Text-Fabric text nodes")
 
     counts = {"texts": 0, "sentences": 0, "tokens": 0, "anchors": 0}
-    hiero_counts = {"present": 0, "placeholder": 0, "replacement": 0}
+    hiero_counts = {"present": 0, "distinct": 0, "placeholder": 0, "replacement": 0}
+    hiero_distinct: set[str] = set()
     observed_words: set[int] = set()
     expected_lemmas: dict[str, tuple[str, set[int]]] = {}
     credited_authors: set[str] = set()
@@ -853,6 +855,7 @@ def audit_basic_graph(
                                 f".sentence[{index}].token[{token_idx}]"
                             )
                         hiero_counts["present"] += 1
+                        hiero_distinct.add(value)
                         if value == "[⯑]":
                             hiero_counts["placeholder"] += 1
                         if "�" in value:
@@ -927,6 +930,7 @@ def audit_basic_graph(
     _verify_hierarchy(api, root, tf_texts)
     _verify_native_entity_oslots(api, tf_texts)
     if require_complete_source:
+        hiero_counts["distinct"] = len(hiero_distinct)
         _validate_hiero_counts(hiero_counts)
     return counts
 
