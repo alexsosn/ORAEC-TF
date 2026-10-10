@@ -20,6 +20,13 @@ from typing import Any
 from tf.fabric import Fabric
 
 TEXT_NAME_RE = re.compile(r"oraec[0-9]+\.json\Z")
+RAW_RECORD_KEYS = {
+    "oraecid", "title", "sentences", "credits", "bibliography", "condition",
+    "date", "origplace", "objecttype", "location", "material", "idno",
+}
+RAW_SENTENCE_KEYS = {"translation", "token"}
+RAW_CREDITS_KEYS = {"license", "author", "source"}
+
 SOURCE_WORD_FIELDS = {
     "token": "token_id",
     "written_form": "written_form",
@@ -55,6 +62,16 @@ def _no_duplicate_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise GraphConservationError(f"duplicate raw JSON object key: {key}")
         result[key] = value
     return result
+
+
+def _reject_unmodeled_keys(
+    record: dict[str, Any], known: set[str], *, context: str,
+) -> None:
+    unseen = set(record) - known
+    if unseen:
+        raise GraphConservationError(
+            f"unknown raw source fields at {context}: {sorted(unseen)}"
+        )
 
 
 def _expect_equal(actual: object, expected: object, *, context: str) -> None:
@@ -446,6 +463,18 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
         source_text = decoded[text_id]
         if not isinstance(source_text, dict):
             raise GraphConservationError(f"invalid raw ORAEC record: {text_id}")
+        _reject_unmodeled_keys(
+            source_text, RAW_RECORD_KEYS, context=f"{text_id}.record"
+        )
+        _expect_equal(
+            source_text.get("oraecid"), text_id, context=f"{text_id}.oraecid"
+        )
+        credits = source_text.get("credits")
+        if not isinstance(credits, dict):
+            raise GraphConservationError(f"invalid credits object: {text_id}")
+        _reject_unmodeled_keys(
+            credits, RAW_CREDITS_KEYS, context=f"{text_id}.credits"
+        )
         text_node = tf_texts.get(text_id)
         if text_node is None:
             raise GraphConservationError(f"missing TF text {text_id}")
@@ -474,6 +503,12 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
         for index, (raw_sentence, sentence_node) in enumerate(
             zip(sentences, actual_sentences, strict=True), start=1
         ):
+            if not isinstance(raw_sentence, dict):
+                raise GraphConservationError("raw sentence is not an object")
+            _reject_unmodeled_keys(
+                raw_sentence, RAW_SENTENCE_KEYS,
+                context=f"{text_id}.sentence[{index}]",
+            )
             _expect_equal(
                 api.F.sentence_index.v(sentence_node),
                 index,
