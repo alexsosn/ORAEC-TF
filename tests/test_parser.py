@@ -459,3 +459,19 @@ def test_parse_hierarchy_rejects_unparsed_linked_path_bytes(
 
     with pytest.raises(ParseError, match="hierarchy.*linked|linked.*hierarchy"):
         parse_hierarchy(root)
+
+
+def test_parse_text_rejects_duplicate_json_object_keys(tmp_path: Path) -> None:
+    root = _source_fixture(tmp_path)
+    path = root / "oraec1.json"
+    original = path.read_text(encoding="utf-8")
+    corrupted = original.replace(
+        '"written_form": " nṯr "',
+        '"written_form": "FIRST", "written_form": "SECOND"',
+        1,
+    )
+    assert corrupted != original
+    path.write_text(corrupted, encoding="utf-8")
+
+    with pytest.raises(ParseError, match="duplicate.*written_form"):
+        parse_text(path)
