@@ -21,6 +21,7 @@ oraec-tf = "oraec_tf.cli:main"
 
 [project.optional-dependencies]
 dev = [
+  "setuptools>=75",
   "mypy>=1.11",
   "pytest>=8",
   "ruff>=0.8",
