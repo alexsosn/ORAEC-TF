@@ -408,3 +408,30 @@ def test_multitext_bibliography_is_attached_to_correct_oraec_identity(
     assert actual == {
         item.oraec_id: (item.title, item.bibliography) for item in records
     }
+
+
+def test_carriage_return_is_losslessly_reconstructible_from_native_tf(
+    tmp_path: Path,
+) -> None:
+    """#40: preserve literal CRLF and CR despite Text-Fabric transport limits."""
+    from oraec_tf.text_codec import restore_source_string
+
+    first, second = _texts()
+    raw = "Editionen:\r\n- Papyrus Berlin\r\n- Other\r\rOriginal\nEnd"
+    first = replace(first, bibliography=raw)
+    second = replace(second, bibliography="ordinary\ntext")
+    output = tmp_path / "tf"
+    write_tf((first, second), output, source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id bibliography text_cr_offsets",
+        silent="deep",
+    )
+    texts = {api.F.oraec_id.v(n): n for n in api.F.otype.s("text")}
+    a = texts[first.oraec_id]
+    b = texts[second.oraec_id]
+    assert api.F.bibliography.v(a) == raw.replace("\r", "")
+    assert restore_source_string(
+        api.F.bibliography.v(a), api.F.text_cr_offsets.v(a), "bibliography"
+    ) == raw
+    assert api.F.bibliography.v(b) == second.bibliography
+    assert api.F.text_cr_offsets.v(b) is None
