@@ -6,8 +6,8 @@ import csv
 import html
 import json
 import re
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 from .ir import (
