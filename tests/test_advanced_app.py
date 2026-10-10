@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tf.advanced.app import App
 from tf.advanced.find import findAppConfig
 from tf.fabric import Fabric
@@ -138,3 +140,73 @@ def test_app_provenance_never_claims_bundled_corpus_files() -> None:
     assert cfg["provenanceSpec"]["org"] == "alexsosn"
     assert cfg["provenanceSpec"]["repo"] == "ORAEC-TF"
     assert "webBase" not in cfg["provenanceSpec"]
+
+
+
+@pytest.mark.parametrize(
+    "hiero",
+    [
+        "[⯑]",  # exact source uncertainty placeholder
+        "⯑",  # bare glyph-like uncertainty marker is not a bracketed placeholder
+        "�",  # U+FFFD is already in the authoritative ORAEC export
+        "�𓇾",  # preserve both unavailable and recoverable Unicode signs
+    ],
+)
+def test_advanced_app_preserves_each_distinct_source_hiero_case(
+    tmp_path: Path, hiero: str,
+) -> None:
+    """#21: no normalization or guessed MdC substitutions in the standard app."""
+    text = TextIR(
+        oraec_id="oraec42",
+        title="Exact source hieroglyph signs",
+        credits=CreditsIR(
+            license="cc-by-sa-4.0",
+            author="Editor",
+            sources=("https://example.invalid/source",),
+        ),
+        sentences=(
+            SentenceIR(
+                index=1,
+                translation="",
+                tokens=(
+                    TokenIR(
+                        token_id="oraec42-1-1",
+                        written_form="nṯr",
+                        hiero=hiero,
+                    ),
+                    TokenIR(
+                        token_id="oraec42-1-2",
+                        written_form="ḫpr",
+                        # Missing source hieroglyphs must remain missing.
+                    ),
+                ),
+            ),
+        ),
+    )
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    assert api
+    words = api.F.otype.s("word")
+    assert api.F.hiero.v(words[0]) == hiero
+    assert api.F.hiero.v(words[1]) is None
+
+    sentence = api.F.otype.s("sentence")[0]
+    hiero_text = api.T.text(sentence, fmt="text-hiero")
+    assert hiero in hiero_text
+    assert "ḫpr" not in hiero_text
+    assert api.T.text(sentence, fmt="text-translit").startswith("nṯr")
+
+    config = findAppConfig(
+        "ORAEC-TF", str(APP_DIR), commit="local", release="",
+        local="clone", backend="github",
+    )
+    app = App(
+        config, "ORAEC-TF", str(APP_DIR), commit="local", release="",
+        local="clone", backend="github", _browse=False, api=api,
+        silent="deep",
+    )
+    assert app.api
+    html = app.pretty(sentence, _asString=True, fmt="text-hiero")
+    assert hiero in html
+    assert "ḫpr" not in html
