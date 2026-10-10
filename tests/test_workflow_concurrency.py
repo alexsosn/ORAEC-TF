@@ -5,8 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 GROUP = (
-    "group: ${{ github.workflow }}-"
-    "${{ github.event.pull_request.number || github.ref }}"
+    "group: ${{ github.workflow }}-${{ github.event_name }}-"
+    "${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}"
 )
 
 
@@ -39,3 +39,13 @@ def test_concurrency_is_top_level_before_jobs() -> None:
     for path in _pull_request_workflows():
         text = path.read_text(encoding="utf-8")
         assert text.index("\nconcurrency:\n") < text.index("\njobs:\n"), path.name
+
+
+def test_manual_runs_are_isolated_from_push_runs_and_each_other() -> None:
+    # Event type prevents push/dispatch collisions. Unique run_id prevents
+    # independently requested manual dispatches on the same branch colliding.
+    for path in _pull_request_workflows():
+        text = path.read_text(encoding="utf-8")
+        assert GROUP in text, path.name
+        assert "github.event_name" in text, path.name
+        assert "github.run_id" in text, path.name
