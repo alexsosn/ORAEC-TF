@@ -53,5 +53,5 @@ files = ["src", "tests", "scripts"]
 # Text-Fabric 13.1 ships without a PEP 561 py.typed marker or stubs.
 # Keep strict typing for ORAEC-TF code; ignore missing types only at this boundary.
 [[tool.mypy.overrides]]
-module = ["tf.fabric", "tf.convert.walker"]
+module = ["tf.fabric", "tf.convert.walker", "tf.app", "tf.browser.web"]
 ignore_missing_imports = true
