@@ -1,7 +1,45 @@
-# Bootstrap advanced-app configuration.
-# Issue #9 finalizes display, sections, formats, and source links after #3 freezes the TF schema.
+# Text-Fabric 13.1 standard advanced-app configuration.
+# No ORAEC corpus files or custom web server are committed here.
+# 'egy' is NOT a supported writing identifier in TF 13.1.
 apiVersion: 3
+
+dataDisplay:
+  browseContentPretty: true
+  browseNavLevel: 1
+  exampleSection: oraec42 1
+  textFormat: text-translit
+
+docs:
+  docBase: '{urlGh}/{org}/{repo}/blob/{branch}/docs'
+  docExt: .md
+  docPage: researcher-guide
+  featureBase: '{urlGh}/{org}/{repo}/blob/{branch}/schema/core.json'
+  featurePage: ''
+
 provenanceSpec:
-  corpus: ORAEC-TF = Open Richly Annotated Egyptian Corpus in Text-Fabric
-  version: 0.1.0-dev
-writing: egy
+  corpus: ORAEC — Egyptian annotated texts (native Text-Fabric)
+  org: alexsosn
+  repo: ORAEC-TF
+  branch: main
+  relative: tf
+
+typeDisplay:
+  text:
+    label: '{oraec_id}'
+    template: '{oraec_id}'
+    featuresBare: title
+    isBig: true
+  sentence:
+    label: '{sentence_index}'
+    template: '{sentence_index}'
+    featuresBare: translation
+    verselike: true
+  word:
+    exclude:
+      is_anchor: 1
+    features: pos line_count
+  lex:
+    lexOcc: word
+    label: '{lemma_form}'
+    template: '{lemma_form}'
+    features: lemma_id
