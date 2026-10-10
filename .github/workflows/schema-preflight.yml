@@ -1,0 +1,49 @@
+name: Schema preflight
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schema/**"
+      - "docs/adr/0005-native-tf-schema.md"
+      - "src/oraec_tf/schema_preflight.py"
+      - "scripts/validate_schema_source.py"
+      - "tests/test_schema_contract.py"
+      - "tests/test_schema_preflight.py"
+      - ".github/workflows/schema-preflight.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ORAEC-TF
+        run: python -m pip install -e '.[dev]'
+
+      - name: Acquire verified pinned ORAEC source
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+
+      - name: Validate frozen schema against complete source
+        run: |
+          python scripts/validate_schema_source.py upstream/corpus_raw_data \
+            --json reports/generated/schema-preflight.json
+
+      - name: Show report
+        if: always()
+        run: cat reports/generated/schema-preflight.json || true
+
+      - name: Upload preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-schema-preflight
+          path: reports/generated/schema-preflight.json
+          if-no-files-found: error

@@ -10,9 +10,9 @@ The 0.1.0 path is issue-driven. Dependencies are intentional: do not implement a
 
 - #14 Decide authoritative source layer and Text-Fabric Factory boundary.
 - #2 Complete ORAEC source/schema/licence audit.
-- #3 Freeze the native TF ontology and serialization contract.
+- #3 Freeze the native TF ontology and serialization contract — ADR 0005 + `schema/core.json`.
 
-Dependency: #3 requires #14 and #2 and consumes ADR 0004 (#19) plus ADR 0002 (#20); the core schema must not infer `line` nodes from `lineCount`.
+ADR 0005 consumes #14/#2 plus ADRs 0002–0004. Downstream semantic implementation must conform to `schema/core.json`; the core schema has no inferred `line` nodes.
 
 ## Source pipeline
 
@@ -22,9 +22,9 @@ Dependency: #3 requires #14 and #2 and consumes ADR 0004 (#19) plus ADR 0002 (#2
 - #7 Native modelling of hierarchy, lexical entities, and external mappings.
 
 Dependencies:
-- #5 requires #14, #2, and #3; it must preserve exact/missing `lineCount` values under ADR 0004.
-- #6 requires #3 and #5; its default implementation path is direct `tf.convert.walker.CV`, not Text-Fabric Factory. It must implement ADR 0002's zero-token sentence anchors, ADR 0003's exact `hiero` preservation, and ADR 0004's exact token-level `lineCount` without synthesized core line nodes.
-- #7 requires #2, #3, and the relevant parser/writer interfaces.
+- #5 is unblocked by ADR 0005; it must parse the complete `schema/core.json` source contract and preserve exact/missing `lineCount` and `hiero` values.
+- #6 requires #5 and implements ADR 0005 directly with `tf.convert.walker.CV`, including ADR 0002 anchors, ADR 0003 exact `hiero`, and ADR 0004 exact token-level `lineCount` without core line nodes.
+- #7 requires the ADR 0005 entity/edge contract plus the relevant #5/#6 interfaces; Karnak remains gated by #17.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.
 

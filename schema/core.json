@@ -1,0 +1,847 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/oraec/corpus_raw_data.git",
+    "revision": "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd",
+    "semanticSidecars": false,
+    "fields": {
+      "record": [
+        "bibliography",
+        "condition",
+        "credits",
+        "date",
+        "idno",
+        "location",
+        "material",
+        "objecttype",
+        "oraecid",
+        "origplace",
+        "sentences",
+        "title"
+      ],
+      "sentence": [
+        "token",
+        "translation"
+      ],
+      "credits": [
+        "author",
+        "license",
+        "source"
+      ],
+      "token": [
+        "adjective",
+        "adverb",
+        "cotext_translation",
+        "epitheton",
+        "genus",
+        "hiero",
+        "inflection",
+        "lemmaID",
+        "lemma_form",
+        "lineCount",
+        "morphology",
+        "name",
+        "number",
+        "numerus",
+        "particle",
+        "pos",
+        "pronoun",
+        "status",
+        "token",
+        "verbalClass",
+        "voice",
+        "written_form"
+      ]
+    },
+    "derivedFamiliesNotCore": [
+      "collocation",
+      "statistics"
+    ],
+    "corpusMetadata": {
+      "authors": "README licence-table author column for oraec1.json .. oraec13026.json"
+    }
+  },
+  "slotType": "word",
+  "nodeTypes": {
+    "word": {
+      "sourceIdentity": "token_id",
+      "oslots": "self",
+      "features": {
+        "token_id": {
+          "origin": "source",
+          "sourceField": "token.token",
+          "valueType": "str",
+          "exact": true,
+          "requiredOnRealWord": true,
+          "description": "Exact ORAEC token identifier for a real source word."
+        },
+        "written_form": {
+          "origin": "source",
+          "sourceField": "token.written_form",
+          "valueType": "str",
+          "exact": true,
+          "requiredOnRealWord": true,
+          "description": "Exact ORAEC transliterated written form."
+        },
+        "cotext_translation": {
+          "origin": "source",
+          "sourceField": "token.cotext_translation",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC token-level cotext translation."
+        },
+        "hiero": {
+          "origin": "source",
+          "sourceField": "token.hiero",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC Unicode hieroglyphic string; never repaired or normalized."
+        },
+        "line_count": {
+          "origin": "source",
+          "sourceField": "token.lineCount",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC lineCount string including source whitespace."
+        },
+        "pos": {
+          "origin": "source",
+          "sourceField": "token.pos",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC part-of-speech value."
+        },
+        "name_type": {
+          "origin": "source",
+          "sourceField": "token.name",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC name subtype from token.name."
+        },
+        "number_type": {
+          "origin": "source",
+          "sourceField": "token.number",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC number subtype from token.number."
+        },
+        "voice": {
+          "origin": "source",
+          "sourceField": "token.voice",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC grammatical voice."
+        },
+        "genus": {
+          "origin": "source",
+          "sourceField": "token.genus",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC grammatical genus/gender label."
+        },
+        "pronoun_type": {
+          "origin": "source",
+          "sourceField": "token.pronoun",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC pronoun subtype."
+        },
+        "numerus": {
+          "origin": "source",
+          "sourceField": "token.numerus",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC grammatical number label."
+        },
+        "epitheton": {
+          "origin": "source",
+          "sourceField": "token.epitheton",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC epitheton/title subtype."
+        },
+        "morphology": {
+          "origin": "source",
+          "sourceField": "token.morphology",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC morphology marker."
+        },
+        "inflection": {
+          "origin": "source",
+          "sourceField": "token.inflection",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC inflection label."
+        },
+        "adjective_type": {
+          "origin": "source",
+          "sourceField": "token.adjective",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC adjective subtype."
+        },
+        "particle_type": {
+          "origin": "source",
+          "sourceField": "token.particle",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC particle subtype."
+        },
+        "adverb_type": {
+          "origin": "source",
+          "sourceField": "token.adverb",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC adverb subtype."
+        },
+        "verbal_class": {
+          "origin": "source",
+          "sourceField": "token.verbalClass",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC verbalClass value."
+        },
+        "status": {
+          "origin": "source",
+          "sourceField": "token.status",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC grammatical status value."
+        },
+        "is_anchor": {
+          "origin": "derived",
+          "derivedFrom": "ADR 0002 zero-token sentence compatibility",
+          "valueType": "int",
+          "sparseValue": 1,
+          "description": "Marks the three converter-derived compatibility slots required for zero-token source sentences."
+        },
+        "trailer": {
+          "origin": "derived",
+          "derivedFrom": "text display spacing; empty on anchors",
+          "valueType": "str",
+          "description": "Converter-derived display trailer: one space on real words and empty on technical anchors."
+        }
+      }
+    },
+    "sentence": {
+      "sourceIdentity": "oraec_id+sentence_index",
+      "oslots": "contained_words",
+      "features": {
+        "sentence_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based record.sentences array position",
+          "valueType": "int",
+          "description": "One-based source sentence array position within its ORAEC text."
+        },
+        "translation": {
+          "origin": "source",
+          "sourceField": "sentence.translation",
+          "valueType": "str",
+          "exact": true,
+          "supportsEmptyString": true,
+          "description": "Exact ORAEC sentence translation; empty string is distinct from absence."
+        }
+      }
+    },
+    "text": {
+      "sourceIdentity": "oraec_id",
+      "oslots": "contained_words",
+      "features": {
+        "oraec_id": {
+          "origin": "source",
+          "sourceField": "record.oraecid",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact stable ORAEC text identifier."
+        },
+        "title": {
+          "origin": "source",
+          "sourceField": "record.title",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC text title."
+        },
+        "bibliography": {
+          "origin": "source",
+          "sourceField": "record.bibliography",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC bibliography string when present."
+        },
+        "condition": {
+          "origin": "source",
+          "sourceField": "record.condition",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC condition value when present."
+        },
+        "license": {
+          "origin": "source",
+          "sourceField": "credits.license",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact per-text ORAEC credits.license value."
+        }
+      }
+    },
+    "lex": {
+      "sourceIdentity": "lemma_id",
+      "oslots": "union_of_occurrence_words",
+      "features": {
+        "lemma_id": {
+          "origin": "source",
+          "sourceField": "token.lemmaID",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC lemmaID used as shared lexical identity."
+        },
+        "lemma_form": {
+          "origin": "source",
+          "sourceField": "token.lemma_form",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC lemma_form associated with lemma_id."
+        }
+      }
+    },
+    "cv": {
+      "sourceIdentity": "cv_kind+cv_id",
+      "oslots": "union_of_referencing_text_words",
+      "features": {
+        "cv_kind": {
+          "origin": "derived",
+          "derivedFrom": "source record field name",
+          "valueType": "str",
+          "description": "Converter-derived controlled-vocabulary domain name."
+        },
+        "cv_id": {
+          "origin": "source",
+          "sourceField": "record.<cv_kind>[].id",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC controlled-vocabulary identifier."
+        },
+        "cv_label": {
+          "origin": "source",
+          "sourceField": "record.<cv_kind>[].<cv_kind>",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC controlled-vocabulary display label."
+        }
+      }
+    },
+    "author": {
+      "sourceIdentity": "author_name",
+      "oslots": "all_corpus_words_if_corpus_author_else_union_of_referencing_text_words",
+      "corpusContributionDoesNotImplyTextCredit": true,
+      "features": {
+        "author_name": {
+          "origin": "source",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC credits.author string.",
+          "sourceFields": [
+            "credits.author",
+            "README author column for oraec1.json .. oraec13026.json"
+          ]
+        },
+        "is_corpus_author": {
+          "origin": "source",
+          "sourceField": "README author column for oraec1.json .. oraec13026.json",
+          "valueType": "int",
+          "sparseValue": 1,
+          "description": "Marks an exact author identity declared for the full ORAEC JSON corpus family in the upstream README."
+        },
+        "corpus_author_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based order in README author column for oraec1.json .. oraec13026.json",
+          "valueType": "int",
+          "description": "Preserves the source order of corpus-level authors declared in the upstream README."
+        }
+      },
+      "sourceIdentitySources": [
+        "credits.author",
+        "README corpus author column"
+      ]
+    },
+    "source_ref": {
+      "sourceIdentity": "source_url",
+      "oslots": "union_of_referencing_text_words",
+      "features": {
+        "source_url": {
+          "origin": "source",
+          "sourceField": "credits.source[]",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC credits.source URL."
+        }
+      }
+    },
+    "idno": {
+      "sourceIdentity": "oraec_id+idno_index",
+      "oslots": "owning_text_words",
+      "preservesDuplicateOccurrences": true,
+      "features": {
+        "idno_value": {
+          "origin": "source",
+          "sourceField": "record.idno[]",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact ORAEC idno list item, including duplicate occurrences."
+        },
+        "idno_index": {
+          "origin": "derived",
+          "derivedFrom": "1-based record.idno list position",
+          "valueType": "int",
+          "description": "One-based source idno list position."
+        }
+      }
+    },
+    "hierarchy": {
+      "sourceIdentity": "exact_path_prefix",
+      "oslots": "union_of_descendant_text_words",
+      "features": {
+        "hierarchy_id": {
+          "origin": "derived",
+          "derivedFrom": "deterministic oraec-hierarchy:path-prefix:sha256(exact ordered label+TLA-href source prefix)",
+          "valueType": "str",
+          "description": "Deterministic identity of an exact ordered hierarchy (label, TLA href) path-prefix occurrence."
+        },
+        "hierarchy_label": {
+          "origin": "source",
+          "sourceField": "oraec_hierarchical_path.tsv.column2.component",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact source label for one hierarchy component.",
+          "supportsEmptyString": true
+        },
+        "hierarchy_depth": {
+          "origin": "derived",
+          "derivedFrom": "1-based hierarchy component position",
+          "valueType": "int",
+          "description": "One-based component position within the exact source hierarchy path."
+        },
+        "tla_url": {
+          "origin": "source",
+          "sourceField": "oraec_hierarchical_path.tsv.column3.href",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact TLA href parsed from the source linked hierarchy component."
+        },
+        "tla_id": {
+          "origin": "derived",
+          "derivedFrom": "terminal identifier in tla_url",
+          "valueType": "str",
+          "description": "TLA identifier parsed losslessly from tla_url."
+        },
+        "tla_kind": {
+          "origin": "derived",
+          "derivedFrom": "TLA URL path: object or text",
+          "valueType": "str",
+          "description": "Converter-derived TLA target kind (object or text) parsed from tla_url."
+        }
+      },
+      "sourceIdentityDefinition": "exact_path_prefix means the ordered source (label, TLA href) pairs from root through this occurrence"
+    },
+    "external_ref": {
+      "sourceIdentity": "external_system+external_value",
+      "oslots": "union_of_referencing_native_node_words",
+      "features": {
+        "external_system": {
+          "origin": "derived",
+          "derivedFrom": "mapping filename/domain",
+          "valueType": "str",
+          "description": "Converter-derived external namespace determined by the mapping family."
+        },
+        "external_value": {
+          "origin": "source",
+          "sourceField": "mapping file target column",
+          "valueType": "str",
+          "exact": true,
+          "description": "Exact mapping target identifier or URL from the source table."
+        }
+      }
+    }
+  },
+  "edgeFeatures": {
+    "date": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "date"
+      },
+      "origin": "source",
+      "description": "Relates a text to an ORAEC date controlled-vocabulary entity; value is the one-based source-list ordinal."
+    },
+    "origplace": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "origplace"
+      },
+      "origin": "source",
+      "description": "Relates a text to an ORAEC original-place controlled-vocabulary entity; value is the one-based source-list ordinal."
+    },
+    "objecttype": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "objecttype"
+      },
+      "origin": "source",
+      "description": "Relates a text to an ORAEC object-type controlled-vocabulary entity; value is the one-based source-list ordinal."
+    },
+    "location": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "location"
+      },
+      "origin": "source",
+      "description": "Relates a text to an ORAEC location controlled-vocabulary entity; value is the one-based source-list ordinal."
+    },
+    "material": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "cv"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "targetConstraint": {
+        "cv_kind": "material"
+      },
+      "origin": "source",
+      "description": "Relates a text to an ORAEC material controlled-vocabulary entity; value is the one-based source-list ordinal."
+    },
+    "author": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "author"
+      ],
+      "valueType": null,
+      "valueSemantics": null,
+      "origin": "source",
+      "sourceField": "credits.author",
+      "description": "Relates a text exclusively to the exact ORAEC credits.author for that text. README corpus-level contribution does not create a credit edge."
+    },
+    "source": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "source_ref"
+      ],
+      "valueType": "int",
+      "valueSemantics": "source_list_ordinal",
+      "origin": "source",
+      "description": "Relates a text to an exact ORAEC source URL; value is the one-based credits.source ordinal."
+    },
+    "idno": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "idno"
+      ],
+      "valueType": null,
+      "valueSemantics": null,
+      "origin": "source",
+      "description": "Relates a text to an idno occurrence node so duplicate source list items remain distinct."
+    },
+    "hierarchy": {
+      "from": [
+        "text"
+      ],
+      "to": [
+        "hierarchy"
+      ],
+      "valueType": null,
+      "valueSemantics": "leaf_membership",
+      "origin": "source",
+      "description": "Relates an ORAEC text to the leaf occurrence in its exact source hierarchy path."
+    },
+    "parent": {
+      "from": [
+        "hierarchy"
+      ],
+      "to": [
+        "hierarchy"
+      ],
+      "valueType": null,
+      "valueSemantics": "child_to_parent",
+      "origin": "source",
+      "description": "Relates a hierarchy child occurrence to its immediate parent occurrence."
+    },
+    "external": {
+      "from": [
+        "text",
+        "lex",
+        "cv",
+        "author"
+      ],
+      "to": [
+        "external_ref"
+      ],
+      "valueType": "str",
+      "valueSemantics": "source_mapping_filename",
+      "origin": "source",
+      "description": "Relates a native ORAEC entity to an external reference; edge value is the exact mapping filename for provenance."
+    }
+  },
+  "sections": {
+    "types": [
+      "text",
+      "sentence"
+    ],
+    "features": [
+      "oraec_id",
+      "sentence_index"
+    ]
+  },
+  "structures": {
+    "types": [],
+    "features": [],
+    "rationale": "ORAEC hierarchy is a variable-depth entity graph, not a fixed Text API structure."
+  },
+  "formats": {
+    "text-orig-full": "{written_form}{trailer}",
+    "text-translit": "{written_form}{trailer}",
+    "text-hiero": "{hiero}{trailer}",
+    "lex-default": "{lemma_form}"
+  },
+  "sourceCoverage": {
+    "record": {
+      "bibliography": "text.bibliography",
+      "condition": "text.condition",
+      "credits": "credits subfields",
+      "date": "edge.date -> cv",
+      "idno": "idno nodes + edge.idno",
+      "location": "edge.location -> cv",
+      "material": "edge.material -> cv",
+      "objecttype": "edge.objecttype -> cv",
+      "oraecid": "text.oraec_id",
+      "origplace": "edge.origplace -> cv",
+      "sentences": "sentence nodes + contained word slots",
+      "title": "text.title"
+    },
+    "sentence": {
+      "token": "word slots, lex normalization, and anchor rule",
+      "translation": "sentence.translation"
+    },
+    "credits": {
+      "author": "author node + edge.author",
+      "license": "text.license",
+      "source": "source_ref nodes + valued edge.source"
+    },
+    "token": {
+      "adjective": "word.adjective_type",
+      "adverb": "word.adverb_type",
+      "cotext_translation": "word.cotext_translation",
+      "epitheton": "word.epitheton",
+      "genus": "word.genus",
+      "hiero": "word.hiero",
+      "inflection": "word.inflection",
+      "lemmaID": "lex.lemma_id",
+      "lemma_form": "lex.lemma_form",
+      "lineCount": "word.line_count",
+      "morphology": "word.morphology",
+      "name": "word.name_type",
+      "number": "word.number_type",
+      "numerus": "word.numerus",
+      "particle": "word.particle_type",
+      "pos": "word.pos",
+      "pronoun": "word.pronoun_type",
+      "status": "word.status",
+      "token": "word.token_id",
+      "verbalClass": "word.verbal_class",
+      "voice": "word.voice",
+      "written_form": "word.written_form"
+    },
+    "corpusMetadata": {
+      "authors": "author nodes + author.is_corpus_author + author.corpus_author_index"
+    }
+  },
+  "mappingFamilies": {
+    "mapping_oraec_trismegistos.csv": {
+      "sourceDomain": "text.oraec_id",
+      "targetSystem": "trismegistos",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
+    },
+    "mapping_oraec_lemmata_vega.tsv": {
+      "sourceDomain": "lex.lemma_id",
+      "targetSystem": "vega",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
+    },
+    "mapping_oraec_wikidata.tsv": {
+      "sourceDomain": "author.author_name OR cv.cv_id",
+      "targetSystem": "wikidata",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "resolution": "exactly one native source node; ambiguity or no match fails closed",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
+    },
+    "mapping_oraec_karnak.tsv": {
+      "sourceDomain": "text.oraec_id",
+      "targetSystem": "karnak",
+      "releaseStatus": "excluded_pending_issue_17",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
+    },
+    "mapping_oraec_lemmata_karnak.tsv": {
+      "sourceDomain": "lex.lemma_id",
+      "targetSystem": "karnak",
+      "releaseStatus": "excluded_pending_issue_17",
+      "rowOrderSemantic": false,
+      "rowSemantics": "mapping_pair"
+    }
+  },
+  "hierarchyContract": {
+    "file": "oraec_hierarchical_path.tsv",
+    "textIdColumn": 1,
+    "labelPathColumn": 2,
+    "linkedPathColumn": 3,
+    "separator": "→",
+    "requirements": [
+      "exactly_one_row_per_text",
+      "label_component_count_equals_link_component_count",
+      "every_link_component_has_one_tla_href",
+      "parent_edges_follow_source_component_order",
+      "text_links_to_leaf_component"
+    ],
+    "emptyLabelsAreComponents": true
+  },
+  "featureMetadataPolicy": {
+    "required": [
+      "valueType",
+      "origin",
+      "description"
+    ],
+    "derivedFeaturesAlsoRequire": [
+      "derivedFrom"
+    ],
+    "sourceFeaturesRequireOneOf": [
+      "sourceField",
+      "sourceFields"
+    ]
+  },
+  "release": {
+    "includedMappings": [
+      "mapping_oraec_trismegistos.csv",
+      "mapping_oraec_wikidata.tsv",
+      "mapping_oraec_lemmata_vega.tsv"
+    ],
+    "excludedMappings": [
+      "mapping_oraec_karnak.tsv",
+      "mapping_oraec_lemmata_karnak.tsv"
+    ],
+    "excludedDerivedFamilies": [
+      "collocation",
+      "statistics"
+    ]
+  },
+  "failClosed": [
+    "unknown_source_field",
+    "unsupported_source_shape_or_type",
+    "lemma_id_form_conflict",
+    "controlled_vocabulary_id_label_conflict",
+    "duplicate_relation_that_tf_edge_would_collapse",
+    "unresolved_or_ambiguous_wikidata_key",
+    "malformed_hierarchy_path_link_alignment",
+    "hierarchy_identity_label_conflict",
+    "unsupported_or_unlicensed_mapping_family",
+    "unlinked_non_slot_node",
+    "source_string_normalization",
+    "hierarchy_path_prefix_hash_collision",
+    "duplicate_corpus_author_identity"
+  ],
+  "invariants": {
+    "pinnedCounts": {
+      "sourceTokens": 815026,
+      "anchorSlots": 3,
+      "totalSlots": 815029,
+      "sentences": 101796,
+      "texts": 13026,
+      "lexemes": 18733
+    },
+    "exactSourceStrings": [
+      "word.token_id",
+      "word.written_form",
+      "word.cotext_translation",
+      "word.hiero",
+      "word.line_count",
+      "word.pos",
+      "word.name_type",
+      "word.number_type",
+      "word.voice",
+      "word.genus",
+      "word.pronoun_type",
+      "word.numerus",
+      "word.epitheton",
+      "word.morphology",
+      "word.inflection",
+      "word.adjective_type",
+      "word.particle_type",
+      "word.adverb_type",
+      "word.verbal_class",
+      "word.status",
+      "sentence.translation",
+      "text.oraec_id",
+      "text.title",
+      "text.bibliography",
+      "text.condition",
+      "text.license",
+      "lex.lemma_id",
+      "lex.lemma_form",
+      "cv.cv_id",
+      "cv.cv_label",
+      "author.author_name",
+      "source_ref.source_url",
+      "idno.idno_value",
+      "hierarchy.hierarchy_label",
+      "hierarchy.tla_url",
+      "external_ref.external_value"
+    ],
+    "anchors": {
+      "count": 3,
+      "marker": "word.is_anchor=1",
+      "sourceTokenFeatures": "must_be_absent",
+      "trailer": "empty_string"
+    }
+  }
+}
