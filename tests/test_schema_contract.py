@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schema" / "core.json"
 ADR = ROOT / "docs" / "adr" / "0005-native-tf-schema.md"
@@ -22,11 +24,11 @@ TOKEN_FIELDS = {
 }
 NODE_TYPES = {
     "word", "sentence", "text", "lex", "cv", "author", "source_ref",
-    "idno", "hierarchy", "external_ref",
+    "idno", "hierarchy", "external_ref", "cr_occurrence",
 }
 EDGE_FEATURES = {
     "date", "origplace", "objecttype", "location", "material", "author",
-    "source", "idno", "hierarchy", "parent", "external",
+    "source", "idno", "hierarchy", "parent", "external", "cr_owner",
 }
 
 
@@ -198,6 +200,16 @@ def test_all_non_slot_entity_nodes_have_an_oslots_strategy() -> None:
     assert schema["nodeTypes"]["external_ref"]["oslots"] == (
         "union_of_referencing_native_node_words"
     )
+    cr = schema["nodeTypes"]["cr_occurrence"]
+    assert cr["oslots"] == "same_as_owner"
+    assert cr["features"]["cr_offset"]["valueType"] == "int"
+    assert cr["features"]["cr_feature"]["valueType"] == "str"
+    assert schema["edgeFeatures"]["cr_owner"]["from"] == ["cr_occurrence"]
+    assert "text" in schema["edgeFeatures"]["cr_owner"]["to"]
+    assert all(
+        not any(name.endswith("_cr_offsets") for name in item["features"])
+        for item in schema["nodeTypes"].values()
+    )
 
 
 def test_sections_and_text_formats_follow_text_fabric_contract() -> None:
@@ -313,3 +325,18 @@ def test_readme_corpus_authors_do_not_imply_per_text_credit_edges() -> None:
     adr = ADR.read_text(encoding="utf-8")
     assert "TF locality is not a per-text credit relation" in adr
 
+
+
+@pytest.mark.parametrize(
+    "workflow",
+    ["writer-validation.yml", "agora-materializer.yml"],
+)
+def test_full_corpus_audits_report_exact_frozen_schema_version(
+    workflow: str,
+) -> None:
+    """A green independent source audit must never mislabel generated v3 data."""
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    workflow_text = (
+        ROOT / ".github" / "workflows" / workflow
+    ).read_text(encoding="utf-8")
+    assert f"--schema-version {schema['schemaVersion']}" in workflow_text

@@ -1,6 +1,6 @@
 # ADR 0006 — Lossless carriage returns in native Text-Fabric
 
-Status: accepted as a corrective amendment to ADR 0005 / schema version 2  
+Status: historical, superseded by ADR 0007 / schema version 3; retained as evidence of the TF 13.1 corruption mechanism  
 Issue: #40  
 Supported pinned source: b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd
 

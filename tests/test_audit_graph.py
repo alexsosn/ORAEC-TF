@@ -593,9 +593,15 @@ def test_auditor_independently_reconstructs_crlf_and_cr_on_native_nodes(
     }
 
 
+@pytest.mark.parametrize("forgery", [-1, 999, "not-an-int"])
 def test_auditor_rejects_tampered_native_cr_position_metadata(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, forgery: object,
 ) -> None:
+    """Source auditor must reject a forged typed native CR occurrence."""
+    from tf.fabric import Fabric
+
+    from oraec_tf import audit_graph as audit_module
+
     source, record = _source(tmp_path)
     raw_file = source / "oraec1.json"
     raw = json.loads(raw_file.read_text(encoding="utf-8"))
@@ -604,13 +610,19 @@ def test_auditor_rejects_tampered_native_cr_position_metadata(
     output = tmp_path / "tf"
     write_tf((replace(record, bibliography="A\r\nB"),), output,
              source_revision=REVISION)
-    positions = output / "text_cr_offsets.tf"
-    payload = positions.read_text(encoding="utf-8")
-    assert "bibliography=1" in payload
-    positions.write_text(
-        payload.replace("bibliography=1", "bibliography=999"),
-        encoding="utf-8",
-    )
+    assert audit_basic_graph(source, output)["texts"] == 1
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    cr = api.F.otype.s("cr_occurrence")[0]
+    api.F.cr_offset.data[cr] = forgery
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match="CR|offset|position"):
         audit_basic_graph(source, output)
 
@@ -703,4 +715,71 @@ def test_independent_auditor_rejects_nonstring_source_hiero_cleanly(
     output = tmp_path / "tf"
     write_tf((record,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match="hiero"):
+        audit_basic_graph(source, output)
+
+
+
+def test_provenance_reports_native_cr_inventory_without_semantic_sidecars(
+    tmp_path: Path,
+) -> None:
+    """Source CR counts by owner family and feature are audit diagnostics."""
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    original = json.loads(raw_file.read_text(encoding="utf-8"))
+    original["oraec1"]["bibliography"] = "A\r\n\rB"
+    original["oraec1"]["sentences"][0]["translation"] = "T\rU"
+    raw_file.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
+    first_sentence = record.sentences[0]
+    modified = replace(
+        record, bibliography="A\r\n\rB",
+        sentences=(replace(first_sentence, translation="T\rU"), record.sentences[1]),
+    )
+    output = tmp_path / "tf"
+    write_tf((modified,), output, source_revision=REVISION)
+    report = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION,
+        converter_revision="a" * 40,
+        schema_version=3,
+    )
+    assert report["native_cr_occurrences"] == {
+        "total": 3,
+        "by_owner_type": {"sentence": 1, "text": 2},
+        "by_feature": {"bibliography": 2, "translation": 1},
+    }
+    assert report["counts"] == {
+        "texts": 1, "sentences": 2, "tokens": 1, "anchors": 1,
+    }
+
+
+def test_independent_auditor_rejects_cr_owner_edge_from_nonoccurrence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An extra edge originating from a normal word/text is a forged CR relation."""
+    from tf.fabric import Fabric
+
+    from oraec_tf import audit_graph as audit_module
+
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    raw["oraec1"]["bibliography"] = "A\r\nB"
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "tf"
+    write_tf((replace(record, bibliography="A\r\nB"),), output,
+             source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    source_text = api.F.otype.s("text")[0]
+    source_sentence = api.F.otype.s("sentence")[0]
+    api.E.cr_owner.data[source_text] = {source_sentence}
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
+    with pytest.raises(GraphConservationError, match="CR.*owner|occurrence"):
         audit_basic_graph(source, output)

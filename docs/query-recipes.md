@@ -136,21 +136,27 @@ the Karnak mapping TSVs are excluded from distributed TF.
 ## Exact source Unicode including CRLF
 
 Text-Fabric 13.1 cannot safely transport literal U+000D within a single
-native feature value. Schema v2 keeps the original positions in a sparse,
-queryable `<node_type>_cr_offsets` feature (ADR 0006). For literal source
-comparison, reconstruct the exact string rather than comparing the
-transport-only `F.bibliography.v(text)` directly:
+ordinary scalar. Schema v3 models each source CR as a native, queryable
+`cr_occurrence` node with integer `cr_offset`, `cr_feature` and
+an explicit `cr_owner` edge to the original source node (ADR 0007).
+The scalar `F.bibliography.v(text)` remains a CR-free TF-safe transport value.
+To reconstruct exact original Unicode, including CRLF:
 
 ```python
-from oraec_tf.text_codec import restore_source_string
+from oraec_tf.text_codec import NativeCRIndex
 
 if text is not None:
-    source_bibliography = restore_source_string(
-        F.bibliography.v(text),
-        F.text_cr_offsets.v(text),
-        "bibliography",
-    )
+    index = NativeCRIndex(api)  # Create once for the loaded corpus.
+    source_bibliography = index.restore(text, "bibliography")
     print(source_bibliography)
+
+    # Native per-character source offsets can also be queried directly.
+    cr_nodes = (
+        cr for cr in api.F.otype.s("cr_occurrence")
+        if text in api.E.cr_owner.f(cr)
+        and api.F.cr_feature.v(cr) == "bibliography"
+    )
+    print(sorted(api.F.cr_offset.v(cr) for cr in cr_nodes))
 ```
 
 For the raw source, do not silently replace CRLF, normalize hieroglyphs or
@@ -167,6 +173,6 @@ python scripts/update_feature_reference.py --check
 
 The conversion CI independently rereads all pinned raw source records and
 compares them with the generated TF graph, including the exact source strings
-reconstructed under schema v2. Produced reports record the source and converter
+reconstructed under schema v3. Produced reports record the source and converter
 commits, TF version, schema version and per-file SHA-256; no semantic sidecars
 are required to query research content.
