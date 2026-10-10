@@ -121,3 +121,13 @@ def test_write_tf_retains_missingness_without_sentinel(tmp_path: Path) -> None:
     assert api.F.hiero.v(second_word) is None
     assert api.F.pos.v(second_word) is None
     assert api.F.line_count.v(second_word) == "0"
+
+
+def test_walker_metadata_uses_int_features_not_value_type_override() -> None:
+    from oraec_tf.writer import _feature_metadata
+
+    metadata = _feature_metadata({"written_form", "sentence_index", "trailer"})
+    assert set(metadata) == {"written_form", "sentence_index", "trailer"}
+    assert all("valueType" not in fields for fields in metadata.values())
+    assert metadata["written_form"]["sourceField"] == "token.written_form"
+    assert metadata["sentence_index"]["origin"] == "derived"
