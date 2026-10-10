@@ -77,6 +77,15 @@ def verify_source(
     expected = (
         None if expected_revision is None else validate_revision(expected_revision)
     )
+    top_level = _run_git(
+        ["-C", str(path), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+    ).stdout.strip()
+    if not top_level or Path(top_level).resolve() != path:
+        raise SourceAcquisitionError(
+            f"source path must be the Git worktree root: {path}"
+        )
+
     resolved = resolve_revision(path)
 
     if expected is not None and resolved != expected:
@@ -108,7 +117,8 @@ def fetch_source(
     """Fetch one immutable ORAEC commit and atomically install a clean checkout."""
     requested_revision = validate_revision(revision)
     target = Path(destination)
-    target_preexisted = target.exists()
+    # Path.exists() ignores dangling symlinks; never replace caller-owned links.
+    target_preexisted = target.exists() or target.is_symlink()
 
     if target_preexisted:
         if target.is_symlink():

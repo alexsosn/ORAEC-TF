@@ -158,6 +158,8 @@ credits.license remains an exact text feature because it is a scalar property of
 
 Author nodes referenced by per-text credits obtain the union of those text slots. Corpus-level authors obtain all corpus word slots, which supplies a Text-Fabric 13.1 oslots anchor for their corpus-wide provenance scope. `is_corpus_author` distinguishes that source claim from per-text authorship. source_ref nodes obtain slots from referencing texts.
 
+**TF locality is not a per-text credit relation.** A researcher using `L.u(word, otype="author")` may see all README corpus contributors because their `oslots` represent corpus-wide scope, not an assertion that each contributor authored every word/text. The only authoritative per-text attribution is the native `author` edge from `text` to `author`, built **exclusively** from that text's `credits.author` field; membership in the README author list must never generate a `text`→`author` edge. In particular, corpus-only contributors remain discoverable (including Wikidata links) without fabricated text credits. The TF writer and its independent source→graph validator (#6/#8) must assert that rule against generated TF; benchmark the size of corpus-author `oslots` and document any resource overhead before release.
+
 ## Source hierarchy
 
 oraec_hierarchical_path.tsv is a path serialization, not an opaque feature value.

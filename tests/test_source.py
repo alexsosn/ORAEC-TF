@@ -93,6 +93,22 @@ def test_fetch_rejects_symlink_destination_before_running_git(tmp_path: Path) ->
     run_git.assert_not_called()
 
 
+def test_fetch_rejects_dangling_symlink_without_mutation(tmp_path: Path) -> None:
+    target = tmp_path / "source"
+    target.symlink_to(tmp_path / "missing", target_is_directory=True)
+
+    assert target.is_symlink()
+    assert not target.exists()
+
+    with patch("oraec_tf.source._run_git") as run_git:
+        with pytest.raises(SourceAcquisitionError, match="symlink"):
+            fetch_source(target)
+
+    run_git.assert_not_called()
+    assert target.is_symlink()
+    assert target.readlink() == tmp_path / "missing"
+
+
 def test_fetch_rejects_symbolic_revision_before_running_git() -> None:
     with TemporaryDirectory() as temp:
         target = Path(temp) / "source"
@@ -111,6 +127,28 @@ def test_verify_source_accepts_clean_exact_git_checkout(tmp_path: Path) -> None:
 
     assert snapshot.path == source.resolve()
     assert snapshot.revision == revision
+
+
+def test_verify_source_rejects_clean_nested_git_directory(tmp_path: Path) -> None:
+    source, revision = _make_git_source(tmp_path)
+    nested = source / "corpus"
+    nested.mkdir()
+    (nested / "oraec1.json").write_text("{}", encoding="utf-8")
+    _git(source, "add", "corpus/oraec1.json")
+    _git(source, "commit", "-m", "add nested corpus")
+
+    with pytest.raises(SourceAcquisitionError, match="worktree root"):
+        verify_source(nested, expected_revision=_git(source, "rev-parse", "HEAD"))
+
+
+def test_verify_source_accepts_resolved_root_symlink(tmp_path: Path) -> None:
+    source, revision = _make_git_source(tmp_path)
+    alias = tmp_path / "alias"
+    alias.symlink_to(source, target_is_directory=True)
+
+    snapshot = verify_source(alias, expected_revision=revision)
+
+    assert snapshot.path == source.resolve()
 
 
 def test_verify_source_rejects_revision_mismatch(tmp_path: Path) -> None:
@@ -147,6 +185,8 @@ def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
         stdout = ""
         if args[-2:] == ["rev-parse", "HEAD"]:
             stdout = f"{revision}\n"
+        elif args[-2:] == ["rev-parse", "--show-toplevel"]:
+            stdout = str(Path(args[1]).resolve()) + "\n"
         elif args[-3:] == ["status", "--porcelain", "--untracked-files=all"]:
             stdout = ""
         return subprocess.CompletedProcess(["git", *args], 0, stdout=stdout, stderr="")
@@ -170,6 +210,7 @@ def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
         for args in command_args
     )
     assert any(args[-2:] == ["rev-parse", "HEAD"] for args in command_args)
+    assert any(args[-2:] == ["rev-parse", "--show-toplevel"] for args in command_args)
     assert any(
         args[-3:] == ["status", "--porcelain", "--untracked-files=all"]
         for args in command_args

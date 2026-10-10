@@ -297,3 +297,19 @@ def test_mapping_families_and_hierarchy_serialization_are_frozen() -> None:
         "mapping_oraec_wikidata.tsv",
         "mapping_oraec_lemmata_vega.tsv",
     }
+
+
+def test_readme_corpus_authors_do_not_imply_per_text_credit_edges() -> None:
+    """Corpus contribution and per-text credits are separate source claims."""
+    schema = _schema()
+    author = schema["nodeTypes"]["author"]
+    credit_edge = schema["edgeFeatures"]["author"]
+
+    assert credit_edge["from"] == ["text"]
+    assert credit_edge["to"] == ["author"]
+    assert credit_edge["sourceField"] == "credits.author"
+    assert author["corpusContributionDoesNotImplyTextCredit"] is True
+
+    adr = ADR.read_text(encoding="utf-8")
+    assert "TF locality is not a per-text credit relation" in adr
+
