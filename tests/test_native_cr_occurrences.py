@@ -143,12 +143,7 @@ def test_native_cr_occurrence_rejects_orphaned_and_wrong_span_owner(
 
     # A different valid owner node does not have the same source slot span.
     actual_owner = next(iter(original_owners))
-    other = next(
-        n for n in api.F.otype.s("word")
-        if n not in api.L.d(actual_owner, otype="word")
-    ) if api.F.otype.v(actual_owner) != "word" else next(
-        n for n in api.F.otype.s("word") if n != actual_owner
-    )
+    other = next(n for n in api.F.otype.s("word") if n != actual_owner)
     api.E.cr_owner.data[cr] = {other}
     with pytest.raises(ControlCharacterError, match="feature|oslots|owner"):
         NativeCRIndex(api)
