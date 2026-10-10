@@ -117,7 +117,8 @@ def fetch_source(
     """Fetch one immutable ORAEC commit and atomically install a clean checkout."""
     requested_revision = validate_revision(revision)
     target = Path(destination)
-    target_preexisted = target.exists()
+    # Path.exists() ignores dangling symlinks; never replace caller-owned links.
+    target_preexisted = target.exists() or target.is_symlink()
 
     if target_preexisted:
         if target.is_symlink():
