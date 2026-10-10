@@ -12,10 +12,34 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _checked_build(
+    command: list[str], *,
+    cwd: Path,
+    capture_output: bool,
+    text: bool,
+    timeout: int,
+    env: dict[str, str] | None = None,
+) -> None:
+    """Fail with complete package-builder diagnostics, not an opaque traceback."""
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        capture_output=capture_output,
+        text=text,
+        timeout=timeout,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"package build failed ({result.returncode}): {command!r}\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+
+
 def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
     wheelhouse = tmp_path / "wheels"
     wheelhouse.mkdir()
-    subprocess.run(
+    _checked_build(
         [
             sys.executable,
             "-m",
@@ -28,7 +52,6 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
             str(wheelhouse),
         ],
         cwd=ROOT,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
@@ -49,10 +72,9 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
         "assert m['written_form']['sourceField'] == 'token.written_form'"
     )
     env = {**os.environ, "PYTHONPATH": str(installed)}
-    subprocess.run(
+    _checked_build(
         [sys.executable, "-c", code],
         cwd=tmp_path,
-        check=True,
         capture_output=True,
         text=True,
         env=env,
@@ -65,10 +87,9 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
 ) -> None:
     source_dist = tmp_path / "sdist"
     source_dist.mkdir()
-    subprocess.run(
+    _checked_build(
         [sys.executable, "setup.py", "sdist", "--dist-dir", str(source_dist)],
         cwd=ROOT,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
@@ -88,7 +109,7 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
 
     wheelhouse = tmp_path / "from_sdist"
     wheelhouse.mkdir()
-    subprocess.run(
+    _checked_build(
         [
             sys.executable,
             "-m",
@@ -101,7 +122,6 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
             str(wheelhouse),
         ],
         cwd=tmp_path,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
