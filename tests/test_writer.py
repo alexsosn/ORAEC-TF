@@ -336,3 +336,75 @@ def test_write_tf_rejects_incomplete_hierarchy_rows(tmp_path: Path) -> None:
             source_revision=REVISION,
             hierarchy_rows=partial,
         )
+
+
+def test_multitext_bibliography_is_attached_to_correct_oraec_identity(
+    tmp_path: Path,
+) -> None:
+    """#40: sparse, multiline bibliographies must never move between texts."""
+    first, second = _texts()
+    # Lexicographic filenames and iteration order deliberately disagree;
+    # several metadata features are missing and one value begins with newline.
+    text_10 = replace(
+        second,
+        oraec_id="oraec10",
+        title="Balsamierungsritual",
+        bibliography=(
+            "- A. Mariette, Les Papyrus égyptiens du Musée Boulaq.\n"
+            "- Rituel de l&#039;embaumement."
+        ),
+        sentences=(
+            replace(
+                second.sentences[0],
+                tokens=(
+                    replace(second.sentences[0].tokens[0], token_id="oraec10-1-1"),
+                ),
+            ),
+        ),
+    )
+    text_100 = replace(
+        first,
+        oraec_id="oraec100",
+        title="Papyrus Berlin",
+        bibliography="\n- http://www.medizinische-papyri.de/PapyrusBerlin3038/",
+        sentences=(
+            replace(
+                first.sentences[0],
+                tokens=(
+                    replace(first.sentences[0].tokens[0], token_id="oraec100-1-1"),
+                ),
+            ),
+            first.sentences[1],
+        ),
+    )
+    text_2 = replace(
+        first,
+        oraec_id="oraec2",
+        title="No bibliography",
+        bibliography=None,
+        sentences=(
+            replace(
+                first.sentences[0],
+                tokens=(replace(first.sentences[0].tokens[0], token_id="oraec2-1-1"),),
+            ),
+            first.sentences[1],
+        ),
+    )
+    records = (text_10, text_2, text_100)
+    destination = tmp_path / "tf"
+    write_tf(records, destination, source_revision=REVISION)
+
+    api = Fabric(locations=str(destination), silent="deep").load(
+        "oraec_id title bibliography token_id",
+        silent="deep",
+    )
+    actual = {
+        api.F.oraec_id.v(t): (
+            api.F.title.v(t),
+            api.F.bibliography.v(t),
+        )
+        for t in api.F.otype.s("text")
+    }
+    assert actual == {
+        item.oraec_id: (item.title, item.bibliography) for item in records
+    }
