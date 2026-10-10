@@ -763,10 +763,10 @@ def test_independent_auditor_rejects_cr_owner_edge_from_nonoccurrence(
     source, record = _source(tmp_path)
     raw_file = source / "oraec1.json"
     raw = json.loads(raw_file.read_text(encoding="utf-8"))
-    raw["oraec1"]["bibliography"] = "A\\r\\nB"
+    raw["oraec1"]["bibliography"] = "A\r\nB"
     raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
     output = tmp_path / "tf"
-    write_tf((replace(record, bibliography="A\\r\\nB"),), output,
+    write_tf((replace(record, bibliography="A\r\nB"),), output,
              source_revision=REVISION)
     api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     source_text = api.F.otype.s("text")[0]
