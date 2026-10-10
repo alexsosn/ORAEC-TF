@@ -376,3 +376,39 @@ def test_independent_audit_rejects_fabricated_optional_text_values(
     write_tf((fabricated,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match=field):
         audit_basic_graph(source, output)
+
+
+@pytest.mark.parametrize("location", ["record", "sentence", "credits"])
+def test_independent_audit_rejects_new_source_object_fields(
+    tmp_path: Path, location: str,
+) -> None:
+    source, text = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION)
+    path = source / "oraec1.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    record = raw["oraec1"]
+    if location == "record":
+        target = record
+    elif location == "sentence":
+        target = record["sentences"][0]
+    else:
+        target = record["credits"]
+    target["previouslyUnknownField"] = "unrepresented"
+    path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(GraphConservationError, match="unknown|unmodeled"):
+        audit_basic_graph(source, output)
+
+
+def test_independent_audit_rejects_mismatched_embedded_record_id(
+    tmp_path: Path,
+) -> None:
+    source, text = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION)
+    path = source / "oraec1.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    raw["oraec1"]["oraecid"] = "oraec999"
+    path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(GraphConservationError, match="oraecid|identity"):
+        audit_basic_graph(source, output)
