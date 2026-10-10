@@ -602,7 +602,10 @@ def audit_graph_with_provenance(
     if schema_version < 1:
         raise GraphConservationError("schema version must be a positive integer")
     counts = audit_basic_graph(source, tf_dir)
-    paths = sorted(Path(tf_dir).glob("*.tf"))
+    paths = sorted(
+        path for path in Path(tf_dir).glob("*.tf")
+        if path.is_file() and not path.name.startswith(".")
+    )
     if not paths:
         raise GraphConservationError("generated TF contains no feature files")
     output_hashes: dict[str, str] = {}
