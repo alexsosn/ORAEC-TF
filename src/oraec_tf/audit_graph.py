@@ -389,11 +389,13 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
             )
         current_hierarchy_node: int = tf_hierarchy_leaves[0]
         observed_path: list[tuple[str, str]] = []
+        observed_nodes: list[int] = []
         visited: set[int] = set()
         while True:
             if current_hierarchy_node in visited:
                 raise GraphConservationError("hierarchy parent cycle")
             visited.add(current_hierarchy_node)
+            observed_nodes.append(current_hierarchy_node)
             observed_path.append(
                 (
                     _node_value(api, "hierarchy_label", current_hierarchy_node),
@@ -407,12 +409,43 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
                 raise GraphConservationError("hierarchy has multiple parents")
             current_hierarchy_node = parents[0]
         observed_path.reverse()
+        observed_nodes.reverse()
         _expect_equal(
             tuple(observed_path), expected,
             context=f"hierarchy exact source path for {oraec_id}",
         )
-        for position in range(1, len(observed_path) + 1):
-            observed_prefixes.add(tuple(observed_path[:position]))
+        for position, (node, (_, href)) in enumerate(
+            zip(observed_nodes, expected, strict=True), start=1
+        ):
+            # Derive metadata directly from the *raw linked href*, never the
+            # generated parser IR or TF writer's internal node inventory.
+            base = "https://thesaurus-linguae-aegyptiae.de/"
+            suffix = href.removeprefix(base)
+            parts = suffix.split("/")
+            if not href.startswith(base) or len(parts) != 2 or (
+                parts[0] not in {"object", "text"} or not parts[1]
+            ):
+                raise GraphConservationError(
+                    f"unparseable raw TLA hierarchy URL: {href!r}"
+                )
+            prefix = tuple(expected[:position])
+            digest = hashlib.sha256(
+                json.dumps(
+                    prefix, ensure_ascii=False, separators=(",", ":")
+                ).encode("utf-8")
+            ).hexdigest()
+            required = {
+                "tla_kind": parts[0],
+                "tla_id": parts[1],
+                "hierarchy_depth": position,
+                "hierarchy_id": f"oraec-hierarchy:path-prefix:{digest}",
+            }
+            for feature, expected_value in required.items():
+                _expect_equal(
+                    _node_value(api, feature, node), expected_value,
+                    context=f"{oraec_id}.hierarchy[{position}].{feature}",
+                )
+            observed_prefixes.add(prefix)
     _expect_equal(
         observed_prefixes, expected_prefixes,
         context="all source hierarchy prefixes",
