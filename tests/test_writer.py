@@ -562,12 +562,15 @@ def test_offline_tf_browser_can_serve_local_egyptian_corpus(
     """#9: a Flask TF browser route must be created without a custom web app."""
     from tf.browser.web import setup
 
-    output = tmp_path / "tf"
+    # TF's stock browser uses the app's configured data version as the
+    # final folder component, unlike direct Fabric(locations=output).
+    output_root = tmp_path / "tf"
+    output = output_root / "0.1.0-dev"
     write_tf(_texts(), output, source_revision=REVISION)
     app_path = Path(__file__).resolve().parents[1] / "app"
 
     # Same arguments as the documented stock Text-Fabric browser command.
-    webapp = setup(False, f"app:{app_path}", f"--locations={output}")
+    webapp = setup(False, f"app:{app_path}", f"--locations={output_root}")
     assert webapp is not None
     assert "/query" in {rule.rule for rule in webapp.url_map.iter_rules()}
     response = webapp.test_client().get("/")
