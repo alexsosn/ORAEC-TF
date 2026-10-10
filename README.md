@@ -58,6 +58,8 @@ oraec-tf fetch upstream/corpus_raw_data
 oraec-tf verify-source upstream/corpus_raw_data
 ```
 
+The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the verified local source directory.
+
 ## Local Text-Fabric conversion (development builds)
 
 After installing from this repository and fetching the verified pinned checkout, run:
@@ -80,8 +82,6 @@ The default generated corpus excludes Karnak crosswalks while their distribution
 licence remains unresolved (#17). This is a development conversion path;
 independent raw-source-to-TF validation (#8), the TF advanced app (#9),
 researcher documentation (#10), and Agora integration (#11) remain 0.1.0 gates.
-
-The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the verified local source directory.
 
 ## Text-Fabric app/browser
 
