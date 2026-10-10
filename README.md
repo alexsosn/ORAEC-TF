@@ -92,8 +92,9 @@ the restoration against pinned raw JSON.
 
 The default generated corpus excludes Karnak crosswalks while their distribution
 licence remains unresolved (#17). This is a development conversion path;
-independent raw-source-to-TF validation (#8), the TF advanced app (#9),
-researcher documentation (#10), and Agora integration (#11) remain 0.1.0 gates.
+the independent raw-source-to-TF validation (#8) now runs on the complete
+pinned corpus in CI. The TF advanced app (#9), researcher documentation (#10),
+and Agora integration (#11) are separate 0.1.0 gates.
 
 ## Text-Fabric advanced app and browser
 
