@@ -39,7 +39,16 @@ python -m oraec_tf.agora upstream/corpus_raw_data build/agora-oraec \
 `build/agora-oraec` must be nonexistent or empty, not a symlink and not inside
 the source checkout. The adapter builds in a sibling private directory,
 rechecks the public CLI output and minimum TF warp files, and publishes the
-complete artifact only after success. On failure no partial dataset is published.
+complete artifact only after success. The **outer** artifact (native `tf/`
+features plus the operational `conversion-summary.json`) is atomically
+published without clobbering a destination created concurrently—even a new
+**empty** directory. On failure the private stage is cleaned without deleting
+another owner's destination. This protection is distinct from the direct
+converter CLI's inner staging/publication and preserves the existing allowance
+for caller-owned empty output directories, which are removed only at the
+final promotion boundary. The current adapter reuses tf-build's pinned
+`_atomic.publish_path_no_clobber` private primitive; a stable public package
+interface needs separate review before release.
 
 Output layout:
 
