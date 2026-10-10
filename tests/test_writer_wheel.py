@@ -12,6 +12,15 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _run_checked(command: list[str], **kwargs: object) -> None:
+    """Report captured build stdout/stderr on failure instead of hiding diagnostics."""
+    result = subprocess.run(command, check=False, **kwargs)  # type: ignore[arg-type]
+    assert result.returncode == 0, (
+        f"command failed ({result.returncode}): {command!r}\\n"
+        f"stdout:\\n{result.stdout}\\nstderr:\\n{result.stderr}"
+    )
+
+
 def _checked_build(
     command: list[str], *,
     cwd: Path,
@@ -53,7 +62,6 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
             str(wheelhouse),
         ],
         cwd=ROOT,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
@@ -77,7 +85,6 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
     _checked_build(
         [sys.executable, "-c", code],
         cwd=tmp_path,
-        check=True,
         capture_output=True,
         text=True,
         env=env,
@@ -93,7 +100,6 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
     _checked_build(
         [sys.executable, "setup.py", "sdist", "--dist-dir", str(source_dist)],
         cwd=ROOT,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
@@ -126,7 +132,6 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
             str(wheelhouse),
         ],
         cwd=tmp_path,
-        check=True,
         capture_output=True,
         text=True,
         timeout=180,
