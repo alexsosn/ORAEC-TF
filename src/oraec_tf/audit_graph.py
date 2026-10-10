@@ -9,6 +9,7 @@ word/sentence/text spine; remaining native relations belong to issue #8.
 from __future__ import annotations
 
 import csv
+from html.parser import HTMLParser
 import json
 import re
 from pathlib import Path
@@ -265,6 +266,140 @@ def _verify_readme_and_external_crosswalks(
         raise GraphConservationError("unlicensed Karnak mapping in generated TF")
 
 
+class _StrictLinkedHierarchy(HTMLParser):
+    """Parse complete source link markup independently of the converter regex."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.inside = False
+        self.outside = ""
+        self.href: str | None = None
+        self.label = ""
+        self.links: list[tuple[str, str]] = []
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        if tag != "a" or self.inside or len(attrs) != 1:
+            raise GraphConservationError("unexpected hierarchy linked markup")
+        if self.outside != ("" if not self.links else "→"):
+            raise GraphConservationError("unparsed hierarchy linked separator")
+        self.outside = ""
+        if attrs[0][0] != "href" or attrs[0][1] is None:
+            raise GraphConservationError("hierarchy anchor missing href")
+        self.href = attrs[0][1]
+        self.label = ""
+        self.inside = True
+
+    def handle_data(self, data: str) -> None:
+        if self.inside:
+            self.label += data
+        else:
+            self.outside += data
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or not self.inside or self.href is None:
+            raise GraphConservationError("unexpected hierarchy closing tag")
+        self.links.append((self.href, self.label))
+        self.href = None
+        self.inside = False
+
+    def handle_comment(self, data: str) -> None:
+        raise GraphConservationError("unexpected hierarchy HTML comment")
+
+    def finish(self) -> tuple[tuple[str, str], ...]:
+        self.close()
+        if self.inside or self.outside or not self.links:
+            raise GraphConservationError("unparsed hierarchy linked path bytes")
+        return tuple(self.links)
+
+
+def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
+    path = root / "oraec_hierarchical_path.tsv"
+    if not path.is_file():
+        return
+    rows: dict[str, tuple[tuple[str, str], ...]] = {}
+    expected_prefixes: set[tuple[tuple[str, str], ...]] = set()
+    with path.open(encoding="utf-8", newline="") as handle:
+        for index, fields in enumerate(csv.reader(handle, delimiter="\t"), start=1):
+            if len(fields) != 3:
+                raise GraphConservationError(
+                    f"hierarchy row {index} must contain three columns"
+                )
+            oraec_id, plain, linked = fields
+            if oraec_id in rows:
+                raise GraphConservationError("duplicate hierarchy text identity")
+            decoder = _StrictLinkedHierarchy()
+            decoder.feed(linked)
+            links = decoder.finish()
+            labels = plain.split("→")
+            if len(links) != len(labels):
+                raise GraphConservationError(
+                    f"hierarchy component count mismatch: {oraec_id}"
+                )
+            components: list[tuple[str, str]] = []
+            for label, (href, linked_label) in zip(labels, links, strict=True):
+                if label != linked_label:
+                    raise GraphConservationError(
+                        f"hierarchy linked label mismatch: {oraec_id}"
+                    )
+                if not (
+                    href.startswith("https://thesaurus-linguae-aegyptiae.de/object/")
+                    or href.startswith("https://thesaurus-linguae-aegyptiae.de/text/")
+                ):
+                    raise GraphConservationError(
+                        f"unexpected hierarchy linked href: {oraec_id}"
+                    )
+                components.append((label, href))
+                expected_prefixes.add(tuple(components))
+            rows[oraec_id] = tuple(components)
+
+    _expect_equal(set(rows), set(tf_texts), context="hierarchy text coverage")
+    hierarchy_nodes = tuple(api.F.otype.s("hierarchy"))
+    _expect_equal(
+        len(hierarchy_nodes), len(expected_prefixes),
+        context="hierarchy path-prefix node count",
+    )
+    observed_prefixes: set[tuple[tuple[str, str], ...]] = set()
+    for oraec_id, expected in rows.items():
+        text_node = tf_texts[oraec_id]
+        links = tuple(_edge_targets(api, "hierarchy", text_node))
+        if len(links) != 1:
+            raise GraphConservationError(
+                f"hierarchy leaf membership missing or duplicated: {oraec_id}"
+            )
+        node = links[0]
+        observed_path: list[tuple[str, str]] = []
+        visited: set[int] = set()
+        while True:
+            if node in visited:
+                raise GraphConservationError("hierarchy parent cycle")
+            visited.add(node)
+            observed_path.append(
+                (
+                    _node_value(api, "hierarchy_label", node),
+                    _node_value(api, "tla_url", node),
+                )
+            )
+            parents = tuple(_edge_targets(api, "parent", node))
+            if not parents:
+                break
+            if len(parents) != 1:
+                raise GraphConservationError("hierarchy has multiple parents")
+            node = parents[0]
+        observed_path.reverse()
+        _expect_equal(
+            tuple(observed_path), expected,
+            context=f"hierarchy exact source path for {oraec_id}",
+        )
+        for position, component in enumerate(observed_path, start=1):
+            observed_prefixes.add(tuple(observed_path[:position]))
+    _expect_equal(
+        observed_prefixes, expected_prefixes,
+        context="all source hierarchy prefixes",
+    )
+
+
 def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     """Compare all raw source text/sentence/word values against a loaded TF graph."""
     root = Path(source)
@@ -434,4 +569,5 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
         len(api.F.otype.s("word")), expected_word_count, context="TF total slots"
     )
     _verify_readme_and_external_crosswalks(api, root, tf_texts)
+    _verify_hierarchy(api, root, tf_texts)
     return counts
