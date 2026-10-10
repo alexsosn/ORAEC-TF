@@ -21,8 +21,8 @@ def test_feature_reference_covers_exact_frozen_native_schema() -> None:
     expected |= {f"edge.{feature}" for feature in schema["edgeFeatures"]}
     documented = set(
         re.findall(
-            r"^\\| \\x60((?:edge|word|sentence|text|lex|cv|author|source_ref|"
-            r"idno|hierarchy|external_ref)\\.[a-z0-9_]+)\\x60 \\|",
+            r"^\\| `((?:edge|word|sentence|text|lex|cv|author|source_ref|"
+            r"idno|hierarchy|external_ref)\\.[a-z0-9_]+)` \\|",
             reference,
             flags=re.MULTILINE,
         )
