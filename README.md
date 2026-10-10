@@ -58,7 +58,15 @@ oraec-tf fetch upstream/corpus_raw_data
 oraec-tf verify-source upstream/corpus_raw_data
 ```
 
-The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the verified local source directory.
+The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout, requiring the Git **worktree root**. Acquisition uses tf-build's pinned, bounded Git subprocesses and atomic no-clobber publication; the published checkout retains neither the origin remote URL nor transient `FETCH_HEAD` metadata. Conversion itself remains network-free; Agora owns acquisition and then invokes ORAEC-TF on the verified local source directory.
+
+**Pre-release dependency:** the current development package pins `tf-build` to the exact Git commit
+`2b2f0f8776b42423d4b450d4e2fe0040ab63a8e6`. Installing ORAEC-TF
+therefore needs Git and access to that repository **during installation**. No
+tf-build PyPI release or hash-pinned wheel is assumed. A versioned, verified
+wheel/package artifact is required before ORAEC's independent offline release;
+this Git-commit pin is a temporary, reproducible development source, not a
+claim of offline wheel availability.
 
 ## Local Text-Fabric conversion (development builds)
 
