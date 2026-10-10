@@ -1,0 +1,49 @@
+name: Typed parser source conservation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/oraec_tf/ir.py"
+      - "src/oraec_tf/parser.py"
+      - "src/oraec_tf/parser_validation.py"
+      - "scripts/validate_parser_source.py"
+      - "tests/test_parser.py"
+      - "tests/test_parser_validation.py"
+      - ".github/workflows/parser-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+
+      - name: Fetch and verify immutable ORAEC source
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+
+      - name: Full pinned-source typed IR conservation
+        run: |
+          python scripts/validate_parser_source.py upstream/corpus_raw_data \
+            --json reports/generated/parser-validation.json \
+            --expected-texts 13026 \
+            --expected-sentences 101796 \
+            --expected-tokens 815026 \
+            --expected-lemmas 18733
+
+      - name: Upload research/provenance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-parser-validation
+          path: reports/generated/parser-validation.json
+          if-no-files-found: error
