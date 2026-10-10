@@ -522,3 +522,31 @@ def test_control_transport_contract_is_declared_in_native_tf_metadata(
     text_feature = (output / "bibliography.tf").read_text(encoding="utf-8")
     assert "@schemaVersion=2" in text_feature
     assert "@controlCharacterTransport=cr-offsets-v1" in text_feature
+
+
+def test_writer_never_fabricates_hiero_feature_in_source_without_hieroglyphs(
+    tmp_path: Path,
+) -> None:
+    """An optional TF text format must not force fabricated source annotations."""
+    from dataclasses import replace
+
+    first, second = _texts()
+    no_hiero = (
+        replace(
+            first,
+            sentences=tuple(
+                replace(
+                    sentence,
+                    tokens=tuple(replace(token, hiero=None) for token in sentence.tokens),
+                )
+                for sentence in first.sentences
+            ),
+        ),
+        second,
+    )
+    output = tmp_path / "tf"
+    write_tf(no_hiero, output, source_revision=REVISION)
+    assert not (output / "hiero.tf").exists()
+    otext = (output / "otext.tf").read_text(encoding="utf-8")
+    assert "fmt:text-translit" in otext
+    assert "fmt:text-hiero" not in otext

@@ -16,6 +16,9 @@ on:
       - "src/oraec_tf/audit_graph.py"
       - "scripts/validate_graph_source.py"
       - "tests/test_audit_graph.py"
+      - "app/config.yaml"
+      - "scripts/validate_advanced_app.py"
+      - "tests/test_advanced_app.py"
       - ".github/workflows/writer-validation.yml"
 
 concurrency:
@@ -80,6 +83,11 @@ jobs:
             --schema-version 2 \
             --report reports/generated/graph-conservation.json
 
+      - name: Smoke local standard Text-Fabric advanced app and browser
+        run: |
+          python scripts/validate_advanced_app.py reports/generated/tf \
+            > reports/generated/advanced-app-validation.json
+
       - name: Upload counts and provenance only
         if: always()
         uses: actions/upload-artifact@v4
@@ -88,4 +96,5 @@ jobs:
           path: |
             reports/generated/native-tf-validation.json
             reports/generated/graph-conservation.json
+            reports/generated/advanced-app-validation.json
           if-no-files-found: warn
