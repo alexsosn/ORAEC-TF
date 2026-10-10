@@ -66,7 +66,7 @@ After installing from this repository and fetching the verified pinned checkout,
 
 ```bash
 oraec-tf convert upstream/corpus_raw_data \
-  --output build/oraec-tf \
+  --output build/oraec-tf/0.1.0-dev \
   --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd
 ```
 
@@ -102,7 +102,10 @@ The repository ships a **standard TF advanced app** in `app/config.yaml`. You
 can browse an ephemeral or published TF artifact; source JSON and generated
 `.tf` files are **never committed to this software repository**.
 
-After completing the local conversion above, in the repository directory:
+After completing the local conversion above, in the repository directory.
+Text-Fabric's standard browser expects a dataset directory named after the
+app's `provenanceSpec.version` (`0.1.0-dev` here), so the conversion output
+is placed under `build/oraec-tf/0.1.0-dev` and `--locations` points to its parent:
 
 ```bash
 # Local TF browser using the repository's app and an external TF data folder.
@@ -118,7 +121,7 @@ from tf.fabric import Fabric
 from tf.app import use
 
 root = Path.cwd()  # root of the ORAEC-TF checkout
-api = Fabric(locations=str(root / "build" / "oraec-tf"), silent="deep").loadAll(
+api = Fabric(locations=str(root / "build" / "oraec-tf" / "0.1.0-dev"), silent="deep").loadAll(
     silent="deep"
 )
 A = use(f"app:{root / 'app'}", api=api, silent="deep")
