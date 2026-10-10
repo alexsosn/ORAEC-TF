@@ -533,10 +533,8 @@ def test_advanced_app_loads_local_ephemeral_tf_with_egyptian_formats(
     output = tmp_path / "tf"
     records = _texts()
     write_tf(records, output, source_revision=REVISION)
-    api = Fabric(locations=str(output), silent="deep").load(
-        "oraec_id sentence_index title translation written_form hiero "
-        "token_id trailer pos", silent="deep",
-    )
+    # The advanced app should receive the complete generated feature inventory.
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     # No network, downloading, repo/TF artifacts or custom browser required.
     app_path = Path(__file__).resolve().parents[1] / "app"
     advanced = use(f"app:{app_path}", api=api, silent="deep")
