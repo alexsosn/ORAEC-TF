@@ -11,11 +11,13 @@ GROUP = (
 )
 
 
-def _pull_request_workflows() -> list[Path]:
+def _pull_request_workflows(root: Path = WORKFLOWS) -> list[Path]:
     return sorted(
         path
-        for path in WORKFLOWS.glob("*.yml")
-        if "pull_request:" in path.read_text(encoding="utf-8")
+        for path in root.iterdir()
+        if path.is_file()
+        and path.suffix in {".yml", ".yaml"}
+        and "pull_request:" in path.read_text(encoding="utf-8")
     )
 
 
