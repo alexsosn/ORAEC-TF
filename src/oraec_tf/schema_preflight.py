@@ -257,8 +257,8 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
         anomalies["unresolved_vega_lemma_ids"] = sorted(unresolved_vega)
 
     cv_domains: dict[str, set[str]] = defaultdict(set)
-    for kind, ids in cv_ids_by_kind.items():
-        for cv_id in ids:
+    for kind, kind_ids in cv_ids_by_kind.items():
+        for cv_id in kind_ids:
             cv_domains[cv_id].add(f"cv:{kind}")
 
     wikidata_rows = _iter_delimited(
@@ -326,24 +326,24 @@ def audit_schema_source(root: str | Path) -> dict[str, Any]:
 
         # Empty string is a legitimate exact hierarchy label. Python's split
         # deliberately yields [""] here, matching a linked empty-label anchor.
-        labels = path_text.split("→")
+        hierarchy_labels = path_text.split("→")
         links = [
             (href, html.unescape(label))
             for href, label in ANCHOR_RE.findall(linked_text)
         ]
-        if len(labels) != len(links):
+        if len(hierarchy_labels) != len(links):
             _record_anomaly(
                 anomalies,
                 "hierarchy_component_mismatches",
-                {"text": text_id, "labels": len(labels), "links": len(links)},
+                {"text": text_id, "labels": len(hierarchy_labels), "links": len(links)},
             )
             continue
 
-        hierarchy_empty_labels += sum(1 for label in labels if label == "")
+        hierarchy_empty_labels += sum(1 for label in hierarchy_labels if label == "")
 
         prefix: list[str] = []
         for depth, (label, (href, linked_label)) in enumerate(
-            zip(labels, links, strict=True),
+            zip(hierarchy_labels, links, strict=True),
             start=1,
         ):
             if label != linked_label:
