@@ -481,3 +481,13 @@ def test_audit_rejects_corrupted_derived_hierarchy_feature(
     file_path.write_text(corrupted, encoding="utf-8")
     with pytest.raises(GraphConservationError, match=feature):
         audit_basic_graph(source, output)
+
+
+def test_full_source_audit_rejects_missing_companion_semantic_files(
+    tmp_path: Path,
+) -> None:
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match="required.*source"):
+        audit_basic_graph(source, output, require_complete_source=True)
