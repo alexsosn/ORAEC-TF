@@ -165,6 +165,20 @@ def write_tf(
             raise WriterError(f"unapproved mapping family: {table.filename}")
 
     metadata, int_features = _feature_contract()
+    # Text-Fabric requires every declared text format to reference a node
+    # feature that actually occurs. A tiny valid corpus may have no hiero at
+    # all; do not invent hieroglyphic source values merely for display.
+    has_hieroglyphs = any(
+        token.hiero is not None
+        for record in records
+        for sentence in record.sentences
+        for token in sentence.tokens
+    )
+    otext = (
+        OTEXT
+        if has_hieroglyphs
+        else {key: value for key, value in OTEXT.items() if key != "fmt:text-hiero"}
+    )
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     fabric = Fabric(locations=str(output), silent="deep")
@@ -420,7 +434,7 @@ def write_tf(
     good = cv.walk(
         director,
         "word",
-        otext=OTEXT,
+        otext=otext,
         generic={
             "source": "https://github.com/oraec/corpus_raw_data",
             "sourceRevision": source_revision,
