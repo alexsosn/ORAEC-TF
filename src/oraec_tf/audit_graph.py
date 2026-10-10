@@ -459,9 +459,33 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
     )
 
 
-def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
-    """Compare all raw source text/sentence/word values against a loaded TF graph."""
+REQUIRED_SOURCE_COMPANIONS = (
+    "README.md",
+    "oraec_hierarchical_path.tsv",
+    "mapping_oraec_trismegistos.csv",
+    "mapping_oraec_lemmata_vega.tsv",
+    "mapping_oraec_wikidata.tsv",
+    # These two files are required for snapshot integrity but never released.
+    "mapping_oraec_karnak.tsv",
+    "mapping_oraec_lemmata_karnak.tsv",
+)
+
+
+def audit_basic_graph(
+    source: str | Path, tf_dir: str | Path, *,
+    require_complete_source: bool = False,
+) -> dict[str, int]:
+    """Independently compare raw ORAEC semantics against loaded TF."""
     root = Path(source)
+    if require_complete_source:
+        missing = [
+            filename for filename in REQUIRED_SOURCE_COMPANIONS
+            if not (root / filename).is_file()
+        ]
+        if missing:
+            raise GraphConservationError(
+                f"required source companion files missing: {missing}"
+            )
     paths = sorted(
         path
         for path in root.iterdir()
@@ -670,6 +694,7 @@ def audit_graph_with_provenance(
     source_revision: str,
     converter_revision: str,
     schema_version: int,
+    require_complete_source: bool = False,
 ) -> dict[str, Any]:
     """Emit only reproducible build identities, counts and output hashes."""
     for kind, sha in (
@@ -680,7 +705,9 @@ def audit_graph_with_provenance(
             raise GraphConservationError(f"{kind} must be a full commit SHA")
     if schema_version < 1:
         raise GraphConservationError("schema version must be a positive integer")
-    counts = audit_basic_graph(source, tf_dir)
+    counts = audit_basic_graph(
+        source, tf_dir, require_complete_source=require_complete_source,
+    )
     paths = sorted(
         path for path in Path(tf_dir).glob("*.tf")
         if path.is_file() and not path.name.startswith(".")
