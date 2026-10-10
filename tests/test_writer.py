@@ -522,3 +522,37 @@ def test_control_transport_contract_is_declared_in_native_tf_metadata(
     text_feature = (output / "bibliography.tf").read_text(encoding="utf-8")
     assert "@schemaVersion=2" in text_feature
     assert "@controlCharacterTransport=cr-offsets-v1" in text_feature
+
+
+def test_advanced_app_loads_local_ephemeral_tf_with_egyptian_formats(
+    tmp_path: Path,
+) -> None:
+    """#9: a stock TF advanced app must load our ephemeral graph offline."""
+    from tf.app import use
+
+    output = tmp_path / "tf"
+    records = _texts()
+    write_tf(records, output, source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id sentence_index title translation written_form hiero "
+        "token_id trailer pos", silent="deep",
+    )
+    # No network, downloading, repo/TF artifacts or custom browser required.
+    app_path = Path(__file__).resolve().parents[1] / "app"
+    advanced = use(f"app:{app_path}", api=api, silent="deep")
+    assert advanced is not None
+    assert advanced.api is api
+
+    first_word = next(
+        w for w in api.F.otype.s("word")
+        if api.F.token_id.v(w) == "oraec1-1-1"
+    )
+    assert api.T.text(first_word, fmt="text-orig-full") == "nṯr"
+    assert api.T.text(first_word, fmt="text-orig-hiero") == "[⯑]�"
+
+    text = next(
+        t for t in api.F.otype.s("text")
+        if api.F.oraec_id.v(t) == "oraec1"
+    )
+    first_sentence = api.L.d(text, otype="sentence")[0]
+    assert api.T.sectionFromNode(first_sentence) == ("oraec1", 1)
