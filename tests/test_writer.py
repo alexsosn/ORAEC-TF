@@ -545,8 +545,8 @@ def test_advanced_app_loads_local_ephemeral_tf_with_egyptian_formats(
         w for w in api.F.otype.s("word")
         if api.F.token_id.v(w) == "oraec1-1-1"
     )
-    assert api.T.text(first_word, fmt="text-orig-full") == "nṯr"
-    assert api.T.text(first_word, fmt="text-orig-hiero") == "[⯑]�"
+    assert api.T.text(first_word, fmt="text-orig-full") == "nṯr "
+    assert api.T.text(first_word, fmt="text-orig-hiero") == "[⯑]� "
 
     text = next(
         t for t in api.F.otype.s("text")
