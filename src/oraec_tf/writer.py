@@ -416,10 +416,22 @@ def write_tf(
             if not walker.occurs(feature):
                 walker.meta(feature)
 
+    # TF rejects formats mentioning features that never occur in a build.
+    # A source with no hieroglyphic annotations has no hieroglyphic format;
+    # never fabricate signs, values, or placeholder word features.
+    otext = dict(OTEXT)
+    if not any(
+        token.hiero is not None
+        for record in records
+        for sentence in record.sentences
+        for token in sentence.tokens
+    ):
+        otext.pop("fmt:text-orig-hiero")
+
     good = cv.walk(
         director,
         "word",
-        otext=OTEXT,
+        otext=otext,
         generic={
             "source": "https://github.com/oraec/corpus_raw_data",
             "sourceRevision": source_revision,
