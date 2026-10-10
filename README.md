@@ -58,6 +58,29 @@ oraec-tf fetch upstream/corpus_raw_data
 oraec-tf verify-source upstream/corpus_raw_data
 ```
 
+## Local Text-Fabric conversion (development builds)
+
+After installing from this repository and fetching the verified pinned checkout, run:
+
+```bash
+oraec-tf convert upstream/corpus_raw_data \
+  --output build/oraec-tf \
+  --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd
+```
+
+Conversion uses **only local files** and performs no source fetch or network calls.
+The source must be a clean Git checkout at the exact supported immutable commit.
+The output path must be absent or empty, outside the source checkout and not a
+symbolic link. TF is first assembled in a temporary sibling directory, then
+reloaded through Text-Fabric for node-count checks before being published.
+
+The pinned source has 13,026 texts, 101,796 sentences and 815,026 real tokens,
+plus three explicitly marked technical anchor slots for zero-token sentences.
+The default generated corpus excludes Karnak crosswalks while their distribution
+licence remains unresolved (#17). This is a development conversion path;
+independent raw-source-to-TF validation (#8), the TF advanced app (#9),
+researcher documentation (#10), and Agora integration (#11) remain 0.1.0 gates.
+
 The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout. Conversion itself will be network-free; Agora will own acquisition and then invoke ORAEC-TF on the verified local source directory.
 
 ## Text-Fabric app/browser
