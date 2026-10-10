@@ -284,3 +284,17 @@ def test_fetch_failure_preserves_preexisting_empty_destination() -> None:
 
         assert target.is_dir()
         assert not any(target.iterdir())
+
+
+def test_verify_rejects_ignored_non_head_source_inputs(tmp_path: Path) -> None:
+    """Ignored extra ORAEC JSON must not contaminate a pinned local source."""
+    source, _ = _make_git_source(tmp_path)
+    (source / ".gitignore").write_text("oraec99999.json\\n", encoding="utf-8")
+    _git(source, "add", ".gitignore")
+    _git(source, "commit", "-m", "ignore generated corpus input")
+    pinned = _git(source, "rev-parse", "HEAD")
+    extra = source / "oraec99999.json"
+    extra.write_text('{"oraec99999": {}}', encoding="utf-8")
+    assert _git(source, "status", "--porcelain", "--untracked-files=all") == ""
+    with pytest.raises(SourceAcquisitionError, match="ignored"):
+        verify_source(source, expected_revision=pinned)
