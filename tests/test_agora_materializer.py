@@ -136,6 +136,44 @@ def test_agora_outer_publication_never_replaces_competing_empty_directory(
     assert not tuple(tmp_path.glob(".published.agora-*"))
 
 
+def test_agora_publishes_into_preexisting_empty_output_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    output = tmp_path / "published"
+    output.mkdir()
+
+    def successful_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for name, marker in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / name).write_text(f"{marker}\\n\\n", encoding="utf-8")
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", successful_cli)
+    report = agora.materialize(
+        source, output, source_revision=DEFAULT_SOURCE_REVISION
+    )
+    assert report["source_revision"] == DEFAULT_SOURCE_REVISION
+    assert (output / "tf" / "otype.tf").is_file()
+    assert (output / "conversion-summary.json").is_file()
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
 def test_agora_restores_existing_empty_output_after_failed_conversion(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
