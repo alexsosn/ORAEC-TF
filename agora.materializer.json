@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "plugin": {
+    "id": "oraec-tf",
+    "name": "ORAEC-TF",
+    "version": "0.1.0.dev0",
+    "repository": "alexsosn/ORAEC-TF"
+  },
+  "materializers": [
+    {
+      "id": "oraec-native-text-fabric",
+      "description": "Convert the verified immutable Open Richly Annotated Egyptian Corpus source to a fully native Text-Fabric graph without semantic sidecars.",
+      "acquisition": [
+        {
+          "type": "git",
+          "url": "https://github.com/oraec/corpus_raw_data.git",
+          "ref": "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd",
+          "subpath": "."
+        },
+        {
+          "type": "user-local",
+          "path_type": "directory",
+          "prompt": "Select a clean ORAEC corpus_raw_data Git worktree at the pinned immutable commit"
+        }
+      ],
+      "input": {
+        "type": "directory",
+        "required_globs": [
+          "README.md",
+          "oraec1.json",
+          "oraec_hierarchical_path.tsv",
+          "mapping_oraec_wikidata.tsv"
+        ],
+        "allow_symlinks": false
+      },
+      "execution": {
+        "type": "python-module",
+        "module": "oraec_tf.agora",
+        "args": [
+          "{source}",
+          "{output}",
+          "--source-revision",
+          "{source_revision}"
+        ],
+        "network": "deny"
+      },
+      "output": {
+        "format": "text-fabric",
+        "required_paths": [
+          "tf/otype.tf",
+          "tf/oslots.tf",
+          "tf/otext.tf",
+          "conversion-summary.json"
+        ]
+      }
+    }
+  ]
+}
