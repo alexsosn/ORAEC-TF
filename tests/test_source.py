@@ -6,6 +6,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pytest
+from tf_build._atomic import publish_path_no_clobber
+from tf_build.source import GitSourceError
 
 from oraec_tf.source import (
     DEFAULT_SOURCE_REVISION,
@@ -73,7 +75,7 @@ def test_fetch_rejects_nonempty_destination_before_running_git() -> None:
         target.mkdir()
         (target / "sentinel").write_text("keep", encoding="utf-8")
 
-        with patch("oraec_tf.source._run_git") as run_git:
+        with patch("tf_build.source._run_git") as run_git:
             with pytest.raises(SourceAcquisitionError, match="not empty"):
                 fetch_source(target)
 
@@ -86,7 +88,7 @@ def test_fetch_rejects_symlink_destination_before_running_git(tmp_path: Path) ->
     target = tmp_path / "source"
     target.symlink_to(real, target_is_directory=True)
 
-    with patch("oraec_tf.source._run_git") as run_git:
+    with patch("tf_build.source._run_git") as run_git:
         with pytest.raises(SourceAcquisitionError, match="symlink"):
             fetch_source(target)
 
@@ -100,7 +102,7 @@ def test_fetch_rejects_dangling_symlink_without_mutation(tmp_path: Path) -> None
     assert target.is_symlink()
     assert not target.exists()
 
-    with patch("oraec_tf.source._run_git") as run_git:
+    with patch("tf_build.source._run_git") as run_git:
         with pytest.raises(SourceAcquisitionError, match="symlink"):
             fetch_source(target)
 
@@ -113,7 +115,7 @@ def test_fetch_rejects_symbolic_revision_before_running_git() -> None:
     with TemporaryDirectory() as temp:
         target = Path(temp) / "source"
 
-        with patch("oraec_tf.source._run_git") as run_git:
+        with patch("tf_build.source._run_git") as run_git:
             with pytest.raises(SourceAcquisitionError, match="full 40-hex"):
                 fetch_source(target, revision="main")
 
@@ -174,60 +176,96 @@ def test_verify_source_rejects_untracked_files(tmp_path: Path) -> None:
         verify_source(source, expected_revision=revision)
 
 
-def test_fetch_uses_exact_commit_fetch_and_detached_checkout() -> None:
-    revision = DEFAULT_SOURCE_REVISION
-    calls: list[tuple[list[str], bool]] = []
 
-    def fake_run(
-        args: list[str], *, capture_output: bool = False
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((args, capture_output))
-        stdout = ""
-        if args[-2:] == ["rev-parse", "HEAD"]:
-            stdout = f"{revision}\n"
-        elif args[-2:] == ["rev-parse", "--show-toplevel"]:
-            stdout = str(Path(args[1]).resolve()) + "\n"
-        elif args[-3:] == ["status", "--porcelain", "--untracked-files=all"]:
-            stdout = ""
-        return subprocess.CompletedProcess(["git", *args], 0, stdout=stdout, stderr="")
+def test_fetch_materializes_real_local_commit_without_storing_source_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED: old ORAEC fetch leaves the origin URL and FETCH_HEAD in the checkout."""
+    from oraec_tf import source as source_module
 
-    with TemporaryDirectory() as temp:
-        target = Path(temp) / "source"
-        with patch("oraec_tf.source._run_git", side_effect=fake_run):
-            snapshot = fetch_source(target)
+    upstream, revision = _make_git_source(tmp_path)
+    monkeypatch.setattr(source_module, "SOURCE_REPOSITORY", str(upstream))
+    target = tmp_path / "acquired"
+    snapshot = fetch_source(target, revision=revision.upper())
 
-        assert target.is_dir()
-
+    assert snapshot.path == target.resolve()
     assert snapshot.revision == revision
-    command_args = [args for args, _capture in calls]
-    assert any(args[-2:] == ["init", "--quiet"] for args in command_args)
-    assert any(
-        args[-5:] == ["fetch", "--depth", "1", "origin", revision]
-        for args in command_args
+    assert (target / "README.md").read_text(encoding="utf-8") == "source\n"
+    assert _git(target, "status", "--porcelain", "--untracked-files=all") == ""
+    assert _git(target, "rev-parse", "HEAD") == revision
+    symbolic = subprocess.run(
+        ["git", "-C", str(target), "symbolic-ref", "-q", "HEAD"],
+        capture_output=True, text=True,
     )
-    assert any(
-        args[-3:] == ["checkout", "--detach", "FETCH_HEAD"]
-        for args in command_args
-    )
-    assert any(args[-2:] == ["rev-parse", "HEAD"] for args in command_args)
-    assert any(args[-2:] == ["rev-parse", "--show-toplevel"] for args in command_args)
-    assert any(
-        args[-3:] == ["status", "--porcelain", "--untracked-files=all"]
-        for args in command_args
-    )
+    assert symbolic.returncode != 0
+    assert _git(target, "remote") == "", "published source must not retain a remote URL"
+    assert not (target / ".git" / "FETCH_HEAD").exists()
+    assert not tuple(tmp_path.glob(".acquired.tf-build-*"))
+
+
+def test_fetch_uses_source_specific_40_hex_contract_before_acquisition(
+    tmp_path: Path,
+) -> None:
+    from oraec_tf import source as source_module
+
+    with patch.object(source_module, "fetch_git_source") as delegated:
+        with pytest.raises(SourceAcquisitionError, match="40-hex"):
+            fetch_source(tmp_path / "source", revision="f" * 64)
+    delegated.assert_not_called()
+    assert not (tmp_path / "source").exists()
+
+
+
+def test_fetch_into_preexisting_empty_directory_preserves_detached_sha(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from oraec_tf import source as source_module
+
+    upstream, revision = _make_git_source(tmp_path)
+    monkeypatch.setattr(source_module, "SOURCE_REPOSITORY", str(upstream))
+    target = tmp_path / "acquired"
+    target.mkdir()
+    snapshot = fetch_source(target, revision=revision)
+    assert snapshot.path == target.resolve()
+    assert _git(target, "rev-parse", "HEAD") == revision
+    assert _git(target, "remote") == ""
+    assert not (target / ".git" / "FETCH_HEAD").exists()
+
+
+def test_fetch_does_not_overwrite_concurrently_created_destination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from oraec_tf import source as source_module
+
+    upstream, revision = _make_git_source(tmp_path)
+    monkeypatch.setattr(source_module, "SOURCE_REPOSITORY", str(upstream))
+    destination = tmp_path / "acquired"
+    raced = False
+
+    def raced_publish(staging: Path, target: Path) -> None:
+        nonlocal raced
+        assert target == destination
+        target.mkdir()
+        (target / "sentinel").write_text("other owner's bytes", encoding="utf-8")
+        raced = True
+        publish_path_no_clobber(staging, target)
+
+    monkeypatch.setattr("tf_build.source.publish_path_no_clobber", raced_publish)
+    with pytest.raises(SourceAcquisitionError):
+        fetch_source(destination, revision=revision)
+
+    assert raced
+    assert (destination / "sentinel").read_text(encoding="utf-8") == "other owner's bytes"
+    assert {p.name for p in destination.iterdir()} == {"sentinel"}
+    assert not tuple(tmp_path.glob(".acquired.tf-build-*"))
+
 
 
 def test_fetch_failure_does_not_leave_partial_destination() -> None:
-    def fail_fetch(
-        args: list[str], *, capture_output: bool = False
-    ) -> subprocess.CompletedProcess[str]:
-        if "fetch" in args:
-            raise SourceAcquisitionError("fetch failed")
-        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
 
     with TemporaryDirectory() as temp:
         target = Path(temp) / "source"
-        with patch("oraec_tf.source._run_git", side_effect=fail_fetch):
+        with patch("tf_build.source._run_git", side_effect=GitSourceError("fetch failed")):
             with pytest.raises(SourceAcquisitionError, match="fetch failed"):
                 fetch_source(target)
 
@@ -235,20 +273,28 @@ def test_fetch_failure_does_not_leave_partial_destination() -> None:
 
 
 def test_fetch_failure_preserves_preexisting_empty_destination() -> None:
-    def fail_fetch(
-        args: list[str], *, capture_output: bool = False
-    ) -> subprocess.CompletedProcess[str]:
-        if "fetch" in args:
-            raise SourceAcquisitionError("fetch failed")
-        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
 
     with TemporaryDirectory() as temp:
         target = Path(temp) / "source"
         target.mkdir()
 
-        with patch("oraec_tf.source._run_git", side_effect=fail_fetch):
+        with patch("tf_build.source._run_git", side_effect=GitSourceError("fetch failed")):
             with pytest.raises(SourceAcquisitionError, match="fetch failed"):
                 fetch_source(target)
 
         assert target.is_dir()
         assert not any(target.iterdir())
+
+
+def test_verify_rejects_ignored_non_head_source_inputs(tmp_path: Path) -> None:
+    """Ignored extra ORAEC JSON must not contaminate a pinned local source."""
+    source, _ = _make_git_source(tmp_path)
+    (source / ".gitignore").write_text("oraec99999.json\n", encoding="utf-8")
+    _git(source, "add", ".gitignore")
+    _git(source, "commit", "-m", "ignore generated corpus input")
+    pinned = _git(source, "rev-parse", "HEAD")
+    extra = source / "oraec99999.json"
+    extra.write_text('{"oraec99999": {}}', encoding="utf-8")
+    assert _git(source, "status", "--porcelain", "--untracked-files=all") == ""
+    with pytest.raises(SourceAcquisitionError, match="ignored"):
+        verify_source(source, expected_revision=pinned)

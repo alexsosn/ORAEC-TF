@@ -7,6 +7,9 @@ on:
     paths:
       - "agora.materializer.json"
       - "src/oraec_tf/agora.py"
+      - "src/oraec_tf/source.py"
+      - "tests/test_source.py"
+      - "pyproject.toml"
       - "tests/test_agora_materializer.py"
       - ".github/workflows/agora-materializer.yml"
 
