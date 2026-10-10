@@ -8,6 +8,7 @@ word/sentence/text spine; remaining native relations belong to issue #8.
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from pathlib import Path
@@ -128,6 +129,140 @@ def _verify_text_relations(api: Any, text_node: int, source: dict[str, Any],
         _expect_equal(
             observed, expected, context=f"{text_id}.{source_field}"
         )
+
+
+def _verify_readme_and_external_crosswalks(
+    api: Any, root: Path, tf_texts: dict[str, int]
+) -> None:
+    """Independently resolve external edges and README contributor identities."""
+    tf_authors = {
+        _node_value(api, "author_name", n): n
+        for n in api.F.otype.s("author")
+    }
+    if len(tf_authors) != len(api.F.otype.s("author")):
+        raise GraphConservationError("duplicate TF author identity")
+    tf_lex = {
+        _node_value(api, "lemma_id", n): n for n in api.F.otype.s("lex")
+    }
+    tf_cvs: dict[str, list[int]] = {}
+    for n in api.F.otype.s("cv"):
+        cv_id = _node_value(api, "cv_id", n)
+        tf_cvs.setdefault(cv_id, []).append(n)
+
+    readme = root / "README.md"
+    if readme.is_file():
+        matching_rows = []
+        for line in readme.read_text(encoding="utf-8").splitlines():
+            if not line.lstrip().startswith("|"):
+                continue
+            fields = [field.strip() for field in line.strip().strip("|").split("|")]
+            if (
+                len(fields) >= 3
+                and re.fullmatch(
+                    r"oraec[0-9]+\.json\s*\.\.\s*oraec[0-9]+\.json",
+                    fields[0],
+                )
+            ):
+                matching_rows.append(fields)
+        if len(matching_rows) != 1:
+            raise GraphConservationError("README corpus author declaration missing")
+        declared = tuple(
+            x.strip() for x in matching_rows[0][2].split(",") if x.strip()
+        )
+        if len(set(declared)) != len(declared):
+            raise GraphConservationError("duplicate README author identity")
+        for idx, author in enumerate(declared, start=1):
+            node = tf_authors.get(author)
+            if node is None:
+                raise GraphConservationError(f"missing README corpus author: {author}")
+            _expect_equal(
+                _node_value(api, "is_corpus_author", node),
+                1,
+                context=f"README corpus author {author}",
+            )
+            _expect_equal(
+                _node_value(api, "corpus_author_index", node),
+                idx,
+                context=f"README corpus author index {author}",
+            )
+        unexpected = [
+            author
+            for author, node in tf_authors.items()
+            if author not in declared and _node_value(api, "is_corpus_author", node) == 1
+        ]
+        if unexpected:
+            raise GraphConservationError(
+                f"invented README corpus authors: {unexpected}"
+            )
+
+    families = (
+        ("mapping_oraec_trismegistos.csv", ",", "trismegistos"),
+        ("mapping_oraec_lemmata_vega.tsv", "\t", "vega"),
+        ("mapping_oraec_wikidata.tsv", "\t", "wikidata"),
+    )
+    expected: set[tuple[int, str, str, str]] = set()
+    for filename, delimiter, system in families:
+        path = root / filename
+        if not path.is_file():
+            continue
+        with path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.reader(handle, delimiter=delimiter))
+        if filename == "mapping_oraec_trismegistos.csv":
+            if rows and rows[0] == ["ORAEC", "Trismegistos Text"]:
+                rows = rows[1:]
+        for index, row in enumerate(rows, start=1):
+            if len(row) != 2:
+                raise GraphConservationError(
+                    f"invalid mapping row {index}: {filename}"
+                )
+            key, target = row
+            if system == "trismegistos":
+                source_node = tf_texts.get(key)
+            elif system == "vega":
+                source_node = tf_lex.get(key)
+            else:
+                matches = ([tf_authors[key]] if key in tf_authors else []) + (
+                    tf_cvs.get(key, [])
+                )
+                if len(matches) != 1:
+                    raise GraphConservationError(
+                        f"ambiguous Wikidata mapping source: {key}"
+                    )
+                source_node = matches[0]
+            if source_node is None:
+                raise GraphConservationError(
+                    f"unresolved {system} mapping source: {key}"
+                )
+            relation = (source_node, system, target, filename)
+            if relation in expected:
+                raise GraphConservationError(
+                    f"duplicate mapping row: {filename} {key} {target}"
+                )
+            expected.add(relation)
+
+    external_nodes = tuple(api.F.otype.s("external_ref"))
+    actual: set[tuple[int, str, str, str]] = set()
+    used_external_nodes: set[int] = set()
+    for node in (
+        list(tf_texts.values()) + list(tf_authors.values())
+        + list(tf_lex.values())
+        + [n for nodes in tf_cvs.values() for n in nodes]
+    ):
+        edges = _edge_targets(api, "external", node)
+        for target, filename in dict(edges).items():
+            used_external_nodes.add(target)
+            system = _node_value(api, "external_system", target)
+            value = _node_value(api, "external_value", target)
+            actual.add((node, system, value, filename))
+
+    _expect_equal(actual, expected, context="external mapping edges")
+    _expect_equal(
+        used_external_nodes, set(external_nodes),
+        context="unreferenced or invented external_ref nodes",
+    )
+    if any(_node_value(api, "external_system", n) == "karnak"
+           for n in external_nodes):
+        raise GraphConservationError("unlicensed Karnak mapping in generated TF")
 
 
 def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
@@ -298,4 +433,5 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     _expect_equal(
         len(api.F.otype.s("word")), expected_word_count, context="TF total slots"
     )
+    _verify_readme_and_external_crosswalks(api, root, tf_texts)
     return counts
