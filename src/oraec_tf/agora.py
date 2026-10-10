@@ -19,6 +19,8 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from tf_build._atomic import publish_path_no_clobber
+
 from . import cli
 from .source import (
     DEFAULT_SOURCE_REVISION,
@@ -148,7 +150,9 @@ def materialize(
         )
         if preexisting_empty_dir:
             target.rmdir()
-        stage.replace(target)
+        # The target can be claimed after preflight or empty-directory removal.
+        # A no-clobber rename is required at this independent outer boundary.
+        publish_path_no_clobber(stage, target)
         return report
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
