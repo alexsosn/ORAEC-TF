@@ -49,6 +49,28 @@ def _fingerprints(tf_path: Path) -> dict[str, str]:
     return result
 
 
+def _discard_tf_runtime_cache(tf_path: Path) -> None:
+    """Publish native TF features, not compiled TF runtime caches or sidecars.
+
+    Fabric.load() writes a hidden `.tf` cache folder next to source features;
+    these machine-specific compiled files are not portable research data.
+    """
+    cache = tf_path / ".tf"
+    if cache.is_symlink():
+        raise ValueError("unexpected symlinked Text-Fabric cache")
+    if cache.is_dir():
+        shutil.rmtree(cache)
+    elif cache.exists():
+        raise ValueError("unexpected non-directory Text-Fabric cache")
+
+    extra = [
+        path.name for path in tf_path.iterdir()
+        if path.is_symlink() or not path.is_file() or path.suffix != ".tf"
+    ]
+    if extra:
+        raise ValueError(f"unexpected non-feature TF output: {sorted(extra)}")
+
+
 def materialize(
     source: str | Path, destination: str | Path, *,
     source_revision: str = DEFAULT_SOURCE_REVISION,
@@ -103,6 +125,7 @@ def materialize(
             raise RuntimeError("converter reported wrong artifact path")
         if not isinstance(cli_summary.get("counts"), dict):
             raise RuntimeError("converter omitted native TF conservation counts")
+        _discard_tf_runtime_cache(tf_dir)
         missing = [name for name in REQUIRED_WARP if not (tf_dir / name).is_file()]
         if missing:
             raise RuntimeError(f"converted TF missing mandatory warp files: {missing}")
