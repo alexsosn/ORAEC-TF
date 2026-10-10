@@ -49,13 +49,18 @@ def lexeme_words(api: Any, lemma_id: str) -> tuple[int, ...]:
 
 def word_annotations(api: Any, word: int) -> dict[str, str | None]:
     """Read source morphology and writing without inventing annotations."""
+    # Lemma identity belongs to the separate lex node, not to word features.
+    lex_nodes = tuple(api.L.u(word, otype="lex"))
+    if len(lex_nodes) > 1:
+        raise ValueError("word unexpectedly belongs to multiple lexemes")
+    lemma_id = api.F.lemma_id.v(lex_nodes[0]) if lex_nodes else None
     return {
         "token_id": api.F.token_id.v(word),
         "transliteration": api.F.written_form.v(word),
         "hieroglyphs": api.F.hiero.v(word),
         "pos": api.F.pos.v(word),
         "morphology": api.F.morphology.v(word),
-        "lemma_id": api.F.lemma_id.v(word),
+        "lemma_id": lemma_id,
     }
 
 
