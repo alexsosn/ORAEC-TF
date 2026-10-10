@@ -289,7 +289,7 @@ def test_fetch_failure_preserves_preexisting_empty_destination() -> None:
 def test_verify_rejects_ignored_non_head_source_inputs(tmp_path: Path) -> None:
     """Ignored extra ORAEC JSON must not contaminate a pinned local source."""
     source, _ = _make_git_source(tmp_path)
-    (source / ".gitignore").write_text("oraec99999.json\\n", encoding="utf-8")
+    (source / ".gitignore").write_text("oraec99999.json\n", encoding="utf-8")
     _git(source, "add", ".gitignore")
     _git(source, "commit", "-m", "ignore generated corpus input")
     pinned = _git(source, "rev-parse", "HEAD")
