@@ -613,3 +613,49 @@ def test_auditor_rejects_tampered_native_cr_position_metadata(
     )
     with pytest.raises(GraphConservationError, match="CR|offset|position"):
         audit_basic_graph(source, output)
+
+
+@pytest.mark.parametrize(
+    "feature,forgery",
+    [
+        ("written_form", "invented-word"),
+        ("hiero", "𓀀"),
+        ("pos", "substantive"),
+        ("line_count", "[Vs 99]"),
+        ("trailer", "invented spacing"),
+    ],
+)
+def test_independent_auditor_rejects_any_forged_anchor_annotation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    feature: str, forgery: str,
+) -> None:
+    """#20: fabricated linguistic/spacing data must not enter empty sentences."""
+    from tf.fabric import Fabric
+
+    from oraec_tf import audit_graph as audit_module
+
+    source, original = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((original,), output, source_revision=REVISION)
+    assert audit_basic_graph(source, output)["anchors"] == 1
+
+    # Mutate the *loaded real Fabric feature data*, not an invented mock
+    # writer/parser object, while preserving all valid source relations.
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    anchor = next(
+        word for word in api.F.otype.s("word")
+        if api.F.is_anchor.v(word) == 1
+    )
+    accessor = getattr(api.F, feature)
+    accessor.data[anchor] = forgery
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
+    with pytest.raises(GraphConservationError, match=feature):
+        audit_basic_graph(source, output)
