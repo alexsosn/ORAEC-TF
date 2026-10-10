@@ -12,10 +12,24 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _checked_build(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-    """Keep build stdout/stderr visible when wheel/sdist gates fail in CI."""
+def _checked_build(
+    command: list[str], *,
+    cwd: Path,
+    check: bool,
+    capture_output: bool,
+    text: bool,
+    timeout: int,
+) -> subprocess.CompletedProcess[str]:
+    """Preserve actionable stderr when wheel/sdist construction fails in CI."""
     try:
-        return subprocess.run(*args, **kwargs)  # type: ignore[call-overload]
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            check=check,
+            capture_output=capture_output,
+            text=text,
+            timeout=timeout,
+        )
     except subprocess.CalledProcessError as exc:
         raise AssertionError(
             f"package build failed ({exc.returncode}):\\n"
