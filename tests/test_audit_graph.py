@@ -357,7 +357,7 @@ def test_audit_report_hashes_generated_tf_without_semantic_sidecars(
     ).hexdigest()
     assert report["output_bytes"]["otype.tf"] == (output / "otype.tf").stat().st_size
     assert report["total_tf_bytes"] == sum(
-        path.stat().st_size for path in output.glob("*.tf")
+        path.stat().st_size for path in output.glob("*.tf") if path.is_file()
     )
     assert all(path.endswith(".tf") for path in report["output_sha256"])
 
