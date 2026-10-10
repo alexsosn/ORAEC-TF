@@ -7,6 +7,7 @@ import html
 import json
 import re
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any
 
 from .ir import (
@@ -71,6 +72,13 @@ TOKEN_KEYS = {
 }
 REQUIRED_TOKEN_KEYS = {"token", "written_form"}
 CV_KINDS = ("date", "origplace", "objecttype", "location", "material")
+CV_CARDINALITIES = {
+    "date": (1, 2),
+    "origplace": (1, 1),
+    "objecttype": (1, 4),
+    "location": (1, 1),
+    "material": (1, 1),
+}
 CV_ATTRS = {
     "date": "dates",
     "origplace": "original_places",
@@ -186,6 +194,10 @@ def _parse_cv_items(
     if kind not in record:
         return ()
     items = _expect_list(record[kind], field=f"{text_id}.{kind}")
+    minimum, maximum = CV_CARDINALITIES[kind]
+    if not minimum <= len(items) <= maximum:
+        raise ParseError(f"{text_id}.{kind} cardinality must be {minimum}..{maximum}")
+    seen_ids: set[str] = set()
     result: list[ControlledValueIR] = []
     for index, raw in enumerate(items, start=1):
         item = _expect_dict(raw, field=f"{text_id}.{kind}[{index}]")
@@ -195,10 +207,14 @@ def _parse_cv_items(
             field=f"{text_id}.{kind}[{index}]",
             required={"id", kind},
         )
+        cv_id = _expect_str(item["id"], field=f"{text_id}.{kind}[{index}].id")
+        if cv_id in seen_ids:
+            raise ParseError(f"{text_id}.{kind} has duplicate ID {cv_id!r}")
+        seen_ids.add(cv_id)
         result.append(
             ControlledValueIR(
                 kind=kind,
-                cv_id=_expect_str(item["id"], field=f"{text_id}.{kind}[{index}].id"),
+                cv_id=cv_id,
                 label=_expect_str(
                     item[kind],
                     field=f"{text_id}.{kind}[{index}].{kind}",
@@ -224,6 +240,10 @@ def _parse_credits(raw: object, *, text_id: str) -> CreditsIR:
         _expect_str(value, field=f"{text_id}.credits.source[{index}]")
         for index, value in enumerate(raw_sources, start=1)
     )
+    if len(sources) != 2:
+        raise ParseError(f"{text_id}.credits.source cardinality must be 2")
+    if len(set(sources)) != len(sources):
+        raise ParseError(f"{text_id}.credits.source has duplicate URLs")
     return CreditsIR(
         license=_expect_str(credits["license"], field=f"{text_id}.credits.license"),
         author=_expect_str(credits["author"], field=f"{text_id}.credits.author"),
@@ -384,6 +404,8 @@ def parse_text(path: str | Path) -> TextIR:
 
     if "idno" in record:
         raw_idnos = _expect_list(record["idno"], field=f"{text_id}.idno")
+        if len(raw_idnos) != 2:
+            raise ParseError(f"{text_id}.idno cardinality must be 2")
         idnos = tuple(
             _expect_str(value, field=f"{text_id}.idno[{index}]")
             for index, value in enumerate(raw_idnos, start=1)
@@ -411,7 +433,7 @@ def parse_text(path: str | Path) -> TextIR:
     )
 
 
-def iter_texts(root: str | Path):
+def iter_texts(root: str | Path) -> Iterator[TextIR]:
     """Yield parsed ORAEC texts in deterministic numeric file order."""
     source = Path(root)
     if not source.is_dir():
