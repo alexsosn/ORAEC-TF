@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -16,14 +18,13 @@ from .parser import (
     parse_mapping_tables,
 )
 from .parser_validation import validate_corpus_source
-from .writer import write_tf
-
 from .source import (
     DEFAULT_SOURCE_REVISION,
     SOURCE_REPOSITORY,
     fetch_source,
     verify_source,
 )
+from .writer import write_tf
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,38 +81,57 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise ValueError("output must be an empty directory or not exist")
 
-    # Validate the complete local source before creating a TF output directory.
+    # Validate the source before any output publication.
     report = validate_corpus_source(snapshot.path)
-    write_tf(
-        iter_texts(snapshot.path),
-        target,
-        source_revision=snapshot.revision,
-        corpus_metadata=parse_corpus_metadata(snapshot.path),
-        mapping_tables=parse_mapping_tables(snapshot.path),
-        hierarchy_rows=parse_hierarchy(snapshot.path),
+    target.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(
+        tempfile.mkdtemp(
+            prefix=f".{target.name}.oraec-tf-",
+            dir=target.parent,
+        )
     )
+    existed_as_empty_dir = target.exists()
+    try:
+        write_tf(
+            iter_texts(snapshot.path),
+            stage,
+            source_revision=snapshot.revision,
+            corpus_metadata=parse_corpus_metadata(snapshot.path),
+            mapping_tables=parse_mapping_tables(snapshot.path),
+            hierarchy_rows=parse_hierarchy(snapshot.path),
+        )
 
-    # Reload a wholly independent instance of Fabric rather than trusting the
-    # conversion director's in-memory counters.
-    api = Fabric(locations=str(target), silent="deep").load(
-        "oraec_id sentence_index token_id", silent="deep"
-    )
-    if not api:
-        raise ValueError("generated Text-Fabric corpus did not load")
-    word_count = len(api.F.otype.s("word"))
-    text_count = len(api.F.otype.s("text"))
-    sentence_count = len(api.F.otype.s("sentence"))
-    real_words = sum(
-        api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
-    )
-    expected = report["counts"]
-    if (
-        text_count != expected["texts"]
-        or sentence_count != expected["sentences"]
-        or real_words != expected["tokens"]
-        or word_count != real_words + expected["empty_token_sentences"]
-    ):
-        raise ValueError("generated TF node counts diverge from parsed source")
+        # Reload the staging build, never a publicly visible partial target.
+        api = Fabric(locations=str(stage), silent="deep").load(
+            "oraec_id sentence_index token_id", silent="deep"
+        )
+        if not api:
+            raise ValueError("generated Text-Fabric corpus did not load")
+        word_count = len(api.F.otype.s("word"))
+        text_count = len(api.F.otype.s("text"))
+        sentence_count = len(api.F.otype.s("sentence"))
+        real_words = sum(
+            api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
+        )
+        expected = report["counts"]
+        if (
+            text_count != expected["texts"]
+            or sentence_count != expected["sentences"]
+            or real_words != expected["tokens"]
+            or word_count != real_words + expected["empty_token_sentences"]
+        ):
+            raise ValueError("generated TF node counts diverge from parsed source")
+
+        # Rename within the same parent/file system only after all checks pass.
+        if existed_as_empty_dir:
+            target.rmdir()
+        stage.replace(target)
+    except Exception:
+        shutil.rmtree(stage, ignore_errors=True)
+        if existed_as_empty_dir and not target.exists():
+            target.mkdir()
+        raise
+
     return {
         "output": str(target.resolve()),
         "revision": snapshot.revision,
@@ -123,7 +143,6 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
             "slots": word_count,
         },
     }
-
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
