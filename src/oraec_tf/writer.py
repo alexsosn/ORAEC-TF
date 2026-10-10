@@ -423,6 +423,8 @@ def write_tf(
             "source": "https://github.com/oraec/corpus_raw_data",
             "sourceRevision": source_revision,
             "license": "CC BY-SA 4.0",
+            "schemaVersion": str(_schema()["schemaVersion"]),
+            "controlCharacterTransport": "cr-offsets-v1",
         },
         intFeatures=int_features,
         featureMeta=metadata,
