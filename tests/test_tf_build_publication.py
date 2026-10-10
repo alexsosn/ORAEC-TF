@@ -110,7 +110,7 @@ def test_reject_unselected_corrupt_feature_even_if_counts_still_load(
         assert cache_files, "real TF load must have created compiled feature caches"
         # Title isn't in the old count-only ORAEC reload feature selection.
         title.write_text(
-            "@node\\n@valueType=wrong\\n1\\tchanged\\n", encoding="utf-8"
+            "@node\n@valueType=wrong\n1\tchanged\n", encoding="utf-8"
         )
         future_ns = title.stat().st_mtime_ns + 5_000_000_000
         for cache_file in cache_files:
