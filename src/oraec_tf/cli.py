@@ -89,7 +89,15 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
         # empty-output contract, but never replace another process's target.
         target.rmdir()
     try:
-        with BuildWorkspace(target) as workspace:
+        # The output's parent may be a mutable symlink. Source validation
+        # occurs after the first target.resolve() check, so canonicalize again
+        # using the exact destination that tf-build will publish. Do this
+        # before workspace entry, before any staging can touch source paths.
+        workspace = BuildWorkspace(target)
+        canonical_target = workspace.destination
+        if canonical_target == snapshot.path or snapshot.path in canonical_target.parents:
+            raise ValueError("output must not be inside the source checkout")
+        with workspace:
             stage = workspace.path
             write_tf(
                 iter_texts(snapshot.path),
