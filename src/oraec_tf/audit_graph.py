@@ -847,6 +847,11 @@ def audit_basic_graph(
                     # Distinguish missing hiero from a present empty string.
                     if "hiero" in raw_token:
                         value = raw_token["hiero"]
+                        if not isinstance(value, str):
+                            raise GraphConservationError(
+                                f"invalid source hiero string in {text_id}"
+                                f".sentence[{index}].token[{token_idx}]"
+                            )
                         hiero_counts["present"] += 1
                         if value == "[⯑]":
                             hiero_counts["placeholder"] += 1
