@@ -459,12 +459,13 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
         )
         _verify_text_relations(api, text_node, source_text, text_id=text_id)
         for raw_name in ("bibliography", "condition"):
-            if raw_name in source_text:
-                _expect_equal(
-                    getattr(api.F, raw_name).v(text_node),
-                    source_text[raw_name],
-                    context=f"{text_id}.{raw_name}",
-                )
+            # Absence is meaningful: reject invented annotations as well as
+            # dropped values, and keep a present empty string distinct from None.
+            _expect_equal(
+                _node_value(api, raw_name, text_node),
+                source_text.get(raw_name),
+                context=f"{text_id}.{raw_name}",
+            )
         sentences = source_text["sentences"]
         actual_sentences = api.L.d(text_node, otype="sentence")
         _expect_equal(
