@@ -750,3 +750,36 @@ def test_provenance_reports_native_cr_inventory_without_semantic_sidecars(
     assert report["counts"] == {
         "texts": 1, "sentences": 2, "tokens": 1, "anchors": 1,
     }
+
+
+def test_independent_auditor_rejects_cr_owner_edge_from_nonoccurrence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An extra edge originating from a normal word/text is a forged CR relation."""
+    from tf.fabric import Fabric
+
+    from oraec_tf import audit_graph as audit_module
+
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    raw["oraec1"]["bibliography"] = "A\\r\\nB"
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "tf"
+    write_tf((replace(record, bibliography="A\\r\\nB"),), output,
+             source_revision=REVISION)
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    source_text = api.F.otype.s("text")[0]
+    source_sentence = api.F.otype.s("sentence")[0]
+    api.E.cr_owner.data[source_text] = {source_sentence}
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
+    with pytest.raises(GraphConservationError, match="CR.*owner|occurrence"):
+        audit_basic_graph(source, output)
