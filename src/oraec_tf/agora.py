@@ -16,7 +16,8 @@ import shutil
 import tempfile
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from . import cli
 from .source import (
