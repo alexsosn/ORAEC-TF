@@ -143,7 +143,9 @@ def _independent_native_cr_index(api: Any) -> dict[tuple[int, str], tuple[int, .
     fields = getattr(api.F, "cr_feature", None)
     offsets = getattr(api.F, "cr_offset", None)
     edges = getattr(api.E, "cr_owner", None)
-    if nodes and (fields is None or offsets is None or edges is None):
+    if not nodes:
+        return {}
+    if fields is None or offsets is None or edges is None:
         raise GraphConservationError("missing native CR occurrence features/edge")
     known_owners = {
         "word", "sentence", "text", "lex", "cv", "author", "source_ref",
