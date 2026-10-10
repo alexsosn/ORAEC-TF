@@ -9,6 +9,11 @@ on:
       - "tests/test_linecount.py"
       - ".github/workflows/linecount-research.yml"
 
+# Supersede only same-event PR/ref runs; preserve independent manual dispatches.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyse:
     runs-on: ubuntu-latest
