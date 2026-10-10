@@ -147,3 +147,25 @@ def test_native_cr_occurrence_rejects_orphaned_and_wrong_span_owner(
     api.E.cr_owner.data[cr] = {other}
     with pytest.raises(ControlCharacterError, match="feature|oslots|owner"):
         NativeCRIndex(api)
+
+
+
+def test_native_cr_index_rejects_duplicate_source_coordinate(
+    tmp_path: Path,
+) -> None:
+    """Different TF occurrence nodes cannot claim the same owner/offset."""
+    corpus = tmp_path / "tf"
+    _sample(corpus)
+    api = Fabric(locations=str(corpus), silent="deep").loadAll(silent="deep")
+    assert api
+    text = api.F.otype.s("text")[0]
+    bibliography_crs = [
+        n for n in api.F.otype.s("cr_occurrence")
+        if api.F.cr_feature.v(n) == "bibliography"
+        and text in api.E.cr_owner.f(n)
+    ]
+    assert len(bibliography_crs) == 3
+    first, second = bibliography_crs[:2]
+    api.F.cr_offset.data[second] = api.F.cr_offset.v(first)
+    with pytest.raises(ControlCharacterError, match="duplicate"):
+        NativeCRIndex(api)
