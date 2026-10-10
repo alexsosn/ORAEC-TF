@@ -505,8 +505,9 @@ def test_independent_audit_rejects_corrupt_native_entity_oslots(
     The independent auditor must not trust oslots on shared native entities
     merely because their source labels and mapping edges remain intact.
     """
-    import oraec_tf.audit_graph as audit_module
     from tf.fabric import Fabric
+
+    import oraec_tf.audit_graph as audit_module
 
     source, record = _relational_source(tmp_path)
     hierarchy = _source_hierarchy(source)
