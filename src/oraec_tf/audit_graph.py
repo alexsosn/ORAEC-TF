@@ -12,6 +12,7 @@ import csv
 import hashlib
 import json
 import re
+from collections import defaultdict
 from html.parser import HTMLParser
 from importlib.metadata import version
 from pathlib import Path
@@ -459,6 +460,123 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
     )
 
 
+
+def _verify_native_entity_oslots(api: Any, text_nodes: dict[str, int]) -> None:
+    """Independently check complete native entity identities and span unions.
+
+    All source relations and hierarchy paths must be checked first: they are
+    then an independent oracle for each target's exact TF word membership.
+    """
+    text_words = {
+        node: set(api.L.d(node, otype="word"))
+        for node in text_nodes.values()
+    }
+    all_words = set().union(*text_words.values())
+    # Sources, CV values and credited authors may be shared; idno occurrences
+    # are distinct, one per owning text, even if their labels are identical.
+    families = (
+        ("author", ("author",)),
+        ("source_ref", ("source",)),
+        ("cv", ("date", "origplace", "objecttype", "location", "material")),
+        ("idno", ("idno",)),
+    )
+    for node_type, edge_names in families:
+        expected: dict[int, set[int]] = defaultdict(set)
+        idno_owner: dict[int, int] = {}
+        for text_node, slots in text_words.items():
+            for edge_name in edge_names:
+                for target in _edge_targets(api, edge_name, text_node):
+                    if node_type == "idno":
+                        previous = idno_owner.setdefault(target, text_node)
+                        if previous != text_node:
+                            raise GraphConservationError(
+                                "idno occurrence is owned by multiple texts"
+                            )
+                    expected[target].update(slots)
+        existing_nodes = set(api.F.otype.s(node_type))
+        if node_type == "author":
+            # README corpus contribution is global provenance, not text credit.
+            # Such authors explicitly cover all corpus slots.
+            for node in existing_nodes:
+                if _node_value(api, "is_corpus_author", node) == 1:
+                    expected[node] = all_words
+        _expect_equal(
+            set(expected), existing_nodes,
+            context=f"{node_type} complete native node identities",
+        )
+        if node_type in {"source_ref", "cv"}:
+            identity_features = (
+                ("source_url",) if node_type == "source_ref"
+                else ("cv_kind", "cv_id")
+            )
+            identities = [
+                tuple(_node_value(api, feature, node) for feature in identity_features)
+                for node in existing_nodes
+            ]
+            _expect_equal(
+                len(identities), len(set(identities)),
+                context=f"{node_type} source identity uniqueness",
+            )
+        for node, slots in expected.items():
+            actual = set(api.L.d(node, otype="word"))
+            if actual != slots:
+                raise GraphConservationError(
+                    f"{node_type}[{node}].oslots: expected {len(slots)} words, "
+                    f"observed {len(actual)}; missing {len(slots - actual)}, "
+                    f"extra {len(actual - slots)}"
+                )
+
+    # Each source text belongs to its exact leaf and all its ancestors.
+    hierarchy_expected: dict[int, set[int]] = defaultdict(set)
+    for text_node, slots in text_words.items():
+        leaves = tuple(_edge_targets(api, "hierarchy", text_node))
+        for leaf in leaves:
+            node = leaf
+            visited: set[int] = set()
+            while node not in visited:
+                visited.add(node)
+                hierarchy_expected[node].update(slots)
+                parents = tuple(_edge_targets(api, "parent", node))
+                if not parents:
+                    break
+                node = parents[0]
+    _expect_equal(
+        set(hierarchy_expected), set(api.F.otype.s("hierarchy")),
+        context="hierarchy complete path-prefix node identities",
+    )
+    for node, slots in hierarchy_expected.items():
+        actual = set(api.L.d(node, otype="word"))
+        if actual != slots:
+            raise GraphConservationError(
+                f"hierarchy[{node}].oslots: expected {len(slots)} words, "
+                f"observed {len(actual)}"
+            )
+
+    # External references inherit the union of all referencing entity spans.
+    # The earlier checks independently established those underlying spans.
+    external_expected: dict[int, set[int]] = defaultdict(set)
+    source_nodes = list(text_words)
+    for kind in ("author", "cv", "lex"):
+        source_nodes.extend(api.F.otype.s(kind))
+    for node in source_nodes:
+        targets = _edge_targets(api, "external", node)
+        if targets:
+            slots = set(api.L.d(node, otype="word"))
+            for target in targets:
+                external_expected[target].update(slots)
+    _expect_equal(
+        set(external_expected), set(api.F.otype.s("external_ref")),
+        context="external_ref complete node identities",
+    )
+    for node, slots in external_expected.items():
+        actual = set(api.L.d(node, otype="word"))
+        if actual != slots:
+            raise GraphConservationError(
+                f"external_ref[{node}].oslots: expected {len(slots)} words, "
+                f"observed {len(actual)}"
+            )
+
+
 REQUIRED_SOURCE_COMPANIONS = (
     "README.md",
     "oraec_hierarchical_path.tsv",
@@ -684,6 +802,7 @@ def audit_basic_graph(
         api, root, tf_texts, credited_authors,
     )
     _verify_hierarchy(api, root, tf_texts)
+    _verify_native_entity_oslots(api, tf_texts)
     return counts
 
 
