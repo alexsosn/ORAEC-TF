@@ -273,6 +273,35 @@ def test_convert_atomic_publication_preserves_concurrent_target(
     assert not tuple(tmp_path.glob(".published.tf-build-*"))
 
 
+def test_convert_never_replaces_competing_empty_directory(
+    tmp_path: Path,
+) -> None:
+    """POSIX regression: Path.replace could overwrite a raced EMPTY directory."""
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "published"
+    competing_inode: list[int] = []
+
+    def competitor_during_real_write(*args: Any, **kwargs: Any) -> None:
+        assert not target.exists()
+        target.mkdir()
+        competing_inode.append(target.stat().st_ino)
+        real_write_tf(*args, **kwargs)
+
+    with (
+        _synthetic_conversion_inputs(source),
+        patch("oraec_tf.cli.write_tf", side_effect=competitor_during_real_write),
+    ):
+        with pytest.raises(FileExistsError):
+            _synthetic_convert(source, target)
+
+    assert competing_inode
+    assert target.is_dir()
+    assert target.stat().st_ino == competing_inode[0]
+    assert not any(target.iterdir())
+    assert not tuple(tmp_path.glob(".published.tf-build-*"))
+
+
 def test_convert_rejects_invalid_raw_tf_despite_newer_binary_cache(
     tmp_path: Path,
 ) -> None:
