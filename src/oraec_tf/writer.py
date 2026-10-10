@@ -67,7 +67,6 @@ def _feature_metadata(used_features: set[str]) -> dict[str, dict[str, str]]:
                 continue
             result[feature] = {
                 "description": spec["description"],
-                "valueType": spec["valueType"],
                 "origin": spec["origin"],
             }
             if "sourceField" in spec:
