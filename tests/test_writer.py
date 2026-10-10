@@ -413,8 +413,8 @@ def test_multitext_bibliography_is_attached_to_correct_oraec_identity(
 def test_carriage_return_is_losslessly_reconstructible_from_native_tf(
     tmp_path: Path,
 ) -> None:
-    """#40: preserve literal CRLF and CR despite Text-Fabric transport limits."""
-    from oraec_tf.text_codec import restore_source_string
+    """#42: each source U+000D is one typed, owned, native TF graph node."""
+    from oraec_tf.text_codec import NativeCRIndex
 
     first, second = _texts()
     raw = "Editionen:\r\n- Papyrus Berlin\r\n- Other\r\rOriginal\nEnd"
@@ -422,26 +422,29 @@ def test_carriage_return_is_losslessly_reconstructible_from_native_tf(
     second = replace(second, bibliography="ordinary\ntext")
     output = tmp_path / "tf"
     write_tf((first, second), output, source_revision=REVISION)
-    api = Fabric(locations=str(output), silent="deep").load(
-        "oraec_id bibliography text_cr_offsets",
-        silent="deep",
-    )
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    assert api
     texts = {api.F.oraec_id.v(n): n for n in api.F.otype.s("text")}
-    a = texts[first.oraec_id]
-    b = texts[second.oraec_id]
+    a, b = texts[first.oraec_id], texts[second.oraec_id]
     assert api.F.bibliography.v(a) == raw.replace("\r", "")
-    assert restore_source_string(
-        api.F.bibliography.v(a), api.F.text_cr_offsets.v(a), "bibliography"
-    ) == raw
-    assert api.F.bibliography.v(b) == second.bibliography
-    assert api.F.text_cr_offsets.v(b) is None
+    index = NativeCRIndex(api)
+    assert index.restore(a, "bibliography") == raw
+    assert index.restore(b, "bibliography") == second.bibliography
+    assert not tuple(output.glob("*_cr_offsets.tf"))
+    positions = sorted(
+        api.F.cr_offset.v(node)
+        for node in api.F.otype.s("cr_occurrence")
+        if api.E.cr_owner.f(node) == {a}
+        and api.F.cr_feature.v(node) == "bibliography"
+    )
+    assert positions == [i for i, ch in enumerate(raw) if ch == "\r"]
 
 
 def test_carriage_return_transport_covers_word_sentence_and_shared_lex_cv(
     tmp_path: Path,
 ) -> None:
-    """CR in any text-bearing node must not shift sparse native TF features."""
-    from oraec_tf.text_codec import restore_source_string
+    """Typed nodes must preserve shared lexical/CV owner identities too."""
+    from oraec_tf.text_codec import NativeCRIndex
 
     first, second = _texts()
     original_sentence = first.sentences[0]
@@ -468,12 +471,8 @@ def test_carriage_return_transport_covers_word_sentence_and_shared_lex_cv(
     )
     output = tmp_path / "tf"
     write_tf((first, second), output, source_revision=REVISION)
-    api = Fabric(locations=str(output), silent="deep").load(
-        "oraec_id title text_cr_offsets translation sentence_cr_offsets "
-        "token_id written_form word_cr_offsets lemma_id lemma_form lex_cr_offsets "
-        "cv_id cv_label cv_cr_offsets",
-        silent="deep",
-    )
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    index = NativeCRIndex(api)
     text_node = next(
         n for n in api.F.otype.s("text") if api.F.oraec_id.v(n) == "oraec1"
     )
@@ -481,21 +480,18 @@ def test_carriage_return_transport_covers_word_sentence_and_shared_lex_cv(
     word = api.L.d(sentence_node, otype="word")[0]
     lex = next(n for n in api.F.otype.s("lex") if api.F.lemma_id.v(n) == "L-CR")
     cv = next(n for n in api.F.otype.s("cv") if api.F.cv_id.v(n) == "D1")
-    for node, name, meta, original in (
-        (text_node, "title", "text_cr_offsets", "Ti\rtle"),
-        (sentence_node, "translation", "sentence_cr_offsets", "First\r\ntranslation"),
-        (word, "written_form", "word_cr_offsets", "n\rṯr"),
-        (lex, "lemma_form", "lex_cr_offsets", "lex\r-form"),
-        (cv, "cv_label", "cv_cr_offsets", "Era\rlabel"),
+    for node, name, original in (
+        (text_node, "title", "Ti\rtle"),
+        (sentence_node, "translation", "First\r\ntranslation"),
+        (word, "written_form", "n\rṯr"),
+        (lex, "lemma_form", "lex\r-form"),
+        (cv, "cv_label", "Era\rlabel"),
     ):
-        assert restore_source_string(
-            getattr(api.F, name).v(node),
-            getattr(api.F, meta).v(node),
-            name,
-        ) == original
+        assert index.restore(node, name) == original
+    assert len(api.F.otype.s("cr_occurrence")) == 5
 
 
-def test_schema_v2_documents_sparse_carriage_return_features() -> None:
+def test_schema_v3_declares_typed_native_carriage_return_occurrences() -> None:
     import json
 
     schema = json.loads(
@@ -503,13 +499,15 @@ def test_schema_v2_documents_sparse_carriage_return_features() -> None:
             encoding="utf-8"
         )
     )
-    assert schema["schemaVersion"] == 2
+    assert schema["schemaVersion"] == 3
     assert schema["source"]["semanticSidecars"] is False
-    for node_type, spec in schema["nodeTypes"].items():
-        metadata = spec["features"][f"{node_type}_cr_offsets"]
-        assert metadata["valueType"] == "str"
-        assert metadata["origin"] == "derived"
+    assert schema["nodeTypes"]["cr_occurrence"]["features"]["cr_offset"]["valueType"] == "int"
+    assert schema["edgeFeatures"]["cr_owner"]["from"] == ["cr_occurrence"]
     assert schema["controlCharacterTransport"]["rawStringRoundTrip"] is True
+    assert all(
+        not any(name.endswith("_cr_offsets") for name in v["features"])
+        for v in schema["nodeTypes"].values()
+    )
 
 
 def test_control_transport_contract_is_declared_in_native_tf_metadata(
@@ -520,8 +518,11 @@ def test_control_transport_contract_is_declared_in_native_tf_metadata(
     output = tmp_path / "tf"
     write_tf((first, second), output, source_revision=REVISION)
     text_feature = (output / "bibliography.tf").read_text(encoding="utf-8")
-    assert "@schemaVersion=2" in text_feature
-    assert "@controlCharacterTransport=cr-offsets-v1" in text_feature
+    assert "@schemaVersion=3" in text_feature
+    assert "@controlCharacterTransport=native-cr-occurrences-v1" in text_feature
+    assert (output / "cr_feature.tf").is_file()
+    assert (output / "cr_offset.tf").is_file()
+    assert (output / "cr_owner.tf").is_file()
 
 
 def test_writer_never_fabricates_hiero_feature_in_source_without_hieroglyphs(
