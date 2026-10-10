@@ -554,3 +554,62 @@ def test_independent_audit_rejects_corrupt_native_entity_oslots(
     monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match="oslots"):
         audit_basic_graph(source, output)
+
+
+def test_auditor_independently_reconstructs_crlf_and_cr_on_native_nodes(
+    tmp_path: Path,
+) -> None:
+    """Schema v2 audit must decode TF native offsets without writer helpers."""
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    source_bib = "Editionen:\r\n- Wreszinski\r\n- Berlin\rTail"
+    source_translation = "Line\r\ntranslated"
+    source_word = "n\rṯr"
+    raw_record = raw["oraec1"]
+    raw_record["bibliography"] = source_bib
+    raw_record["sentences"][0]["translation"] = source_translation
+    raw_record["sentences"][0]["token"][0]["written_form"] = source_word
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+
+    original_sentence = record.sentences[0]
+    token = original_sentence.tokens[0]
+    converted = replace(
+        record,
+        bibliography=source_bib,
+        sentences=(
+            replace(
+                original_sentence,
+                translation=source_translation,
+                tokens=(replace(token, written_form=source_word),),
+            ),
+            record.sentences[1],
+        ),
+    )
+    output = tmp_path / "tf"
+    write_tf((converted,), output, source_revision=REVISION)
+    assert audit_basic_graph(source, output) == {
+        "texts": 1, "sentences": 2, "tokens": 1, "anchors": 1,
+    }
+
+
+def test_auditor_rejects_tampered_native_cr_position_metadata(
+    tmp_path: Path,
+) -> None:
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    raw["oraec1"]["bibliography"] = "A\r\nB"
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "tf"
+    write_tf((replace(record, bibliography="A\r\nB"),), output,
+             source_revision=REVISION)
+    positions = output / "text_cr_offsets.tf"
+    payload = positions.read_text(encoding="utf-8")
+    assert "bibliography=1" in payload
+    positions.write_text(
+        payload.replace("bibliography=1", "bibliography=999"),
+        encoding="utf-8",
+    )
+    with pytest.raises(GraphConservationError, match="CR|offset|position"):
+        audit_basic_graph(source, output)
