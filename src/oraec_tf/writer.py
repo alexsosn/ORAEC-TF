@@ -53,23 +53,13 @@ class WriterError(ValueError):
     """The typed source cannot be emitted as a valid native TF graph."""
 
 
-def _feature_metadata() -> dict[str, dict[str, str]]:
+def _feature_metadata(used_features: set[str]) -> dict[str, dict[str, str]]:
     """Read frozen feature declarations; avoid writing conflicting metadata."""
     import json
 
     schema_path = Path(__file__).resolve().parents[2] / "schema" / "core.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    names = set(WORD_FIELDS) | {
-        "trailer",
-        "is_anchor",
-        "sentence_index",
-        "translation",
-        "oraec_id",
-        "title",
-        "bibliography",
-        "condition",
-        "license",
-    }
+    names = used_features
     result: dict[str, dict[str, str]] = {}
     for node_type in ("word", "sentence", "text"):
         for feature, spec in schema["nodeTypes"][node_type]["features"].items():
@@ -106,6 +96,24 @@ def write_tf(
             range(1, len(record.sentences) + 1)
         ):
             raise WriterError(f"non-contiguous sentence indices: {record.oraec_id}")
+
+    used_features = {
+        "oraec_id", "title", "license", "sentence_index", "translation", "trailer"
+    }
+    for record in records:
+        if record.bibliography is not None:
+            used_features.add("bibliography")
+        if record.condition is not None:
+            used_features.add("condition")
+        for sentence in record.sentences:
+            if not sentence.tokens:
+                used_features.add("is_anchor")
+            for token in sentence.tokens:
+                used_features.update(
+                    field for field in WORD_FIELDS if getattr(token, field) is not None
+                )
+    if "written_form" not in used_features:
+        raise WriterError("cannot produce a text format without real ORAEC words")
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -157,8 +165,8 @@ def write_tf(
             "sourceRevision": source_revision,
             "license": "CC BY-SA 4.0",
         },
-        intFeatures=INT_FEATURES,
-        featureMeta=_feature_metadata(),
+        intFeatures=INT_FEATURES & used_features,
+        featureMeta=_feature_metadata(used_features),
         warn=True,
         force=False,
     )
