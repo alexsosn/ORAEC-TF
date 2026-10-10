@@ -54,6 +54,10 @@ def test_adapter_delegates_to_public_cli_without_fetching(
         assert argv[4:] == ["--upstream-commit", DEFAULT_SOURCE_REVISION]
         tf_dir = Path(argv[3])
         tf_dir.mkdir()
+        # Text-Fabric creates this compiled cache when conversion reloads the
+        # generated graph. It must not leak into an Agora-published artifact.
+        (tf_dir / ".tf").mkdir()
+        (tf_dir / ".tf" / "otype.tfx").write_bytes(b"private TF runtime cache")
         for name in ("otype.tf", "oslots.tf", "otext.tf"):
             (tf_dir / name).write_text(f"@demo\n{name}\n", encoding="utf-8")
         print(json.dumps({
@@ -73,6 +77,10 @@ def test_adapter_delegates_to_public_cli_without_fetching(
     ]) == 0
     assert len(called) == 1
     assert destination.joinpath("tf/otype.tf").is_file()
+    assert not destination.joinpath("tf/.tf").exists()
+    assert {p.name for p in destination.joinpath("tf").iterdir()} == {
+        "otype.tf", "oslots.tf", "otext.tf",
+    }
     report = json.loads(
         destination.joinpath("conversion-summary.json").read_text(encoding="utf-8")
     )
