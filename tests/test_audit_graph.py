@@ -537,7 +537,7 @@ def test_independent_audit_rejects_corrupt_native_entity_oslots(
     original_descend = api.L.d
     assert original_descend(target, otype="word")
 
-    def corrupt_descend(node: int, otype: str | None = None) -> tuple[int, ...]:
+    def corrupt_descend(node: int, otype: str | None = None) -> object:
         if node == target and otype == "word":
             return ()
         return original_descend(node, otype=otype)
