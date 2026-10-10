@@ -134,3 +134,45 @@ def test_convert_cli_refuses_revision_not_in_frozen_schema(tmp_path: Path) -> No
             "convert", str(tmp_path), "--output", str(tmp_path / "tf"),
             "--upstream-commit", "a" * 40,
         ])
+
+
+def test_convert_cli_does_not_publish_partial_output_on_writer_failure(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "tf"
+
+    def broken_writer(
+        texts: object,
+        output_dir: str | Path,
+        **kwargs: object,
+    ) -> None:
+        destination = Path(output_dir)
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "partial.tf").write_text("bad", encoding="utf-8")
+        raise RuntimeError("deliberate late graph writer failure")
+
+    with (
+        patch(
+            "oraec_tf.cli.verify_source",
+            return_value=SourceSnapshot(path=source, revision=DEFAULT_SOURCE_REVISION),
+        ),
+        patch("oraec_tf.cli.validate_corpus_source", return_value={"counts": {}}),
+        patch("oraec_tf.cli.iter_texts", return_value=iter(())),
+        patch(
+            "oraec_tf.cli.parse_corpus_metadata",
+            return_value=CorpusMetadataIR(("README Contributor",)),
+        ),
+        patch("oraec_tf.cli.parse_hierarchy", return_value=()),
+        patch("oraec_tf.cli.parse_mapping_tables", return_value=()),
+        patch("oraec_tf.cli.write_tf", side_effect=broken_writer),
+    ):
+        with pytest.raises(RuntimeError, match="deliberate late"):
+            main([
+                "convert", str(source), "--output", str(target),
+                "--upstream-commit", DEFAULT_SOURCE_REVISION,
+            ])
+
+    assert not target.exists()
+    assert not list(tmp_path.glob(".tf.oraec-tf-*"))
