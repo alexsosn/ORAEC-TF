@@ -593,9 +593,15 @@ def test_auditor_independently_reconstructs_crlf_and_cr_on_native_nodes(
     }
 
 
+@pytest.mark.parametrize("forgery", [-1, 999, "not-an-int"])
 def test_auditor_rejects_tampered_native_cr_position_metadata(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, forgery: object,
 ) -> None:
+    """Source auditor must reject a forged typed native CR occurrence."""
+    from tf.fabric import Fabric
+
+    from oraec_tf import audit_graph as audit_module
+
     source, record = _source(tmp_path)
     raw_file = source / "oraec1.json"
     raw = json.loads(raw_file.read_text(encoding="utf-8"))
@@ -604,13 +610,19 @@ def test_auditor_rejects_tampered_native_cr_position_metadata(
     output = tmp_path / "tf"
     write_tf((replace(record, bibliography="A\r\nB"),), output,
              source_revision=REVISION)
-    positions = output / "text_cr_offsets.tf"
-    payload = positions.read_text(encoding="utf-8")
-    assert "bibliography=1" in payload
-    positions.write_text(
-        payload.replace("bibliography=1", "bibliography=999"),
-        encoding="utf-8",
-    )
+    assert audit_basic_graph(source, output)["texts"] == 1
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    cr = api.F.otype.s("cr_occurrence")[0]
+    api.F.cr_offset.data[cr] = forgery
+
+    class CorruptedFabric:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def loadAll(self, **kwargs: object) -> object:
+            return api
+
+    monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match="CR|offset|position"):
         audit_basic_graph(source, output)
 
