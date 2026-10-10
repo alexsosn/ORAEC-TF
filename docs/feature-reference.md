@@ -156,7 +156,7 @@ Slot mapping: same_as_owner.
 ## Edge features
 
 |Feature|Origin|From → to|Value type|Value meaning|Description|
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 |`date`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC date controlled-vocabulary entity; value is the one-based source-list ordinal.|
 |`origplace`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC original-place controlled-vocabulary entity; value is the one-based source-list ordinal.|
 |`objecttype`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC object-type controlled-vocabulary entity; value is the one-based source-list ordinal.|
