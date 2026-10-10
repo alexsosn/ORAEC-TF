@@ -78,22 +78,25 @@ reloaded through Text-Fabric for node-count checks before being published.
 
 The pinned source has 13,026 texts, 101,796 sentences and 815,026 real tokens,
 plus three explicitly marked technical anchor slots for zero-token sentences.
-**Lossless carriage-return transport (ADR 0006, schema v2):** Text-Fabric 13.1
-cannot safely read a literal carriage return (U+000D) in a `.tf` feature value.
-For source strings containing CR (notably the bibliography of `oraec6`),
-the display feature omits only those CR characters and stores their exact
-original codepoint offsets in `<node_type>_cr_offsets`, a normal native TF
-node feature. To obtain the **exact source string**, reconstruct it with
-`oraec_tf.text_codec.restore_source_string(api.F.bibliography.v(text),
-api.F.text_cr_offsets.v(text), "bibliography")`. Both pieces are in the TF
-graph, so no corpus sidecar is needed. Never use the transport value alone
-for literal provenance comparisons. The compiler and source audit check
-the restoration against pinned raw JSON.
+**Native CR occurrence model (ADR 0007, schema v3):** Text-Fabric 13.1
+cannot safely read literal carriage returns (U+000D) inside a regular .tf
+feature row. The scalar feature contains a CR-free transport string. Every
+original CR is a separate queryable `cr_occurrence` TF node with integer
+`cr_offset` (original Unicode code-point position), `cr_feature` and
+an explicit `cr_owner` edge to its exact source owner. No delimited offset
+lists, copied JSON/XML or semantic sidecars are used. The exact source value
+can be read with `NativeCRIndex(api).restore(text_node, "bibliography")`
+from `oraec_tf.text_codec` after loading the standard Fabric API. It is
+**not** correct to compare a CR-bearing source string to the transport-only
+`F.bibliography.v(text_node)`. Full-source independent CI reconstructs and
+verifies every source string, including standalone CR and CRLF.
 
 The default generated corpus excludes Karnak crosswalks while their distribution
 licence remains unresolved (#17). This is a development conversion path;
 independent raw-source-to-TF validation (#8), the TF advanced app (#9),
-researcher documentation (#10), and Agora integration (#11) remain 0.1.0 gates.
+researcher documentation (#10), and the upstream Agora materializer (#11)
+are implemented and tested. Final 0.1.0 release verification and downstream
+Agora registration remain separate gates (#12 and Agora #224).
 
 ## Text-Fabric app/browser
 
