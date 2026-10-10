@@ -47,3 +47,9 @@ def test_manual_runs_are_isolated_from_push_runs_and_each_other() -> None:
         assert GROUP in text, path.name
         assert "github.event_name" in text, path.name
         assert "github.run_id" in text, path.name
+
+
+def test_yaml_suffix_pull_request_workflows_are_discovered(tmp_path: Path) -> None:
+    yaml_path = tmp_path / "additional-validation.yaml"
+    yaml_path.write_text("on:\n  pull_request:\n", encoding="utf-8")
+    assert _pull_request_workflows(tmp_path) == [yaml_path]
