@@ -27,6 +27,11 @@ def test_pinned_source_gates_run_on_exact_ready_head_and_manual_dispatch(
     assert isinstance(events, dict)
     assert "workflow_dispatch" in events
     pull_request = events["pull_request"]
+    if workflow_name == "writer-validation.yml":
+        # The independent source→TF conservation gate must cover *all* PRs
+        # once they become merge-eligible, including documentation-only PRs.
+        assert "paths" not in pull_request
+        assert "paths-ignore" not in pull_request
     assert set(pull_request["types"]) >= {
         "opened", "reopened", "synchronize", "ready_for_review",
     }
