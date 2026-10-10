@@ -6,14 +6,13 @@ The real tf.advanced.app.App is exercised with an already loaded local TF API.
 
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
 
 from tf.advanced.app import App
 from tf.advanced.find import findAppConfig
 from tf.fabric import Fabric
 
-from oraec_tf.ir import SentenceIR, TextIR, TokenIR, CreditsIR
+from oraec_tf.ir import CreditsIR, SentenceIR, TextIR, TokenIR
 from oraec_tf.writer import write_tf
 
 ROOT = Path(__file__).resolve().parents[1]
