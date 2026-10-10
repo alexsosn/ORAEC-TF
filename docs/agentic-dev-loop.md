@@ -67,3 +67,29 @@ Review questions include:
 Behavior-changing review fixes require a new RED/GREEN cycle and re-review of the new head.
 
 Only merge when the exact head is green and reviewed.
+
+
+## Draft PR CI efficiency (issue #38)
+
+On **every** PR push, fast Ruff, mypy, and pytest still run on all supported
+Python versions. The complete pinned-source writer/independent audit and
+Agora materializer/full-source integration jobs are expensive, so they are
+not executed automatically for Draft PR commits. GitHub reports their
+draft-only jobs as **skipped**, which is *not* validation evidence.
+
+When a PR's implementation and cheap checks are stable, mark it **Ready for
+review**. This emits the `ready_for_review` event and automatically triggers
+the corresponding full-source workflow(s) on that exact head. Non-draft
+`synchronize` pushes also rerun the expensive checks, cancelling superseded
+PR runs. The existing `workflow_dispatch` event permits a full-source run
+during research on an explicitly chosen commit/branch when needed.
+
+**Merge gate:** Do not treat a skipped draft status, an earlier head's
+successful run, or green unit tests alone as satisfying full-source
+conservation. Before finalizing any PR that changes materialization or corpus
+semantics, compare the current PR head SHA with the full-source run's head,
+require successful independent conservation and all relevant native output
+checks, and publish a logically independent adversarial review of that exact
+head. Draft PRs are never merge candidates. The complete 0.1.0 release gate
+(#12) still requires a separate final pinned-snapshot run even for work that
+did not alter the writer or materializer paths.

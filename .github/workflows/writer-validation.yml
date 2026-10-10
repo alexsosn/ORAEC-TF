@@ -2,24 +2,10 @@ name: Native Text-Fabric writer source validation
 
 on:
   workflow_dispatch:
+  # Every non-draft PR head must run independent pinned-source validation,
+  # regardless of which files changed. Draft runs skip the expensive job.
   pull_request:
-    paths:
-      - "src/oraec_tf/writer.py"
-      - "src/oraec_tf/cli.py"
-      - "src/oraec_tf/ir.py"
-      - "src/oraec_tf/parser.py"
-      - "schema/core.json"
-      - "setup.py"
-      - "tests/test_writer.py"
-      - "tests/test_writer_wheel.py"
-      - "tests/test_cli.py"
-      - "src/oraec_tf/audit_graph.py"
-      - "scripts/validate_graph_source.py"
-      - "tests/test_audit_graph.py"
-      - "app/config.yaml"
-      - "scripts/validate_advanced_app.py"
-      - "tests/test_advanced_app.py"
-      - ".github/workflows/writer-validation.yml"
+    types: [opened, reopened, synchronize, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
@@ -27,6 +13,9 @@ concurrency:
 
 jobs:
   validate:
+    # Draft pushes run cheap CI only; a ready-for-review event guarantees
+    # the exact current head is validated before eligibility for merge.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
