@@ -1,6 +1,6 @@
 # ORAEC-TF native Text-Fabric feature reference
 
-Schema version: 2
+Schema version: 3
 
 Source: `schema/core.json` (the authoritative frozen schema).
 This document is generated; do not edit it independently.
@@ -8,7 +8,7 @@ This document is generated; do not edit it independently.
 ## Native graph model
 
 Slot type: `word`.
-Node types: 10. Node features: 58. Edge features: 11.
+Node types: 11. Node features: 50. Edge features: 12.
 
 Each feature records its source/derived provenance and value type.
 No external web endpoint is inferred from a node identifier.
@@ -44,7 +44,6 @@ Slot mapping: self.
 |`status`|Source|str|token.status|Exact ORAEC grammatical status value.|
 |`is_anchor`|Derived|int|ADR 0002 zero-token sentence compatibility|Marks the three converter-derived compatibility slots required for zero-token source sentences.|
 |`trailer`|Derived|str|text display spacing; empty on anchors|Converter-derived display trailer: one space on real words and empty on technical anchors.|
-|`word_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-word-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `sentence`
 
@@ -55,7 +54,6 @@ Slot mapping: contained_words.
 |---|---|---|---|---|
 |`sentence_index`|Derived|int|1-based record.sentences array position|One-based source sentence array position within its ORAEC text.|
 |`translation`|Source|str|sentence.translation|Exact ORAEC sentence translation; empty string is distinct from absence.|
-|`sentence_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-sentence-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `text`
 
@@ -69,7 +67,6 @@ Slot mapping: contained_words.
 |`bibliography`|Source|str|record.bibliography|Exact ORAEC bibliography string when present.|
 |`condition`|Source|str|record.condition|Exact ORAEC condition value when present.|
 |`license`|Source|str|credits.license|Exact per-text ORAEC credits.license value.|
-|`text_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-text-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `lex`
 
@@ -80,7 +77,6 @@ Slot mapping: union_of_occurrence_words.
 |---|---|---|---|---|
 |`lemma_id`|Source|str|token.lemmaID|Exact ORAEC lemmaID used as shared lexical identity.|
 |`lemma_form`|Source|str|token.lemma_form|Exact ORAEC lemma_form associated with lemma_id.|
-|`lex_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-lex-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `cv`
 
@@ -92,7 +88,6 @@ Slot mapping: union_of_referencing_text_words.
 |`cv_kind`|Derived|str|source record field name|Converter-derived controlled-vocabulary domain name.|
 |`cv_id`|Source|str|record.<cv_kind>[].id|Exact ORAEC controlled-vocabulary identifier.|
 |`cv_label`|Source|str|record.<cv_kind>[].<cv_kind>|Exact ORAEC controlled-vocabulary display label.|
-|`cv_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-cv-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `author`
 
@@ -104,7 +99,6 @@ Slot mapping: all_corpus_words_if_corpus_author_else_union_of_referencing_text_w
 |`author_name`|Source|str|credits.author, README author column for oraec1.json .. oraec13026.json|Exact ORAEC credits.author string.|
 |`is_corpus_author`|Source|int|README author column for oraec1.json .. oraec13026.json|Marks an exact author identity declared for the full ORAEC JSON corpus family in the upstream README.|
 |`corpus_author_index`|Derived|int|1-based order in README author column for oraec1.json .. oraec13026.json|Preserves the source order of corpus-level authors declared in the upstream README.|
-|`author_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-author-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `source_ref`
 
@@ -114,7 +108,6 @@ Slot mapping: union_of_referencing_text_words.
 |Feature|Origin|Value type|Source field(s)|Description|
 |---|---|---|---|---|
 |`source_url`|Source|str|credits.source[]|Exact ORAEC credits.source URL.|
-|`source_ref_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-source_ref-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `idno`
 
@@ -125,7 +118,6 @@ Slot mapping: owning_text_words.
 |---|---|---|---|---|
 |`idno_value`|Source|str|record.idno[]|Exact ORAEC idno list item, including duplicate occurrences.|
 |`idno_index`|Derived|int|1-based record.idno list position|One-based source idno list position.|
-|`idno_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-idno-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `hierarchy`
 
@@ -140,7 +132,6 @@ Slot mapping: union_of_descendant_text_words.
 |`tla_url`|Source|str|oraec_hierarchical_path.tsv.column3.href|Exact TLA href parsed from the source linked hierarchy component.|
 |`tla_id`|Derived|str|terminal identifier in tla_url|TLA identifier parsed losslessly from tla_url.|
 |`tla_kind`|Derived|str|TLA URL path: object or text|Converter-derived TLA target kind (object or text) parsed from tla_url.|
-|`hierarchy_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-hierarchy-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
 
 ### `external_ref`
 
@@ -151,12 +142,21 @@ Slot mapping: union_of_referencing_native_node_words.
 |---|---|---|---|---|
 |`external_system`|Derived|str|mapping filename/domain|Converter-derived external namespace determined by the mapping family.|
 |`external_value`|Source|str|mapping file target column|Exact mapping target identifier or URL from the source table.|
-|`external_ref_cr_offsets`|Derived|str|exact source string U+000D positions; lossless TF 13.1 transport (ADR 0006)|Sparse per-external_ref-node map feature=comma-separated original character offsets for each literal CR removed from TF string transport; paired reconstruction restores exact source Unicode.|
+
+### `cr_occurrence`
+
+Source identity: owner+source_feature+original_codepoint_offset.
+Slot mapping: same_as_owner.
+
+|Feature|Origin|Value type|Source field(s)|Description|
+|---|---|---|---|---|
+|`cr_feature`|Derived|str|name of exact source-bearing TF string feature on cr_owner target|Original feature name containing a literal U+000D character at cr_offset.|
+|`cr_offset`|Derived|int|zero-based Unicode code-point position of original U+000D in the exact source string|Integer index into the original unescaped source Unicode string, counting code points rather than UTF-8 bytes.|
 
 ## Edge features
 
 |Feature|Origin|From → to|Value type|Value meaning|Description|
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 |`date`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC date controlled-vocabulary entity; value is the one-based source-list ordinal.|
 |`origplace`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC original-place controlled-vocabulary entity; value is the one-based source-list ordinal.|
 |`objecttype`|Source|text → cv|int|source_list_ordinal|Relates a text to an ORAEC object-type controlled-vocabulary entity; value is the one-based source-list ordinal.|
@@ -168,6 +168,7 @@ Slot mapping: union_of_referencing_native_node_words.
 |`hierarchy`|Source|text → hierarchy|—|leaf_membership|Relates an ORAEC text to the leaf occurrence in its exact source hierarchy path.|
 |`parent`|Source|hierarchy → hierarchy|—|child_to_parent|Relates a hierarchy child occurrence to its immediate parent occurrence.|
 |`external`|Source|text, lex, cv, author → external_ref|str|source_mapping_filename|Relates a native ORAEC entity to an external reference; edge value is the exact mapping filename for provenance.|
+|`cr_owner`|Derived|cr_occurrence → word, sentence, text, lex, cv, author, source_ref, idno, hierarchy, external_ref|—|one_exact_source_owner|Each literal U+000D occurrence points to exactly one original native TF owner node; occurrence oslots exactly match its owner.|
 
 ## Interpretation and limitations
 
@@ -175,10 +176,12 @@ Slot mapping: union_of_referencing_native_node_words.
   from source annotations; technical anchor slots are derived.
 - The source `lineCount` is a token annotation, not a constructed
   line-node hierarchy. Never infer line identity from its string.
-- Schema v2 source U+000D (CR) is reconstructed losslessly from the
-  native value feature and its `<node_type>_cr_offsets` feature.
-  Direct feature values containing CR in source are TF-safe transport
-  strings, not exact raw strings until reconstructed (ADR 0006).
+- Schema v3 preserves every U+000D as a typed `cr_occurrence` node
+  with integer `cr_offset`, `cr_feature` and native `cr_owner` edge.
+  Source-bearing TF scalar strings remain CR-free transports under TF
+  13.1; `NativeCRIndex(api).restore(node, feature)` yields exact source
+  Unicode. There are no packed offset lists or semantic sidecars.
+  See ADR 0007 for original-codepoint and owner-span contracts.
 - Per-text authorship is represented by source credit relations.
   README corpus-level contributors do not create invented text credits.
 - Hierarchy nodes represent exact linked path prefixes, including
