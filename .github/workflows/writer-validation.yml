@@ -13,6 +13,7 @@ on:
       - "docs/adr/0006-lossless-carriage-returns.md"
       - "setup.py"
       - "tests/test_writer.py"
+      - "tests/test_text_codec.py"
       - "tests/test_writer_wheel.py"
       - "tests/test_cli.py"
       - ".github/workflows/writer-validation.yml"
@@ -49,7 +50,7 @@ jobs:
             --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
             > reports/generated/native-tf-validation.json
 
-      - name: RED verify real oraec10 bibliography node attribution
+      - name: Verify real oraec10 bibliography after exact CR reconstruction
         run: |
           python - <<'PY'
           import hashlib
@@ -89,8 +90,8 @@ jobs:
               "tf_node": n,
               "title_equal": api.F.title.v(n) == raw["title"],
               "bibliography_equal_after_native_reconstruction": actual == source,
-              "source_cr_count": source.count("\\r"),
-              "transport_cr_count": transport.count("\\r"),
+              "source_cr_count": source.count(chr(13)),
+              "transport_cr_count": transport.count(chr(13)),
               "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
               "actual_sha256": hashlib.sha256(
                   (actual or "").encode()
