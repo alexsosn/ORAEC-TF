@@ -99,6 +99,30 @@ jobs:
               "source_match_elsewhere": matches,
           }))
           assert actual == source, "exact source bibliography was not reconstructible"
+
+          raw6 = json.loads(
+              Path("upstream/corpus_raw_data/oraec6.json").read_text(
+                  encoding="utf-8"
+              )
+          )["oraec6"]
+          source6 = raw6["bibliography"]
+          node6 = texts["oraec6"]
+          transport6 = api.F.bibliography.v(node6)
+          offsets6 = api.F.text_cr_offsets.v(node6)
+          recovered6 = restore_source_string(
+              transport6, offsets6, "bibliography"
+          )
+          print(json.dumps({
+              "oraec_id": "oraec6",
+              "source_cr_count": source6.count(chr(13)),
+              "transport_cr_count": transport6.count(chr(13)),
+              "roundtrip_exact": recovered6 == source6,
+              "offsets_present": offsets6 is not None,
+          }))
+          assert source6.count(chr(13)) == 19
+          assert offsets6 is not None
+          assert chr(13) not in transport6
+          assert recovered6 == source6, "oraec6 CRLF was not preserved"
           PY
 
       - name: Check the immutable corpus totals
