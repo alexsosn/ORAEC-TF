@@ -9,7 +9,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from tf.advanced.app import App
 from tf.advanced.find import findAppConfig
 from tf.fabric import Fabric
