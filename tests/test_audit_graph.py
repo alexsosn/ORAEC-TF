@@ -412,3 +412,23 @@ def test_independent_audit_rejects_mismatched_embedded_record_id(
     path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
     with pytest.raises(GraphConservationError, match="oraecid|identity"):
         audit_basic_graph(source, output)
+
+
+@pytest.mark.parametrize(
+    ("field", "wrong"),
+    [("tla_id", "WRONG"), ("tla_kind", "text")],
+)
+def test_audit_detects_incorrect_hierarchy_tla_metadata(
+    tmp_path: Path, field: str, wrong: str,
+) -> None:
+    """A corrupted native hierarchy node must fail against raw linked TLA URLs."""
+    source, text = _source(tmp_path)
+    original = _source_hierarchy(source)
+    first = original[0].components[0]
+    broken = replace(original[0], components=(
+        replace(first, **{field: wrong}), *original[0].components[1:],
+    ))
+    output = tmp_path / "tf"
+    write_tf((text,), output, source_revision=REVISION, hierarchy_rows=(broken,))
+    with pytest.raises(GraphConservationError, match=field):
+        audit_basic_graph(source, output)
