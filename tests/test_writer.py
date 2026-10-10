@@ -248,7 +248,7 @@ def test_write_tf_preserves_shared_entities_and_occurrence_relations(
     assert dict(api.E.source.f(texts["oraec1"])) == {src: 1}
     assert dict(api.E.source.f(texts["oraec2"])) == {src: 1}
 
-    targets = tuple(api.E.external.f(authors["README Only"]))
+    targets = tuple(dict(api.E.external.f(authors["README Only"])))
     assert len(targets) == 1
     target = targets[0]
     assert (api.F.external_system.v(target), api.F.external_value.v(target)) == (
