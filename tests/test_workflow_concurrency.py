@@ -6,7 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 GROUP = (
     "group: ${{ github.workflow }}-${{ github.event_name }}-"
-    "${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}"
+    "${{ github.event_name == 'workflow_dispatch' && github.run_id || "
+    "github.event.pull_request.number || github.ref }}"
 )
 
 
