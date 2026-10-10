@@ -659,3 +659,48 @@ def test_independent_auditor_rejects_any_forged_anchor_annotation(
     monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match=feature):
         audit_basic_graph(source, output)
+
+
+
+@pytest.mark.parametrize(
+    "counts",
+    [
+        {"present": 267041, "distinct": 40686, "placeholder": 13198, "replacement": 6545},
+        {"present": 267042, "distinct": 40686, "placeholder": 13197, "replacement": 6545},
+        {"present": 267042, "distinct": 40686, "placeholder": 13198, "replacement": 6544},
+        {"present": 267043, "distinct": 40686, "placeholder": 13198, "replacement": 6545},
+        {"present": 267042, "distinct": 40685, "placeholder": 13198, "replacement": 6545},
+    ],
+)
+def test_independent_pinned_hiero_census_rejects_changed_source_coverage(
+    counts: dict[str, int],
+) -> None:
+    """#21: pinned source preservation includes omission/uncertainty statistics."""
+    from oraec_tf.audit_graph import _validate_hiero_counts
+
+    with pytest.raises(GraphConservationError, match="hiero|placeholder|replacement"):
+        _validate_hiero_counts(counts)
+
+
+def test_independent_pinned_hiero_census_accepts_exact_source_counts() -> None:
+    from oraec_tf.audit_graph import _validate_hiero_counts
+
+    _validate_hiero_counts(
+        {"present": 267042, "distinct": 40686, "placeholder": 13198, "replacement": 6545}
+    )
+
+
+
+def test_independent_auditor_rejects_nonstring_source_hiero_cleanly(
+    tmp_path: Path,
+) -> None:
+    """An invalid raw hiero type must not crash the source auditor with TypeError."""
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    raw = json.loads(raw_file.read_text(encoding="utf-8"))
+    raw["oraec1"]["sentences"][0]["token"][0]["hiero"] = None
+    raw_file.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    with pytest.raises(GraphConservationError, match="hiero"):
+        audit_basic_graph(source, output)
