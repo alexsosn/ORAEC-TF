@@ -85,7 +85,9 @@ class NativeCRIndex:
         feature_accessor = getattr(api.F, "cr_feature", None)
         offset_accessor = getattr(api.F, "cr_offset", None)
         owner_edge = getattr(api.E, "cr_owner", None)
-        if nodes and (
+        if not nodes:
+            return
+        if (
             feature_accessor is None or offset_accessor is None
             or owner_edge is None
         ):
