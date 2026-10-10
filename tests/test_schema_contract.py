@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schema" / "core.json"
 ADR = ROOT / "docs" / "adr" / "0005-native-tf-schema.md"
@@ -323,3 +325,18 @@ def test_readme_corpus_authors_do_not_imply_per_text_credit_edges() -> None:
     adr = ADR.read_text(encoding="utf-8")
     assert "TF locality is not a per-text credit relation" in adr
 
+
+
+@pytest.mark.parametrize(
+    "workflow",
+    ["writer-validation.yml", "agora-materializer.yml"],
+)
+def test_full_corpus_audits_report_exact_frozen_schema_version(
+    workflow: str,
+) -> None:
+    """A green independent source audit must never mislabel generated v3 data."""
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    workflow_text = (
+        ROOT / ".github" / "workflows" / workflow
+    ).read_text(encoding="utf-8")
+    assert f"--schema-version {schema['schemaVersion']}" in workflow_text
