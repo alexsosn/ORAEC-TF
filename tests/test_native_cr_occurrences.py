@@ -169,3 +169,16 @@ def test_native_cr_index_rejects_duplicate_source_coordinate(
     api.F.cr_offset.data[second] = api.F.cr_offset.v(first)
     with pytest.raises(ControlCharacterError, match="duplicate"):
         NativeCRIndex(api)
+
+
+def test_cr_owner_edge_rejects_nonoccurrence_source(tmp_path: Path) -> None:
+    """Adversarial: an extra CR-owner edge from a regular node is forbidden."""
+    corpus = tmp_path / "tf"
+    _sample(corpus)
+    api = Fabric(locations=str(corpus), silent="deep").loadAll(silent="deep")
+    assert api
+    text = api.F.otype.s("text")[0]
+    sentence = api.F.otype.s("sentence")[0]
+    api.E.cr_owner.data[text] = {sentence}
+    with pytest.raises(ControlCharacterError, match="CR.*owner|occurrence|source"):
+        NativeCRIndex(api)
