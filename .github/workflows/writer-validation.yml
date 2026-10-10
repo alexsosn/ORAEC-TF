@@ -47,6 +47,47 @@ jobs:
             --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
             > reports/generated/native-tf-validation.json
 
+      - name: RED verify real oraec10 bibliography node attribution
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from tf.fabric import Fabric
+
+          raw = json.loads(
+              Path("upstream/corpus_raw_data/oraec10.json").read_text(
+                  encoding="utf-8"
+              )
+          )["oraec10"]
+          api = Fabric(locations="reports/generated/tf", silent="deep").load(
+              "oraec_id title bibliography", silent="deep"
+          )
+          texts = {
+              api.F.oraec_id.v(n): n for n in api.F.otype.s("text")
+          }
+          n = texts["oraec10"]
+          source = raw["bibliography"]
+          actual = api.F.bibliography.v(n)
+          matches = [
+              api.F.oraec_id.v(other)
+              for other in api.F.otype.s("text")
+              if api.F.bibliography.v(other) == source
+          ]
+          print(json.dumps({
+              "oraec_id": "oraec10",
+              "tf_node": n,
+              "title_equal": api.F.title.v(n) == raw["title"],
+              "bibliography_equal": actual == source,
+              "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+              "actual_sha256": hashlib.sha256(
+                  (actual or "").encode()
+              ).hexdigest(),
+              "source_match_elsewhere": matches,
+          }))
+          assert actual == source, "real source bibliography was misattributed"
+          PY
+
       - name: Check the immutable corpus totals
         run: |
           python - <<'PY'
