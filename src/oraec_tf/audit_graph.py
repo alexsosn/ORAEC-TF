@@ -60,6 +60,76 @@ def _expect_equal(actual: object, expected: object, *, context: str) -> None:
         )
 
 
+def _edge_targets(api: Any, feature: str, source_node: int) -> Any:
+    """An absent TF edge feature denotes no edge, not guessed relations."""
+    accessor = getattr(api.E, feature, None)
+    return () if accessor is None else accessor.f(source_node)
+
+
+def _node_value(api: Any, feature: str, node: int) -> Any:
+    accessor = getattr(api.F, feature, None)
+    return None if accessor is None else accessor.v(node)
+
+
+def _verify_text_relations(api: Any, text_node: int, source: dict[str, Any],
+                           *, text_id: str) -> None:
+    """Compare graph relations with source lists; keep order and duplicate idno."""
+    credited = tuple(
+        _node_value(api, "author_name", node)
+        for node in _edge_targets(api, "author", text_node)
+    )
+    _expect_equal(
+        credited, (source["credits"]["author"],),
+        context=f"{text_id}.credits.author",
+    )
+
+    source_edges = _edge_targets(api, "source", text_node)
+    actual_sources = sorted(
+        (ordinal, _node_value(api, "source_url", node))
+        for node, ordinal in dict(source_edges).items()
+    )
+    expected_sources = [
+        (index, url)
+        for index, url in enumerate(source["credits"]["source"], start=1)
+    ]
+    _expect_equal(
+        actual_sources, expected_sources, context=f"{text_id}.credits.source"
+    )
+
+    idno_nodes = tuple(_edge_targets(api, "idno", text_node))
+    actual_idnos = sorted(
+        (
+            _node_value(api, "idno_index", node),
+            _node_value(api, "idno_value", node),
+        )
+        for node in idno_nodes
+    )
+    expected_idnos = [
+        (index, value)
+        for index, value in enumerate(source.get("idno", []), start=1)
+    ]
+    _expect_equal(actual_idnos, expected_idnos, context=f"{text_id}.idno")
+
+    for source_field in ("date", "origplace", "objecttype", "location", "material"):
+        edge = _edge_targets(api, source_field, text_node)
+        observed = sorted(
+            (
+                ordinal,
+                _node_value(api, "cv_kind", target),
+                _node_value(api, "cv_id", target),
+                _node_value(api, "cv_label", target),
+            )
+            for target, ordinal in dict(edge).items()
+        )
+        expected = [
+            (index, source_field, item["id"], item[source_field])
+            for index, item in enumerate(source.get(source_field, []), start=1)
+        ]
+        _expect_equal(
+            observed, expected, context=f"{text_id}.{source_field}"
+        )
+
+
 def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     """Compare all raw source text/sentence/word values against a loaded TF graph."""
     root = Path(source)
@@ -89,6 +159,7 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
 
     counts = {"texts": 0, "sentences": 0, "tokens": 0, "anchors": 0}
     observed_words: set[int] = set()
+    expected_lemmas: dict[str, tuple[str, set[int]]] = {}
     for path in paths:
         text_id = path.stem
         try:
@@ -114,6 +185,7 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
             source_text["credits"]["license"],
             context=f"{text_id}.credits.license",
         )
+        _verify_text_relations(api, text_node, source_text, text_id=text_id)
         for raw_name in ("bibliography", "condition"):
             if raw_name in source_text:
                 _expect_equal(
@@ -181,10 +253,43 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
                                 f".{raw_field}/{tf_feature}"
                             ),
                         )
+                    if "lemmaID" in raw_token:
+                        lemma_id = raw_token["lemmaID"]
+                        lemma_form = raw_token["lemma_form"]
+                        entry = expected_lemmas.get(lemma_id)
+                        if entry is None:
+                            expected_lemmas[lemma_id] = (lemma_form, {slot})
+                        elif entry[0] != lemma_form:
+                            raise GraphConservationError(
+                                f"{text_id}.lemmaID {lemma_id} has conflicting forms"
+                            )
+                        else:
+                            entry[1].add(slot)
                     observed_words.add(slot)
                     counts["tokens"] += 1
             counts["sentences"] += 1
         counts["texts"] += 1
+
+    actual_lex_nodes = tuple(api.F.otype.s("lex"))
+    actual_lex = {
+        _node_value(api, "lemma_id", node): node for node in actual_lex_nodes
+    }
+    _expect_equal(
+        set(actual_lex), set(expected_lemmas), context="shared lexeme identity set"
+    )
+    _expect_equal(
+        len(actual_lex), len(actual_lex_nodes), context="lexeme identity uniqueness"
+    )
+    for lemma_id, (lemma_form, expected_slots) in expected_lemmas.items():
+        node = actual_lex[lemma_id]
+        _expect_equal(
+            _node_value(api, "lemma_form", node),
+            lemma_form, context=f"lemma[{lemma_id}].lemma_form",
+        )
+        _expect_equal(
+            set(api.L.d(node, otype="word")), expected_slots,
+            context=f"lemma[{lemma_id}].oslots",
+        )
 
     expected_word_count = counts["tokens"] + counts["anchors"]
     _expect_equal(
