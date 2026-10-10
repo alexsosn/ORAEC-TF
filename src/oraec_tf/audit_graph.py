@@ -365,12 +365,12 @@ def _verify_hierarchy(api: Any, root: Path, tf_texts: dict[str, int]) -> None:
     observed_prefixes: set[tuple[tuple[str, str], ...]] = set()
     for oraec_id, expected in rows.items():
         text_node = tf_texts[oraec_id]
-        links = tuple(_edge_targets(api, "hierarchy", text_node))
-        if len(links) != 1:
+        tf_hierarchy_leaves = tuple(_edge_targets(api, "hierarchy", text_node))
+        if len(tf_hierarchy_leaves) != 1:
             raise GraphConservationError(
                 f"hierarchy leaf membership missing or duplicated: {oraec_id}"
             )
-        current_hierarchy_node: int = links[0]
+        current_hierarchy_node: int = tf_hierarchy_leaves[0]
         observed_path: list[tuple[str, str]] = []
         visited: set[int] = set()
         while True:
