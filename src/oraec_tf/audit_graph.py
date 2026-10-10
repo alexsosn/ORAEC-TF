@@ -414,17 +414,10 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
         raise GraphConservationError("no ORAEC JSON source files")
 
     output = Path(tf_dir)
-    # Load every emitted node/edge feature, not a writer-internal feature list.
-    features = " ".join(
-        sorted(
-            path.stem
-            for path in output.glob("*.tf")
-            if path.is_file()
-            and not path.name.startswith(".")
-            and path.stem not in {"otype", "oslots"}
-        )
-    )
-    api = Fabric(locations=str(output), silent="deep").load(features, silent="deep")
+    # Use Text-Fabric's built-in index to discover loadable features. This
+    # includes all node and valued-edge features without assuming a writer
+    # feature inventory or constructing a fragile string from file names.
+    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     if not api:
         raise GraphConservationError("generated Text-Fabric output did not load")
 
