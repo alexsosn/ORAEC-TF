@@ -359,3 +359,43 @@ def test_convert_preserves_preexisting_empty_output_on_success_and_failure(
     assert failed.is_dir()
     assert not any(failed.iterdir())
     assert not tuple(tmp_path.glob(".failed.tf-build-*"))
+
+
+
+def test_convert_rejects_parent_symlink_swapped_into_verified_source(
+    tmp_path: Path,
+) -> None:
+    """A canonical output must be rechecked after the source audit boundary."""
+    source = tmp_path / "source"
+    source.mkdir()
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    target = alias / "generated"
+
+    def adversarial_source_audit(_source: Path) -> dict[str, object]:
+        # Initial target.resolve() is outside source; the parent alias changes
+        # while the source is being audited, before BuildWorkspace canonicalizes.
+        assert target.resolve() == (safe / "generated").resolve()
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        return {
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "empty_token_sentences": 0,
+            }
+        }
+
+    with (
+        _synthetic_conversion_inputs(source),
+        patch(
+            "oraec_tf.cli.validate_corpus_source",
+            side_effect=adversarial_source_audit,
+        ),
+    ):
+        with pytest.raises(ValueError, match="inside the source|source checkout"):
+            _synthetic_convert(source, target)
+
+    assert not (source / "generated").exists()
+    assert not tuple(source.glob(".generated.tf-build-*"))
