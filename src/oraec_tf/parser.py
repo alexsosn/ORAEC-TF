@@ -352,6 +352,16 @@ def _parse_sentence(
     )
 
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate keys before the standard JSON decoder overwrites values."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ParseError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
 def parse_text(path: str | Path) -> TextIR:
     """Parse one root ORAEC JSON record into exact typed source semantics."""
     source_path = Path(path)
@@ -361,7 +371,10 @@ def parse_text(path: str | Path) -> TextIR:
     text_id = source_path.stem
 
     try:
-        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        payload = json.loads(
+            source_path.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_json_object,
+        )
     except (OSError, json.JSONDecodeError) as exc:
         raise ParseError(f"cannot parse {source_path}: {exc}") from exc
 
