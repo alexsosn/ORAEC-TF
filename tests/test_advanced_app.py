@@ -172,6 +172,10 @@ def test_advanced_app_preserves_each_distinct_source_hiero_case(
                         token_id="oraec42-1-1",
                         written_form="nṯr",
                         hiero=hiero,
+                        pos="substantive",
+                        line_count="[Vs 1]",
+                        lemma_id="L1",
+                        lemma_form="nṯr",
                     ),
                     TokenIR(
                         token_id="oraec42-1-2",
@@ -180,6 +184,9 @@ def test_advanced_app_preserves_each_distinct_source_hiero_case(
                     ),
                 ),
             ),
+            # The stock app declares is_anchor in its word exclusion rules.
+            # A valid corpus fixture must supply the technical-anchor feature.
+            SentenceIR(index=2, translation="", tokens=()),
         ),
     )
     output = tmp_path / "tf"
