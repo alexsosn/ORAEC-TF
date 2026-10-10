@@ -437,7 +437,12 @@ def write_tf(
         # No string packs coordinates, and no new word/anchor slots are added.
         # Every previously emitted owner now has finalized word membership.
         for owner, source_feature, original_offset in pending_cr:
-            owner_words = tuple(sorted(walker.linked(owner)))
+            # CV.linked(slot_handle) is empty: slot nodes are not themselves
+            # oslots keys. Preserve the exact slot identity explicitly.
+            owner_words = (
+                (owner[1],) if owner[0] == "word"
+                else tuple(sorted(walker.linked(owner)))
+            )
             if not owner_words:
                 raise WriterError("CR occurrence owner has no TF slots")
             occurrence = walker.node("cr_occurrence", slots=owner_words)
