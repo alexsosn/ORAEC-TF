@@ -659,3 +659,31 @@ def test_independent_auditor_rejects_any_forged_anchor_annotation(
     monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match=feature):
         audit_basic_graph(source, output)
+
+
+
+@pytest.mark.parametrize(
+    "counts",
+    [
+        {"present": 267041, "placeholder": 13198, "replacement": 6545},
+        {"present": 267042, "placeholder": 13197, "replacement": 6545},
+        {"present": 267042, "placeholder": 13198, "replacement": 6544},
+        {"present": 267043, "placeholder": 13198, "replacement": 6545},
+    ],
+)
+def test_independent_pinned_hiero_census_rejects_changed_source_coverage(
+    counts: dict[str, int],
+) -> None:
+    """#21: pinned source preservation includes omission/uncertainty statistics."""
+    from oraec_tf.audit_graph import _validate_hiero_counts
+
+    with pytest.raises(GraphConservationError, match="hiero|placeholder|replacement"):
+        _validate_hiero_counts(counts)
+
+
+def test_independent_pinned_hiero_census_accepts_exact_source_counts() -> None:
+    from oraec_tf.audit_graph import _validate_hiero_counts
+
+    _validate_hiero_counts(
+        {"present": 267042, "placeholder": 13198, "replacement": 6545}
+    )
