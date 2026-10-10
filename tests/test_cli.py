@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import json
+import os
+from contextlib import ExitStack
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from tf.fabric import Fabric
+from tf_build.validate import ArtifactValidationError
+from tf_build.workspace import BuildWorkspace
 
 from oraec_tf.cli import main
 from oraec_tf.ir import CorpusMetadataIR, CreditsIR, SentenceIR, TextIR, TokenIR
+from oraec_tf.writer import write_tf as real_write_tf
 from oraec_tf.source import (
     DEFAULT_SOURCE_REVISION,
     SOURCE_REPOSITORY,
@@ -175,3 +180,152 @@ def test_convert_cli_does_not_publish_partial_output_on_writer_failure(
 
     assert not target.exists()
     assert not list(tmp_path.glob(".tf.oraec-tf-*"))
+
+
+def _synthetic_conversion_inputs(source: Path) -> ExitStack:
+    """Mock source-only inputs, while exercising the real writer and TF loader."""
+    record = TextIR(
+        oraec_id="oraec1",
+        title="A",
+        sentences=(
+            SentenceIR(
+                index=1,
+                translation="",
+                tokens=(TokenIR(token_id="oraec1-1-1", written_form="nṯr"),),
+            ),
+        ),
+        credits=CreditsIR(
+            license="cc-by-sa-4.0",
+            author="Editor",
+            sources=("https://a.invalid",),
+        ),
+    )
+    counts = {
+        "texts": 1,
+        "sentences": 1,
+        "tokens": 1,
+        "empty_token_sentences": 0,
+    }
+    stack = ExitStack()
+    stack.enter_context(
+        patch(
+            "oraec_tf.cli.verify_source",
+            return_value=SourceSnapshot(path=source, revision=DEFAULT_SOURCE_REVISION),
+        )
+    )
+    stack.enter_context(
+        patch("oraec_tf.cli.validate_corpus_source", return_value={"counts": counts})
+    )
+    stack.enter_context(
+        patch("oraec_tf.cli.iter_texts", side_effect=lambda _source: iter((record,)))
+    )
+    stack.enter_context(
+        patch(
+            "oraec_tf.cli.parse_corpus_metadata",
+            return_value=CorpusMetadataIR(("README Contributor",)),
+        )
+    )
+    stack.enter_context(patch("oraec_tf.cli.parse_hierarchy", return_value=()))
+    stack.enter_context(patch("oraec_tf.cli.parse_mapping_tables", return_value=()))
+    return stack
+
+
+def _synthetic_convert(source: Path, target: Path) -> int:
+    return main(
+        [
+            "convert",
+            str(source),
+            "--output",
+            str(target),
+            "--upstream-commit",
+            DEFAULT_SOURCE_REVISION,
+        ]
+    )
+
+
+def test_convert_atomic_publication_preserves_concurrent_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED: a target appearing at publish time must never be overwritten."""
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "published"
+    native_publish = BuildWorkspace.publish
+    raced = False
+
+    def competitor_at_publish(workspace: BuildWorkspace) -> Path:
+        nonlocal raced
+        assert workspace.destination == target
+        target.mkdir()
+        (target / "sentinel").write_text("concurrent owner's bytes", encoding="utf-8")
+        raced = True
+        return native_publish(workspace)
+
+    monkeypatch.setattr("tf_build.workspace.BuildWorkspace.publish", competitor_at_publish)
+    with _synthetic_conversion_inputs(source):
+        with pytest.raises(FileExistsError):
+            _synthetic_convert(source, target)
+
+    assert raced, "the actual tf-build workspace must perform the final promotion"
+    assert (target / "sentinel").read_text(encoding="utf-8") == "concurrent owner's bytes"
+    assert sorted(p.name for p in target.iterdir()) == ["sentinel"]
+    assert not tuple(tmp_path.glob(".published.tf-build-*"))
+
+
+def test_convert_rejects_invalid_raw_tf_despite_newer_binary_cache(
+    tmp_path: Path,
+) -> None:
+    """RED: selected TF load alone is insufficient if a stale binary cache exists."""
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "published"
+
+    def corrupt_after_writing(*args: object, **kwargs: object) -> None:
+        real_write_tf(*args, **kwargs)
+        stage = Path(args[1])
+        feature = stage / "sentence_index.tf"
+        cached_api = Fabric(locations=[str(stage)], silent="deep").load(
+            "sentence_index", silent="deep"
+        )
+        assert cached_api is not None
+        cached = tuple((stage / ".tf").rglob("sentence_index.tfx"))
+        assert cached
+        original = feature.stat()
+        header, separator, _body = feature.read_bytes().partition(b"\n\n")
+        assert separator
+        feature.write_bytes(header + separator + b"1\tNOT_AN_INTEGER\n")
+        os.utime(feature, ns=(original.st_atime_ns, original.st_mtime_ns))
+        assert min(c.stat().st_mtime_ns for c in cached) >= feature.stat().st_mtime_ns
+
+    with (
+        _synthetic_conversion_inputs(source),
+        patch("oraec_tf.cli.write_tf", side_effect=corrupt_after_writing),
+    ):
+        with pytest.raises(ArtifactValidationError, match="load"):
+            _synthetic_convert(source, target)
+    assert not target.exists()
+    assert not tuple(tmp_path.glob(".published.tf-build-*"))
+
+
+def test_convert_preserves_preexisting_empty_output_on_success_and_failure(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    good = tmp_path / "good"
+    good.mkdir()
+    with _synthetic_conversion_inputs(source):
+        assert _synthetic_convert(source, good) == 0
+    assert (good / "otype.tf").is_file()
+
+    failed = tmp_path / "failed"
+    failed.mkdir()
+    with (
+        _synthetic_conversion_inputs(source),
+        patch("oraec_tf.cli.write_tf", side_effect=RuntimeError("late writer failure")),
+    ):
+        with pytest.raises(RuntimeError, match="late writer failure"):
+            _synthetic_convert(source, failed)
+    assert failed.is_dir()
+    assert not any(failed.iterdir())
+    assert not tuple(tmp_path.glob(".failed.tf-build-*"))
