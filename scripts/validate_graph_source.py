@@ -25,6 +25,7 @@ def main() -> int:
         source_revision=args.source_revision,
         converter_revision=args.converter_revision,
         schema_version=args.schema_version,
+        require_complete_source=True,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(
