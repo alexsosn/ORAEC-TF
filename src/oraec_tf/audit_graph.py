@@ -143,6 +143,14 @@ def _independent_native_cr_index(api: Any) -> dict[tuple[int, str], tuple[int, .
     fields = getattr(api.F, "cr_feature", None)
     offsets = getattr(api.F, "cr_offset", None)
     edges = getattr(api.E, "cr_owner", None)
+    if edges is not None:
+        # Audit the entire edge feature, including forged sources that are not
+        # occurrence nodes; looking only at occurrences misses stray edges.
+        extraneous = set(dict(edges.items())) - set(nodes)
+        if extraneous:
+            raise GraphConservationError(
+                "CR owner edges originate outside native occurrence nodes"
+            )
     if not nodes:
         return {}
     if fields is None or offsets is None or edges is None:
