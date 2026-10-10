@@ -19,3 +19,7 @@ For this pre-release consumer integration, the exact immutable PEP-508 git SHA i
 ## Integration boundaries
 
 `tests/test_source.py` currently asserts a fabricated `_run_git` call sequence with origin, so rewrite its acquisition-success contract against a **real local Git repository** rather than force the new implementation to mimic the old one. Existing source-info, verify-source CLI JSON, root-only checks and invalid/dangling symlink cases remain. Writer, frozen expected corpus counts, bibliography CR schema and live PR #51 are not part of this ticket.
+
+## Full-source CI trigger gap
+
+Current `.github/workflows/agora-materializer.yml` uses `pull_request.paths` limited to Agora manifest, `src/oraec_tf/agora.py`, `tests/test_agora_materializer.py` and the workflow file. The actual workflow's acquisition phase executes `oraec-tf fetch` and `verify-source`, so edits to `src/oraec_tf/source.py` or package dependencies otherwise skip the complete pinned-source Agora path. This is a false-green merge gate for the source migration. The concurrent ORAEC PR #51 edits only the lower schema-version line in this workflow; add source/dependency paths to the top trigger without rewriting its corpus schema choices.
