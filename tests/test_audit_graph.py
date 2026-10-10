@@ -665,10 +665,11 @@ def test_independent_auditor_rejects_any_forged_anchor_annotation(
 @pytest.mark.parametrize(
     "counts",
     [
-        {"present": 267041, "placeholder": 13198, "replacement": 6545},
-        {"present": 267042, "placeholder": 13197, "replacement": 6545},
-        {"present": 267042, "placeholder": 13198, "replacement": 6544},
-        {"present": 267043, "placeholder": 13198, "replacement": 6545},
+        {"present": 267041, "distinct": 40686, "placeholder": 13198, "replacement": 6545},
+        {"present": 267042, "distinct": 40686, "placeholder": 13197, "replacement": 6545},
+        {"present": 267042, "distinct": 40686, "placeholder": 13198, "replacement": 6544},
+        {"present": 267043, "distinct": 40686, "placeholder": 13198, "replacement": 6545},
+        {"present": 267042, "distinct": 40685, "placeholder": 13198, "replacement": 6545},
     ],
 )
 def test_independent_pinned_hiero_census_rejects_changed_source_coverage(
@@ -685,7 +686,7 @@ def test_independent_pinned_hiero_census_accepts_exact_source_counts() -> None:
     from oraec_tf.audit_graph import _validate_hiero_counts
 
     _validate_hiero_counts(
-        {"present": 267042, "placeholder": 13198, "replacement": 6545}
+        {"present": 267042, "distinct": 40686, "placeholder": 13198, "replacement": 6545}
     )
 
 
