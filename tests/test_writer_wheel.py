@@ -12,38 +12,28 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _run_checked(command: list[str], **kwargs: object) -> None:
-    """Report captured build stdout/stderr on failure instead of hiding diagnostics."""
-    result = subprocess.run(command, check=False, **kwargs)  # type: ignore[arg-type]
-    assert result.returncode == 0, (
-        f"command failed ({result.returncode}): {command!r}\\n"
-        f"stdout:\\n{result.stdout}\\nstderr:\\n{result.stderr}"
-    )
-
-
 def _checked_build(
     command: list[str], *,
     cwd: Path,
-    check: bool,
     capture_output: bool,
     text: bool,
     timeout: int,
-) -> subprocess.CompletedProcess[str]:
-    """Preserve actionable stderr when wheel/sdist construction fails in CI."""
-    try:
-        return subprocess.run(
-            command,
-            cwd=cwd,
-            check=check,
-            capture_output=capture_output,
-            text=text,
-            timeout=timeout,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise AssertionError(
-            f"package build failed ({exc.returncode}):\\n"
-            f"stdout:\\n{exc.stdout}\\nstderr:\\n{exc.stderr}"
-        ) from exc
+    env: dict[str, str] | None = None,
+) -> None:
+    """Fail with complete package-builder diagnostics, not an opaque traceback."""
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        capture_output=capture_output,
+        text=text,
+        timeout=timeout,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"package build failed ({result.returncode}): {command!r}\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
 
 
 def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
