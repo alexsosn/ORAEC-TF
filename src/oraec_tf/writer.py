@@ -7,6 +7,7 @@ sidecars or raw JSON feature values are emitted.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections import defaultdict
@@ -18,7 +19,7 @@ from typing import Any
 from tf.convert.walker import CV
 from tf.fabric import Fabric
 
-from .ir import CorpusMetadataIR, MappingTableIR, TextIR
+from .ir import CorpusMetadataIR, HierarchyRowIR, MappingTableIR, TextIR
 
 COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 WORD_FIELDS = (
@@ -123,6 +124,7 @@ def write_tf(
     source_revision: str,
     corpus_metadata: CorpusMetadataIR | None = None,
     mapping_tables: Iterable[MappingTableIR] = (),
+    hierarchy_rows: Iterable[HierarchyRowIR] = (),
 ) -> None:
     """Materialize the current draft of the native graph into standard TF files."""
     if COMMIT_RE.fullmatch(source_revision) is None:
@@ -143,6 +145,15 @@ def write_tf(
     corpus_authors = () if corpus_metadata is None else corpus_metadata.corpus_authors
     if len(corpus_authors) != len(set(corpus_authors)):
         raise WriterError("duplicate corpus author names")
+    hierarchy = tuple(hierarchy_rows)
+    if hierarchy:
+        hierarchy_ids = [row.oraec_id for row in hierarchy]
+        if len(hierarchy_ids) != len(set(hierarchy_ids)):
+            raise WriterError("duplicate hierarchy text identity")
+        if set(hierarchy_ids) != set(identities):
+            raise WriterError("hierarchy must contain exactly one row per text")
+        if any(not row.components for row in hierarchy):
+            raise WriterError("hierarchy paths must contain at least one component")
     tables = tuple(mapping_tables)
     for table in tables:
         if table.release_included and (
@@ -305,6 +316,47 @@ def write_tf(
                 n = walker.node("idno", slots=sorted(text_slots[record.oraec_id]))
                 walker.feature(n, idno_value=identifier, idno_index=index)
                 walker.edge(text_handles[record.oraec_id], n, idno=None)
+
+        # Distinct ordered source path prefixes are distinct native graph nodes.
+        # A TLA URL alone does not determine a single parent/ORAEC hierarchy path.
+        if hierarchy:
+            prefix_slots: dict[tuple[tuple[str, str], ...], set[int]] = defaultdict(set)
+            prefix_meta: dict[tuple[tuple[str, str], ...], tuple[str, str]] = {}
+            leaves: dict[str, tuple[tuple[str, str], ...]] = {}
+            for row in hierarchy:
+                prefix: tuple[tuple[str, str], ...] = ()
+                for component in row.components:
+                    prefix += ((component.label, component.tla_url),)
+                    prefix_slots[prefix].update(text_slots[row.oraec_id])
+                    detail = (component.tla_kind, component.tla_id)
+                    if prefix in prefix_meta and prefix_meta[prefix] != detail:
+                        raise WriterError(f"hierarchy TLA metadata conflict: {prefix}")
+                    prefix_meta[prefix] = detail
+                leaves[row.oraec_id] = prefix
+
+            handles: dict[tuple[tuple[str, str], ...], Any] = {}
+            for prefix in sorted(prefix_slots, key=lambda p: (len(p), p)):
+                payload = json.dumps(
+                    prefix, ensure_ascii=False, separators=(",", ":")
+                ).encode("utf-8")
+                digest = hashlib.sha256(payload).hexdigest()
+                node = walker.node("hierarchy", slots=sorted(prefix_slots[prefix]))
+                tla_kind, tla_id = prefix_meta[prefix]
+                label, url = prefix[-1]
+                walker.feature(
+                    node,
+                    hierarchy_id=f"oraec-hierarchy:path-prefix:{digest}",
+                    hierarchy_label=label,
+                    hierarchy_depth=len(prefix),
+                    tla_url=url,
+                    tla_kind=tla_kind,
+                    tla_id=tla_id,
+                )
+                handles[prefix] = node
+                if len(prefix) > 1:
+                    walker.edge(node, handles[prefix[:-1]], parent=None)
+            for oraec_id, prefix in leaves.items():
+                walker.edge(text_handles[oraec_id], handles[prefix], hierarchy=None)
 
         # Included external crosswalks; unlicensed Karnak never enters release TF.
         mapping_edges: dict[tuple[str, str], list[tuple[Any, str]]] = defaultdict(list)
