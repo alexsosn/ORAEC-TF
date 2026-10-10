@@ -8,3 +8,5 @@ Issue #52 (child of tf-build#53).
 4. Implement `fetch_source` and `verify_source` as narrow adapters calling `tf_build.source`. ORAEC root/sha checks remain local; translate expected errors to `SourceAcquisitionError`. Keep existing `resolve_revision` compatibility if external code imports it.
 5. Do NOT touch converter/writer or schema PR #51. For publication migration create an independent follow-up after proof of stable source installation.
 6. Run Ruff, strict mypy, pytest and appropriate real-source CI on exact PR head. Logically independent adversarial review must inspect the actual emitted Git checkout and behavioral differences before merge.
+
+7. RED-first workflow contract: assert full pinned-source Agora workflow paths include `src/oraec_tf/source.py`, `pyproject.toml`, and `tests/test_source.py`, because every such change affects the source acquisition invoked by Agora. Add path filters without changing the pinned source, native schema, or run steps. Ready-state check must run for **both** writer and Agora integration on the exact head.
