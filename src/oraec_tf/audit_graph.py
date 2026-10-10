@@ -485,7 +485,16 @@ def _verify_native_entity_oslots(api: Any, text_nodes: dict[str, int]) -> None:
         idno_owner: dict[int, int] = {}
         for text_node, slots in text_words.items():
             for edge_name in edge_names:
-                for target in _edge_targets(api, edge_name, text_node):
+                edge = _edge_targets(api, edge_name, text_node)
+                # TF valued edges expose (target, ordinal) pairs; plain
+                # edges expose target node IDs. Only the latter are direct.
+                targets = (
+                    dict(edge) if edge_name in {
+                        "source", "date", "origplace", "objecttype",
+                        "location", "material",
+                    } else edge
+                )
+                for target in targets:
                     if node_type == "idno":
                         previous = idno_owner.setdefault(target, text_node)
                         if previous != text_node:
@@ -559,7 +568,7 @@ def _verify_native_entity_oslots(api: Any, text_nodes: dict[str, int]) -> None:
     for kind in ("author", "cv", "lex"):
         source_nodes.extend(api.F.otype.s(kind))
     for node in source_nodes:
-        targets = _edge_targets(api, "external", node)
+        targets = dict(_edge_targets(api, "external", node))
         if targets:
             slots = set(api.L.d(node, otype="word"))
             for target in targets:
