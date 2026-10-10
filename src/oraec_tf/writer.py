@@ -61,6 +61,7 @@ OTEXT = {
     "sectionTypes": "text,sentence",
     "sectionFeatures": "oraec_id,sentence_index",
     "fmt:text-orig-full": "{written_form}{trailer}",
+    "fmt:text-orig-hiero": "{hiero}{trailer}",
 }
 
 
