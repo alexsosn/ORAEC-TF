@@ -90,6 +90,78 @@ def test_adapter_delegates_to_public_cli_without_fetching(
     assert not destination.joinpath("verified-source").exists()
 
 
+
+def test_agora_outer_publication_never_replaces_competing_empty_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: old Path.replace silently overwrote the concurrent empty directory."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "source"
+    output = tmp_path / "published"
+    competitor_inode: list[int] = []
+
+    def competing_cli(argv: list[str]) -> int:
+        assert argv[0] == "convert"
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for name, kind in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / name).write_text(f"{kind}\n\n", encoding="utf-8")
+        assert not output.exists()
+        output.mkdir()
+        competitor_inode.append(output.stat().st_ino)
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", competing_cli)
+    with pytest.raises(FileExistsError):
+        agora.materialize(
+            source, output, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert competitor_inode
+    assert output.is_dir()
+    assert output.stat().st_ino == competitor_inode[0]
+    assert not any(output.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
+def test_agora_restores_existing_empty_output_after_failed_conversion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "source"
+    destination = tmp_path / "published"
+    destination.mkdir()
+
+    def failed_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        (tf_dir / "partial.tf").write_bytes(b"partial")
+        raise RuntimeError("late ORAEC conversion failure")
+
+    monkeypatch.setattr(cli, "main", failed_cli)
+    with pytest.raises(RuntimeError, match="late ORAEC"):
+        agora.materialize(
+            source, destination, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert destination.is_dir()
+    assert not any(destination.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
+
 def test_adapter_rejects_mutable_or_unapproved_source_revision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
