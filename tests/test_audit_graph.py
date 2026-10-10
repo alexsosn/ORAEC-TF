@@ -469,12 +469,12 @@ def test_audit_rejects_corrupted_derived_hierarchy_feature(
     else:
         lines = original.splitlines(keepends=True)
         for line_no, line in enumerate(lines):
-            if line.startswith("@") or not line.strip() or "\\t" not in line:
+            if line.startswith("@") or not line.strip() or "\t" not in line:
                 continue
-            node, value = line.split("\\t", 1)
+            node, value = line.split("\t", 1)
             if not node.isdigit() or not value.strip().isdigit():
                 continue
-            lines[line_no] = f"{node}\\t9999\\n"
+            lines[line_no] = f"{node}\t9999\n"
             break
         corrupted = "".join(lines)
     assert corrupted != original, "mutation must modify generated TF data"
