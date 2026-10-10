@@ -716,3 +716,37 @@ def test_independent_auditor_rejects_nonstring_source_hiero_cleanly(
     write_tf((record,), output, source_revision=REVISION)
     with pytest.raises(GraphConservationError, match="hiero"):
         audit_basic_graph(source, output)
+
+
+
+def test_provenance_reports_native_cr_inventory_without_semantic_sidecars(
+    tmp_path: Path,
+) -> None:
+    """Source CR counts by owner family and feature are audit diagnostics."""
+    source, record = _source(tmp_path)
+    raw_file = source / "oraec1.json"
+    original = json.loads(raw_file.read_text(encoding="utf-8"))
+    original["oraec1"]["bibliography"] = "A\r\n\rB"
+    original["oraec1"]["sentences"][0]["translation"] = "T\rU"
+    raw_file.write_text(json.dumps(original, ensure_ascii=False), encoding="utf-8")
+    first_sentence = record.sentences[0]
+    modified = replace(
+        record, bibliography="A\r\n\rB",
+        sentences=(replace(first_sentence, translation="T\rU"), record.sentences[1]),
+    )
+    output = tmp_path / "tf"
+    write_tf((modified,), output, source_revision=REVISION)
+    report = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION,
+        converter_revision="a" * 40,
+        schema_version=3,
+    )
+    assert report["native_cr_occurrences"] == {
+        "total": 3,
+        "by_owner_type": {"sentence": 1, "text": 2},
+        "by_feature": {"bibliography": 2, "translation": 1},
+    }
+    assert report["counts"] == {
+        "texts": 1, "sentences": 2, "tokens": 1, "anchors": 1,
+    }
