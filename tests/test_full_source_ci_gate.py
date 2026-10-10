@@ -14,7 +14,9 @@ import yaml  # type: ignore[import-untyped]
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("workflow_name", ["writer-validation.yml"])
+@pytest.mark.parametrize(
+    "workflow_name", ["writer-validation.yml", "agora-materializer.yml"]
+)
 def test_pinned_source_gates_run_on_exact_ready_head_and_manual_dispatch(
     workflow_name: str,
 ) -> None:
