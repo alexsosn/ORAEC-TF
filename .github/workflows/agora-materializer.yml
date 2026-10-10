@@ -1,0 +1,78 @@
+name: Agora materializer pinned-source integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "agora.materializer.json"
+      - "src/oraec_tf/agora.py"
+      - "tests/test_agora_materializer.py"
+      - ".github/workflows/agora-materializer.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install adapter and test dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Agora-owned acquisition of exact supported immutable source
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+      - name: Execute native Agora materializer on already-acquired local source
+        run: |
+          mkdir -p reports/generated
+          python -m oraec_tf.agora upstream/corpus_raw_data             reports/generated/agora --source-revision             b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd             > reports/generated/agora-execution.json
+      - name: Validate materializer output contract and canonical totals
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tf.fabric import Fabric
+
+          root = Path("reports/generated/agora")
+          report = json.loads((root / "conversion-summary.json").read_text())
+          assert report["source_revision"] == (
+              "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
+          )
+          assert report["counts"] == {
+              "texts": 13026,
+              "sentences": 101796,
+              "tokens": 815026,
+              "technical_anchors": 3,
+              "slots": 815029,
+          }, report
+          for name in ("otype.tf", "oslots.tf", "otext.tf"):
+              assert (root / "tf" / name).is_file()
+          assert not any(root.glob("oraec*.json")), "source JSON leaked into output"
+          api = Fabric(locations=str(root / "tf"), silent="deep").load(
+              "oraec_id token_id", silent="deep"
+          )
+          assert len(api.F.otype.s("text")) == 13026
+          assert len(api.F.otype.s("word")) == 815029
+          assert report["tf_sha256"]
+          print(report["counts"])
+          PY
+      - name: Independently verify full upstream source vs native Agora artifact
+        run: |
+          python scripts/validate_graph_source.py             upstream/corpus_raw_data reports/generated/agora/tf             --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd             --converter-revision "$(git rev-parse HEAD)"             --schema-version 2             --report reports/generated/agora-source-conservation.json
+      - name: Upload provenance only (not source or generated corpus)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-agora-validation-metadata
+          path: |
+            reports/generated/agora-execution.json
+            reports/generated/agora/conversion-summary.json
+            reports/generated/agora-source-conservation.json
+          if-no-files-found: warn
