@@ -707,6 +707,7 @@ REQUIRED_SOURCE_COMPANIONS = (
 def audit_basic_graph(
     source: str | Path, tf_dir: str | Path, *,
     require_complete_source: bool = False,
+    cr_census: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     """Independently compare raw ORAEC semantics against loaded TF."""
     root = Path(source)
@@ -738,6 +739,19 @@ def audit_basic_graph(
     # Audit every native CR node, even if its owner feature is never queried.
     # This is a separate implementation from the converter/reader codec.
     api._oraec_native_cr_index = _independent_native_cr_index(api)
+    if cr_census is not None:
+        by_owner: dict[str, int] = defaultdict(int)
+        by_feature: dict[str, int] = defaultdict(int)
+        occurrences = tuple(api.F.otype.s("cr_occurrence"))
+        for occurrence in occurrences:
+            owner = next(iter(api.E.cr_owner.f(occurrence)))
+            by_owner[api.F.otype.v(owner)] += 1
+            by_feature[api.F.cr_feature.v(occurrence)] += 1
+        cr_census.update({
+            "total": len(occurrences),
+            "by_owner_type": dict(sorted(by_owner.items())),
+            "by_feature": dict(sorted(by_feature.items())),
+        })
 
     tf_texts = {
         _node_value(api, "oraec_id", n): n for n in api.F.otype.s("text")
@@ -985,8 +999,10 @@ def audit_graph_with_provenance(
             raise GraphConservationError(f"{kind} must be a full commit SHA")
     if schema_version < 1:
         raise GraphConservationError("schema version must be a positive integer")
+    cr_census: dict[str, Any] = {}
     counts = audit_basic_graph(
         source, tf_dir, require_complete_source=require_complete_source,
+        cr_census=cr_census,
     )
     paths = sorted(
         path for path in Path(tf_dir).glob("*.tf")
@@ -1012,5 +1028,6 @@ def audit_graph_with_provenance(
         "schema_version": schema_version,
         "tf_version": version("text-fabric"),
         "counts": counts,
+        "native_cr_occurrences": cr_census,
         "output_sha256": output_hashes,
     }
