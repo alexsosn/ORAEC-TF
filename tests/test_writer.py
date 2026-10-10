@@ -5,19 +5,22 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from tf.fabric import Fabric
 
 from oraec_tf.ir import (
     ControlledValueIR,
     CorpusMetadataIR,
     CreditsIR,
+    HierarchyComponentIR,
+    HierarchyRowIR,
     MappingRowIR,
     MappingTableIR,
     SentenceIR,
     TextIR,
     TokenIR,
 )
-from oraec_tf.writer import write_tf
+from oraec_tf.writer import WriterError, write_tf
 
 REVISION = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
 
@@ -258,3 +261,78 @@ def test_write_tf_preserves_shared_entities_and_occurrence_relations(
         api.F.external_system.v(n) != "karnak"
         for n in api.F.otype.s("external_ref")
     )
+
+
+def test_write_tf_preserves_hierarchy_occurrences_and_empty_labels(
+    tmp_path: Path,
+) -> None:
+    root = HierarchyComponentIR(
+        label="Root",
+        tla_url="https://thesaurus-linguae-aegyptiae.de/object/R",
+        tla_kind="object",
+        tla_id="R",
+    )
+    empty_leaf = HierarchyComponentIR(
+        label="",
+        tla_url="https://thesaurus-linguae-aegyptiae.de/text/T1",
+        tla_kind="text",
+        tla_id="T1",
+    )
+    other_leaf = HierarchyComponentIR(
+        label="Leaf",
+        tla_url="https://thesaurus-linguae-aegyptiae.de/text/T2",
+        tla_kind="text",
+        tla_id="T2",
+    )
+    hierarchy = (
+        HierarchyRowIR(oraec_id="oraec1", components=(root, empty_leaf)),
+        HierarchyRowIR(oraec_id="oraec2", components=(root, other_leaf)),
+    )
+    output = tmp_path / "tf"
+    write_tf(_texts(), output, source_revision=REVISION, hierarchy_rows=hierarchy)
+
+    api = Fabric(locations=str(output), silent="deep").load(
+        "oraec_id hierarchy_id hierarchy_label hierarchy_depth "
+        "tla_url tla_kind tla_id hierarchy parent",
+        silent="deep",
+    )
+    assert len(api.F.otype.s("hierarchy")) == 3
+    texts = {api.F.oraec_id.v(t): t for t in api.F.otype.s("text")}
+    first_leaf = next(iter(api.E.hierarchy.f(texts["oraec1"])))
+    second_leaf = next(iter(api.E.hierarchy.f(texts["oraec2"])))
+    assert first_leaf != second_leaf
+    assert api.F.hierarchy_label.v(first_leaf) == ""
+    assert api.F.hierarchy_label.v(second_leaf) == "Leaf"
+    assert api.F.tla_url.v(first_leaf).endswith("/text/T1")
+    assert api.F.tla_kind.v(first_leaf) == "text"
+    assert api.F.tla_id.v(first_leaf) == "T1"
+    assert api.F.hierarchy_depth.v(first_leaf) == 2
+    parents = tuple(api.E.parent.f(first_leaf))
+    assert len(parents) == 1
+    assert parents == tuple(api.E.parent.f(second_leaf))
+    assert api.F.hierarchy_label.v(parents[0]) == "Root"
+    assert api.F.hierarchy_depth.v(parents[0]) == 1
+    assert api.F.hierarchy_id.v(first_leaf).startswith("oraec-hierarchy:path-prefix:")
+
+
+def test_write_tf_rejects_incomplete_hierarchy_rows(tmp_path: Path) -> None:
+    partial = (
+        HierarchyRowIR(
+            oraec_id="oraec1",
+            components=(
+                HierarchyComponentIR(
+                    label="A",
+                    tla_url="https://thesaurus-linguae-aegyptiae.de/text/T1",
+                    tla_kind="text",
+                    tla_id="T1",
+                ),
+            ),
+        ),
+    )
+    with pytest.raises(WriterError, match="hierarchy"):
+        write_tf(
+            _texts(),
+            tmp_path / "tf",
+            source_revision=REVISION,
+            hierarchy_rows=partial,
+        )
