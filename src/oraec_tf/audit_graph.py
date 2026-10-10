@@ -9,9 +9,11 @@ word/sentence/text spine; remaining native relations belong to issue #8.
 from __future__ import annotations
 
 import csv
+import hashlib
 from html.parser import HTMLParser
 import json
 import re
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -579,3 +581,42 @@ def audit_basic_graph(source: str | Path, tf_dir: str | Path) -> dict[str, int]:
     _verify_readme_and_external_crosswalks(api, root, tf_texts)
     _verify_hierarchy(api, root, tf_texts)
     return counts
+
+
+def audit_graph_with_provenance(
+    source: str | Path,
+    tf_dir: str | Path,
+    *,
+    source_revision: str,
+    converter_revision: str,
+    schema_version: int,
+) -> dict[str, Any]:
+    """Emit only reproducible build identities, counts and output hashes."""
+    for kind, sha in (
+        ("source revision", source_revision),
+        ("converter revision", converter_revision),
+    ):
+        if re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+            raise GraphConservationError(f"{kind} must be a full commit SHA")
+    if schema_version < 1:
+        raise GraphConservationError("schema version must be a positive integer")
+    counts = audit_basic_graph(source, tf_dir)
+    paths = sorted(Path(tf_dir).glob("*.tf"))
+    if not paths:
+        raise GraphConservationError("generated TF contains no feature files")
+    output_hashes: dict[str, str] = {}
+    for path in paths:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        output_hashes[path.name] = digest.hexdigest()
+    return {
+        "ok": True,
+        "source_revision": source_revision,
+        "converter_revision": converter_revision,
+        "schema_version": schema_version,
+        "tf_version": version("text-fabric"),
+        "counts": counts,
+        "output_sha256": output_hashes,
+    }
