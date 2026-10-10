@@ -447,3 +447,37 @@ def test_independent_audit_rejects_invented_extra_author(
     )
     with pytest.raises(GraphConservationError, match="author|invented"):
         audit_basic_graph(source, output)
+
+
+@pytest.mark.parametrize("feature", ["hierarchy_id", "hierarchy_depth"])
+def test_audit_rejects_corrupted_derived_hierarchy_feature(
+    tmp_path: Path, feature: str,
+) -> None:
+    """Mutate real generated TF bytes; verify independent source-derived metadata."""
+    source, record = _source(tmp_path)
+    hierarchy = _source_hierarchy(source)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION, hierarchy_rows=hierarchy)
+
+    file_path = output / f"{feature}.tf"
+    original = file_path.read_text(encoding="utf-8")
+    if feature == "hierarchy_id":
+        assert "oraec-hierarchy:path-prefix:" in original
+        corrupted = original.replace(
+            "oraec-hierarchy:path-prefix:", "wrong-hierarchy:path-prefix:", 1
+        )
+    else:
+        lines = original.splitlines(keepends=True)
+        for line_no, line in enumerate(lines):
+            if line.startswith("@") or not line.strip() or "\\t" not in line:
+                continue
+            node, value = line.split("\\t", 1)
+            if not node.isdigit() or not value.strip().isdigit():
+                continue
+            lines[line_no] = f"{node}\\t9999\\n"
+            break
+        corrupted = "".join(lines)
+    assert corrupted != original, "mutation must modify generated TF data"
+    file_path.write_text(corrupted, encoding="utf-8")
+    with pytest.raises(GraphConservationError, match=feature):
+        audit_basic_graph(source, output)
