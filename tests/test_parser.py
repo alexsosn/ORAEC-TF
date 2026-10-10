@@ -385,3 +385,52 @@ def test_mapping_parser_rejects_malformed_rows(tmp_path: Path) -> None:
 
     with pytest.raises(ParseError, match="mapping.*row|row.*mapping"):
         parse_mapping_tables(root)
+
+
+@pytest.mark.parametrize(
+    ("kind", "items"),
+    [
+        ("date", []),
+        ("date", [{"date": "A", "id": "D1"}, {"date": "A", "id": "D1"}]),
+        ("origplace", []),
+        ("objecttype", []),
+        ("objecttype", [{"objecttype": str(i), "id": str(i)} for i in range(5)]),
+        ("material", []),
+    ],
+)
+def test_parser_rejects_cv_lists_that_cannot_be_conserved(
+    tmp_path: Path, kind: str, items: list[object]
+) -> None:
+    root = _source_fixture(tmp_path)
+    path = root / "oraec1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["oraec1"][kind] = items
+    _write_json(path, payload)
+
+    with pytest.raises(ParseError, match="duplicate|cardinality"):
+        parse_text(path)
+
+
+def test_parser_rejects_duplicate_source_urls_that_would_collapse(tmp_path: Path) -> None:
+    root = _source_fixture(tmp_path)
+    path = root / "oraec1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["oraec1"]["credits"]["source"] = [
+        "https://example.invalid/a",
+        "https://example.invalid/a",
+    ]
+    _write_json(path, payload)
+
+    with pytest.raises(ParseError, match="duplicate"):
+        parse_text(path)
+
+
+def test_parser_rejects_present_empty_idno_list(tmp_path: Path) -> None:
+    root = _source_fixture(tmp_path)
+    path = root / "oraec1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["oraec1"]["idno"] = []
+    _write_json(path, payload)
+
+    with pytest.raises(ParseError, match="cardinality"):
+        parse_text(path)
