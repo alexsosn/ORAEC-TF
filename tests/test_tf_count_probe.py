@@ -102,7 +102,7 @@ def test_native_count_probe_rejects_unknown_otype_without_fabric_cache(
         probe_tf_counts(output)
 
 
-@pytest.mark.parametrize("line_ending", [b"\\n", b"\\r\\n"])
+@pytest.mark.parametrize("line_ending", [b"\n", b"\r\n"])
 def test_source_count_probe_matches_real_tf_with_platform_newlines(
     tmp_path: Path, line_ending: bytes,
 ) -> None:
@@ -113,8 +113,8 @@ def test_source_count_probe_matches_real_tf_with_platform_newlines(
     for filename in ("otype.tf", "token_id.tf"):
         target = root / filename
         original = target.read_bytes()
-        assert b"\\r" not in original
-        target.write_bytes(original.replace(b"\\n", line_ending))
+        assert b"\r" not in original
+        target.write_bytes(original.replace(b"\n", line_ending))
     assert probe_tf_counts(root) == expected
 
 
@@ -125,13 +125,13 @@ def test_source_count_probe_rejects_mixed_or_embedded_cr(
     root = _graph(tmp_path)
     for filename in ("otype.tf", "token_id.tf"):
         target = root / filename
-        target.write_bytes(target.read_bytes().replace(b"\\n", b"\\r\\n"))
+        target.write_bytes(target.read_bytes().replace(b"\n", b"\r\n"))
     target = root / "otype.tf"
     body = target.read_bytes()
     if corruption == "mixed":
-        body = body.replace(b"@valueType=str\\r\\n", b"@valueType=str\\n")
+        body = body.replace(b"@schemaVersion=3\r\n", b"@schemaVersion=3\n")
     else:
-        body = body.replace(b"@valueType=str\\r\\n", b"@valueType=s\\rtr\\r\\n")
+        body = body.replace(b"@schemaVersion=3\r\n", b"@schemaVersion=3\rtr\r\n")
     assert body != target.read_bytes()
     target.write_bytes(body)
     with pytest.raises(ProbeError, match="CR|newline|metadata|header"):
