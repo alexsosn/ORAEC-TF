@@ -910,3 +910,26 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
         "independent_fabric_features_load",
         "independent_fabric_load",
     ]
+
+
+def test_profile_wrapper_restores_fabric_load_after_native_failure() -> None:
+    """Adversarial #76: a failed native load must propagate and restore the API."""
+    from oraec_tf.audit_graph import _independent_load_all_with_subphases
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    class BrokenFabric:
+        def load(self, features: object, *, silent: str = "deep") -> None:
+            raise RuntimeError("native loader failure")
+
+        def loadAll(self, *, silent: str = "deep") -> None:
+            self.load("", silent=silent)
+
+    fabric = BrokenFabric()
+    original = fabric.load
+    recorder = PhaseRecorder(enabled=True)
+    with pytest.raises(RuntimeError, match="native loader failure"):
+        _independent_load_all_with_subphases(fabric, recorder)
+    assert fabric.load == original, "profiled native method not restored"
+    assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_warp_load",
+    ]
