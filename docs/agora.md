@@ -46,9 +46,14 @@ published without clobbering a destination created concurrently—even a new
 another owner's destination. This protection is distinct from the direct
 converter CLI's inner staging/publication and preserves the existing allowance
 for caller-owned empty output directories, which are removed only at the
-final promotion boundary. The current adapter reuses tf-build's pinned
-`_atomic.publish_path_no_clobber` private primitive; a stable public package
-interface needs separate review before release.
+final promotion boundary. The adapter uses the supported public
+`tf_build.publication.publish_path_no_clobber` function at immutable tf-build
+revision `da7ff9618259f1669bdb89b134970399919accc0`, not an internal module.
+The output's canonical parent is pinned before nested conversion so an alias
+redirect during a long build cannot move the published artifact or restore
+a failed empty output inside the upstream source checkout. This is an
+**online-installable source dependency**, not yet a verified offline wheel
+distribution; packaging remains tracked separately under issue #59.
 
 Output layout:
 
