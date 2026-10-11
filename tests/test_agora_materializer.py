@@ -347,3 +347,13 @@ def test_agora_late_failure_restores_only_original_canonical_empty_target(
     assert not any((safe / "published").iterdir())
     assert not (source / "published").exists()
     assert not tuple(safe.glob(".published.agora-*"))
+
+
+
+def test_agora_uses_published_tf_build_no_clobber_api() -> None:
+    """RED: do not depend on the private tf-build._atomic implementation."""
+    from tf_build.publication import publish_path_no_clobber
+
+    from oraec_tf import agora
+
+    assert agora.publish_path_no_clobber is publish_path_no_clobber
