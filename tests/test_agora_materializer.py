@@ -396,7 +396,10 @@ def test_agora_preserves_replacement_of_preexisting_empty_target(
             ("oslots.tf", "@edge"),
             ("otext.tf", "@config"),
         ):
-            (tf_dir / filename).write_text(f"{marker}\n\n", encoding="utf-8")
+            (tf_dir / filename).write_text(
+                f"{marker}\n@dateWritten=2026-10-11T08:00:00Z\n\n",
+                encoding="utf-8",
+            )
         # The original empty output remains physically present under a new
         # name. Its concurrently installed successor must never be removed.
         destination.rename(parked)
