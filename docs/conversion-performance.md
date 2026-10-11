@@ -5,6 +5,7 @@ Issue [#64](https://github.com/alexsosn/ORAEC-TF/issues/64) tracks conversion th
 For a verified local source checkout:
 
 ```bash
+mkdir -p build
 oraec-tf convert upstream/corpus_raw_data \
   --output build/profiled-tf \
   --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
