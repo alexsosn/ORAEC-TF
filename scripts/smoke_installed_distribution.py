@@ -23,9 +23,10 @@ PINNED_SOURCE = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
 
 def verify_installed_modules() -> dict[str, str]:
     """Reject a source-checkout import masquerading as a wheel install."""
-    import oraec_tf
     import tf_build
     from tf_build.publication import publish_path_no_clobber
+
+    import oraec_tf
 
     assert callable(publish_path_no_clobber)
     source_tree = Path(os.environ["ORAEC_SOURCE_TREE"]).resolve()
