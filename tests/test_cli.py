@@ -500,3 +500,56 @@ def test_convert_failed_empty_target_restore_uses_pinned_canonical_parent(
     assert not any((safe / "generated").iterdir())
     assert not (source / "generated").exists()
     assert not tuple(safe.glob(".generated.tf-build-*"))
+
+
+
+def test_opt_in_conversion_profile_has_bounded_provenance_only_phases(
+    tmp_path: Path,
+) -> None:
+    """#64 RED: measure real conversion gates without changing corpus output."""
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "tf"
+    out = StringIO()
+    with (_synthetic_conversion_inputs(source), patch("sys.stdout", out)):
+        assert main([
+            "convert", str(source), "--output", str(target),
+            "--upstream-commit", DEFAULT_SOURCE_REVISION,
+            "--profile",
+        ]) == 0
+    result = json.loads(out.getvalue())
+    assert result["counts"] == {
+        "texts": 1, "sentences": 1, "tokens": 1,
+        "technical_anchors": 0, "slots": 1,
+    }
+    profile = result["profile"]
+    assert profile["format"] == "oraec-convert-phases-v1"
+    assert profile["environment"]["python"]
+    assert profile["environment"]["platform"]
+    assert profile["environment"]["text_fabric_version"]
+    assert profile["environment"]["tf_build_version"]
+    assert profile["total_wall_seconds"] >= 0
+    assert profile["total_cpu_seconds"] >= 0
+    assert [phase["name"] for phase in profile["phases"]] == [
+        "source_identity",
+        "source_semantics",
+        "writer_and_ir",
+        "uncached_tf_validation",
+        "corpus_counts_reload",
+        "atomic_publish",
+    ]
+    for phase in profile["phases"]:
+        assert phase["wall_seconds"] >= 0
+        assert phase["cpu_seconds"] >= 0
+        assert "process_peak_rss_kib_at_end" in phase
+    assert "nṯr" not in json.dumps(profile, ensure_ascii=False)
+    assert "https://a.invalid" not in json.dumps(profile)
+
+
+def test_default_conversion_summary_does_not_expose_profile(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    out = StringIO()
+    with (_synthetic_conversion_inputs(source), patch("sys.stdout", out)):
+        assert _synthetic_convert(source, tmp_path / "tf") == 0
+    assert "profile" not in json.loads(out.getvalue())
