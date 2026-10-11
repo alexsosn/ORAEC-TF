@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import TracebackType
-from typing import Any, IO, cast
+from typing import IO, Any, cast
 
 import pytest
 
