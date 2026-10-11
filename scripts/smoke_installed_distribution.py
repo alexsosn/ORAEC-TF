@@ -29,6 +29,8 @@ def verify_installed_modules() -> dict[str, str]:
     import oraec_tf
 
     assert callable(publish_path_no_clobber)
+    if shutil.which("git") is not None:
+        raise AssertionError("Git executable is visible during offline installed smoke")
     source_tree = Path(os.environ["ORAEC_SOURCE_TREE"]).resolve()
     environment = Path(sys.prefix).resolve()
     versions: dict[str, str] = {}
