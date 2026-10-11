@@ -64,7 +64,7 @@ def test_semantic_hash_detects_content_and_nontimestamp_metadata_changes(
     original = target.read_bytes()
     base = hash_tf_feature(target)
     if mutation == "body":
-        changed = original.replace("Immutable glyph".encode(), b"Other glyph")
+        changed = original.replace(b"Immutable glyph", b"Other glyph")
     elif mutation == "metadata":
         changed = original.replace(b"@writtenBy=Text-Fabric", b"@writtenBy=Unknown")
     elif mutation == "otype":
