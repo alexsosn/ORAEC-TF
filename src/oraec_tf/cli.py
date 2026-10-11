@@ -81,22 +81,27 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise ValueError("output must be an empty directory or not exist")
 
-    # Validate source before touching an empty caller-owned destination.
+    # Validate the source before any caller-owned output mutation. A parent
+    # symlink can change while that audit runs: pin the *canonical* destination
+    # once it completes, and never again use the mutable alias for rmdir,
+    # workspace creation, or exception cleanup.
     report = validate_corpus_source(snapshot.path)
-    existed_as_empty_dir = target.is_dir()
+    canonical_target = target.resolve()
+    if target.is_symlink() or canonical_target == snapshot.path or (
+        snapshot.path in canonical_target.parents
+    ):
+        raise ValueError("output must not be a symlink or be inside the source checkout")
+    if canonical_target.exists() and (
+        not canonical_target.is_dir() or any(canonical_target.iterdir())
+    ):
+        raise ValueError("output must be an empty directory or not exist")
+    existed_as_empty_dir = canonical_target.is_dir()
     if existed_as_empty_dir:
-        # BuildWorkspace is deliberately create-only. Preserve ORAEC's historic
-        # empty-output contract, but never replace another process's target.
-        target.rmdir()
+        # BuildWorkspace is create-only; preserve the accepted empty-target
+        # contract while avoiding a symlink-parent restoration race.
+        canonical_target.rmdir()
     try:
-        # The output's parent may be a mutable symlink. Source validation
-        # occurs after the first target.resolve() check, so canonicalize again
-        # using the exact destination that tf-build will publish. Do this
-        # before workspace entry, before any staging can touch source paths.
-        workspace = BuildWorkspace(target)
-        canonical_target = workspace.destination
-        if canonical_target == snapshot.path or snapshot.path in canonical_target.parents:
-            raise ValueError("output must not be inside the source checkout")
+        workspace = BuildWorkspace(canonical_target)
         with workspace:
             stage = workspace.path
             write_tf(
@@ -147,13 +152,19 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
     except Exception as error:
         # Restore the caller's formerly empty directory only if no competing
         # actor has created a replacement during staging or publication.
-        if existed_as_empty_dir and not target.exists() and not target.is_symlink():
+        if (
+            existed_as_empty_dir
+            and not canonical_target.exists()
+            and not canonical_target.is_symlink()
+        ):
             try:
-                target.mkdir()
+                canonical_target.mkdir()
             except FileExistsError:
                 pass
             except OSError as restore_error:
-                error.add_note(f"failed to restore empty output {target}: {restore_error}")
+                error.add_note(
+                    f"failed to restore empty output {canonical_target}: {restore_error}"
+                )
         raise
 
     return {
