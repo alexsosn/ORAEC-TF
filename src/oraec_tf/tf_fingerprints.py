@@ -17,7 +17,7 @@ from pathlib import Path
 # Text-Fabric 13.1's UTC-aware utcnow().isoformat() appends "+00:00Z".
 # Also support the historically naive ISO timestamp ending in a plain "Z".
 STAMP = re.compile(
-    rb"@dateWritten=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\+00:00)?Z)\n\Z"
+    rb"@dateWritten=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\+00:00)?Z)\Z"
 )
 HEADER_LIMIT = 4 * 1024 * 1024
 
@@ -42,7 +42,10 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
     try:
         with feature.open("rb") as stream:
             first = stream.readline()
-            if first not in (b"@node\n", b"@edge\n", b"@config\n"):
+            newline = b"\r\n" if first.endswith(b"\r\n") else b"\n"
+            if first not in tuple(
+                kind + newline for kind in (b"@node", b"@edge", b"@config")
+            ):
                 raise FingerprintError(f"{feature.name}: unrecognized TF feature type")
             raw.update(first)
             canonical.update(first)
@@ -56,14 +59,14 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
                 if line == b"":
                     raise FingerprintError(f"{feature.name}: missing header/body separator")
                 raw.update(line)
-                if line == b"\n":
+                if line == newline:
                     if not seen_clock:
                         raise FingerprintError(f"{feature.name}: missing @dateWritten")
                     canonical.update(line)
                     break
                 if (
-                    not line.endswith(b"\n")
-                    or b"\r" in line
+                    not line.endswith(newline)
+                    or b"\r" in line[: -len(newline)]
                     or not line.startswith(b"@")
                 ):
                     raise FingerprintError(f"{feature.name}: malformed TF metadata")
@@ -74,7 +77,7 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
                 if line.startswith(b"@dateWritten"):
                     if seen_clock:
                         raise FingerprintError(f"{feature.name}: duplicate @dateWritten")
-                    match = STAMP.fullmatch(line)
+                    match = STAMP.fullmatch(line[: -len(newline)])
                     if match is None:
                         raise FingerprintError(f"{feature.name}: malformed @dateWritten")
                     clock = match.group(1).decode("ascii")
