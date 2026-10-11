@@ -357,3 +357,54 @@ def test_agora_uses_published_tf_build_no_clobber_api() -> None:
     from oraec_tf import agora
 
     assert vars(agora)["publish_path_no_clobber"] is publish_path_no_clobber
+
+
+
+def test_agora_preserves_replacement_of_preexisting_empty_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: a rival empty directory replaces the original during conversion."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    destination = tmp_path / "published"
+    destination.mkdir()
+    initial_inode = destination.stat().st_ino
+    parked = tmp_path / "parked-original-empty"
+    rival_inode: list[int] = []
+
+    def racing_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for filename, marker in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / filename).write_text(f"{marker}\n\n", encoding="utf-8")
+        # The original empty output remains physically present under a new
+        # name. Its concurrently installed successor must never be removed.
+        destination.rename(parked)
+        destination.mkdir()
+        rival_inode.append(destination.stat().st_ino)
+        assert rival_inode[-1] != initial_inode
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", racing_cli)
+    with pytest.raises(FileExistsError, match="output|changed|destination"):
+        agora.materialize(
+            source, destination, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert rival_inode
+    assert parked.stat().st_ino == initial_inode
+    assert destination.stat().st_ino == rival_inode[-1]
+    assert not any(destination.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))
