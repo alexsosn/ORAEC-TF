@@ -715,6 +715,37 @@ REQUIRED_SOURCE_COMPANIONS = (
 )
 
 
+def _independent_load_all_with_subphases(
+    fabric: Any, recorder: PhaseRecorder,
+) -> Any:
+    """Time native TF 13.1 loadAll's actual warp and all-feature loads.
+
+    Never duplicate/replace loadAll's feature-selection logic or change the
+    native arguments/results. Wrap only this Fabric instance and restore its
+    original load method, even when a corrupt corpus causes an exception.
+    """
+    if not recorder.enabled:
+        return fabric.loadAll(silent="deep")
+    real_load = fabric.load
+    invocation = 0
+
+    def timed_load(features: Any, *args: Any, **kwargs: Any) -> Any:
+        nonlocal invocation
+        phase = (
+            "independent_fabric_warp_load"
+            if invocation == 0 else "independent_fabric_features_load"
+        )
+        invocation += 1
+        with recorder.phase(phase):
+            return real_load(features, *args, **kwargs)
+
+    fabric.load = timed_load
+    try:
+        return fabric.loadAll(silent="deep")
+    finally:
+        fabric.load = real_load
+
+
 def audit_basic_graph(
     source: str | Path, tf_dir: str | Path, *,
     require_complete_source: bool = False,
@@ -745,8 +776,9 @@ def audit_basic_graph(
     # includes all node and valued-edge features without assuming a writer
     # feature inventory or constructing a fragile string from file names.
     recorder = profile_recorder or PhaseRecorder(enabled=False)
+    fabric = Fabric(locations=str(output), silent="deep")
     with recorder.phase("independent_fabric_load"):
-        api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+        api = _independent_load_all_with_subphases(fabric, recorder)
     if not api:
         raise GraphConservationError("generated Text-Fabric output did not load")
 
