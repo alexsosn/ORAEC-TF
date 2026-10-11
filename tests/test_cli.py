@@ -430,3 +430,73 @@ def test_convert_reports_actual_canonical_artifact_after_parent_symlink_swap(
     assert (safe / "graph" / "otype.tf").is_file()
     assert not (source / "graph").exists()
     assert result["output"] == str((safe / "graph").resolve())
+
+
+
+def test_convert_empty_target_parent_alias_swap_never_creates_source_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RED: a previously empty alias must not be restored inside raw source."""
+    source = tmp_path / "verified-source"
+    source.mkdir()
+    safe = tmp_path / "safe-output"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    target = alias / "generated"
+    target.mkdir()  # Existing empty destination is a supported API contract.
+    original_init = BuildWorkspace.__init__
+    switched: list[bool] = []
+
+    def swap_before_workspace_init(
+        workspace: BuildWorkspace, destination: str | Path,
+    ) -> None:
+        # Conversion removed the empty destination; another actor re-points
+        # its parent alias to the verified source before workspace creation.
+        assert not (safe / "generated").exists()
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        switched.append(True)
+        original_init(workspace, destination)
+
+    monkeypatch.setattr(BuildWorkspace, "__init__", swap_before_workspace_init)
+    captured = StringIO()
+    with _synthetic_conversion_inputs(source), patch("sys.stdout", captured):
+        assert _synthetic_convert(source, target) == 0
+
+    assert switched
+    result = json.loads(captured.getvalue())
+    assert (safe / "generated" / "otype.tf").is_file()
+    assert result["output"] == str(safe / "generated")
+    assert not (source / "generated").exists()
+
+
+def test_convert_failed_empty_target_restore_uses_pinned_canonical_parent(
+    tmp_path: Path,
+) -> None:
+    """RED: error cleanup cannot mkdir into source after symlink parent swap."""
+    source = tmp_path / "verified-source"
+    source.mkdir()
+    safe = tmp_path / "safe-output"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    target = alias / "generated"
+    target.mkdir()
+
+    def swapped_parent_late_failure(*args: Any, **kwargs: Any) -> None:
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        raise RuntimeError("deliberate failure after alias migration")
+
+    with (
+        _synthetic_conversion_inputs(source),
+        patch("oraec_tf.cli.write_tf", side_effect=swapped_parent_late_failure),
+    ):
+        with pytest.raises(RuntimeError, match="alias migration"):
+            _synthetic_convert(source, target)
+
+    assert (safe / "generated").is_dir()
+    assert not any((safe / "generated").iterdir())
+    assert not (source / "generated").exists()
+    assert not tuple(safe.glob(".generated.tf-build-*"))
