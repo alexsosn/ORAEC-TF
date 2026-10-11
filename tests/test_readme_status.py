@@ -59,3 +59,5 @@ def test_linked_researcher_guides_use_schema_v3_native_cr_api() -> None:
     )
     assert "tf-build #60" in installed
     assert "tf-build #57" not in installed
+    assert "https://github.com/alexsosn/tf-build/issues/60" in installed
+    assert "https://github.com/alexsosn/tf-build/issues/57" not in installed
