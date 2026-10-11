@@ -1,9 +1,11 @@
-"""Experimental fail-closed source-only Text-Fabric node census (issue #64).
+"""Fail-closed source-only Text-Fabric node census for ORAEC (#64).
 
-This reader is *not* a TF replacement or a release validation shortcut.
-The opt-in profiler compares it with the existing real Fabric result after
-tf-build has already exhaustively loaded every raw .tf feature. It reads only
-the documented @node text feature format, never binary caches or source JSON.
+This streaming reader validates word-slot and token-identity *counts* after
+tf-build has exhaustively reloaded all actual native TF features in an isolated,
+cache-free Fabric session. It replaces only ORAEC's redundant second Fabric
+count reload. It does NOT validate source semantics, relationships or Unicode;
+the separate independent raw-source-to-graph audit remains mandatory.
+Only documented @node text feature data are read, never compiled caches.
 """
 
 from __future__ import annotations
@@ -46,19 +48,21 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
     if path.is_symlink() or not path.is_file():
         raise ProbeError(f"missing or symlinked source feature: {path.name}")
     with path.open("r", encoding="utf-8", newline="") as handle:
-        first = handle.readline().rstrip("\n")
-        if first != "@node":
+        first = handle.readline()
+        newline = "\r\n" if first.endswith("\r\n") else "\n"
+        if first != "@node" + newline:
             raise ProbeError(f"{path.name}: not a native node feature")
         valid_type = False
         for line in handle:
-            if "\r" in line:
-                raise ProbeError(f"{path.name}: literal unescaped CR")
-            stripped = line.rstrip("\n")
-            if not stripped:
+            if line == newline:
                 break
-            if not stripped.startswith("@"):
-                raise ProbeError(f"{path.name}: invalid feature header")
-            if stripped == "@valueType=str":
+            if (
+                not line.endswith(newline)
+                or "\r" in line[: -len(newline)]
+                or not line.startswith("@")
+            ):
+                raise ProbeError(f"{path.name}: invalid feature header/newline")
+            if line[: -len(newline)] == "@valueType=str":
                 valid_type = True
         else:
             raise ProbeError(f"{path.name}: missing feature header separator")
@@ -68,9 +72,16 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
         next_implicit = 1
         had_rows = False
         for line in handle:
-            if "\r" in line:
+            if line.endswith(newline):
+                row = line[: -len(newline)]
+            elif "\r" not in line and "\n" not in line:
+                # The final text feature row may omit its terminal newline.
+                row = line
+            else:
+                raise ProbeError(f"{path.name}: mixed newline or unescaped CR")
+            if "\r" in row:
                 raise ProbeError(f"{path.name}: raw CR outside TF escaping contract")
-            fields = line.rstrip("\n").split("\t")
+            fields = row.split("\t")
             if len(fields) == 1:
                 spec, value = "", fields[0]
             elif len(fields) == 2 and fields[0]:
@@ -90,8 +101,9 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
 def probe_tf_counts(directory: str | Path) -> dict[str, int]:
     """Count exact TF node identities without loading its millions of oslots.
 
-    Intentionally strict: this is a measured candidate for a *future* fast
-    reconciliation path, never a way to skip tf-build's complete source load.
+    Intentionally strict: this reconciles source-derived counts with raw TF
+    only *after* tf-build's complete, uncached Fabric validation. It cannot
+    substitute for native graph loading or independent source conservation.
     """
     root = Path(directory)
     otype = _rows(root / "otype.tf")

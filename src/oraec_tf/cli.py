@@ -7,7 +7,6 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from tf.fabric import Fabric
 from tf_build.validate import FeatureRequirement, validate_tf_artifact
 from tf_build.workspace import BuildWorkspace
 
@@ -140,46 +139,29 @@ def _convert(
                     ),
                 )
 
-            # Keep ORAEC's independent source-specific conservation contract:
-            # tf-build cannot infer the meaning of text/sentence/token nodes.
-            with recorder.phase("corpus_counts_reload"):
-                api = Fabric(locations=str(stage), silent="deep").load(
-                    "oraec_id sentence_index token_id", silent="deep"
-                )
-                if not api:
-                    raise ValueError("generated Text-Fabric corpus did not load")
-                word_count = len(api.F.otype.s("word"))
-                text_count = len(api.F.otype.s("text"))
-                sentence_count = len(api.F.otype.s("sentence"))
-                real_words = sum(
-                    api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
-                )
+            # The exhaustive, isolated tf-build level="all" step above
+            # already performed a real Text-Fabric load of every source
+            # feature. Re-loading its warp into a second large Fabric here
+            # consumed 233 seconds / ~1.7 GiB in the pinned-corpus profile.
+            # Independently reconcile actual source .tf node identities with
+            # the upstream parser's counts, without trusting compiled caches.
+            with recorder.phase("source_tf_counts"):
+                counted = probe_tf_counts(stage)
                 expected = report["counts"]
                 if (
-                    text_count != expected["texts"]
-                    or sentence_count != expected["sentences"]
-                    or real_words != expected["tokens"]
-                    or word_count != real_words + expected["empty_token_sentences"]
+                    counted["texts"] != expected["texts"]
+                    or counted["sentences"] != expected["sentences"]
+                    or counted["tokens"] != expected["tokens"]
+                    or counted["technical_anchors"]
+                    != expected["empty_token_sentences"]
+                    or counted["slots"]
+                    != expected["tokens"] + expected["empty_token_sentences"]
                 ):
                     raise ValueError("generated TF node counts diverge from parsed source")
-            if profile:
-                # Experimental, independent streaming count implementation.
-                # Crucially, the full uncached TF validation AND original
-                # Fabric reload above still execute before this comparison.
-                with recorder.phase("source_tf_counts_probe"):
-                    probe = probe_tf_counts(stage)
-                    expected_probe = {
-                        "texts": text_count,
-                        "sentences": sentence_count,
-                        "tokens": real_words,
-                        "technical_anchors": word_count - real_words,
-                        "slots": word_count,
-                        "cr_occurrences": len(api.F.otype.s("cr_occurrence")),
-                    }
-                    if probe != expected_probe:
-                        raise ValueError(
-                            "streaming TF count candidate differs from Fabric census"
-                        )
+                text_count = counted["texts"]
+                sentence_count = counted["sentences"]
+                real_words = counted["tokens"]
+                word_count = counted["slots"]
             with recorder.phase("atomic_publish"):
                 workspace.publish()
     except Exception as error:
