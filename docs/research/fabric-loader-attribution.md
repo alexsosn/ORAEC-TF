@@ -33,3 +33,9 @@ A next profiling ticket can instrument Text-Fabric's two **unmodified** `Fabric.
 ## Research outcome
 
 Prioritize isolating which of the **initial `load("")`/precompute** and **`load(nodes + edges, add=True)`** paths dominates, then measure improvements on comparable full pinned corpus builds. The 0.16s hash phase is irrelevant for speed. Preserve memory accounting's process-lifetime RSS semantics. Never commit source/corpus bytes or semantic sidecars to the repository.
+
+## Actual TF feature inventory and compiled-cache trust
+
+The same `graph-conservation.json` lists 65 `*.tf` files totaling **105,254,838 bytes (100.379 MiB)**, versus a **5,043,328 KiB (~4.81 GiB)** peak audit RSS. Largest raw source features are `cotext_translation.tf` 13.162 MiB, `oslots.tf` 12.123 MiB, `token_id.tf` 11.018 MiB, `translation.tf` 7.876 MiB, `pos.tf` 7.552 MiB and `line_count.tf` 6.652 MiB. Source bytes alone do not explain the roughly 50x memory expansion or which load stage allocates it.
+
+Text-Fabric v13.1.0 `tf/core/data.py::Data.load` checks `.tf` and compiled binary mtimes and may choose compiled binary data; `_readDataBin` at lines 645ff uses `gzip.open` and `pickle.load`. This is an important source-trust and security boundary: **do not** claim that blindly trusting a precompiled `.tfx` cache is a safe speedup, even when it improves wall time. Require source-only validation of all authentic `.tf` and explicit cache integrity/isolation proofs before any optimization that would reuse compiled binaries between the converter and independent audit. The ~258s independent load being nearly as expensive as the ~260s uncached tf-build validation suggests repeated expensive graph loading, but does not prove cache provenance or a specific bottleneck without subphase evidence.
