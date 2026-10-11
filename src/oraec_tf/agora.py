@@ -19,7 +19,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
-from tf_build._atomic import publish_path_no_clobber
+from tf_build.publication import publish_path_no_clobber
 
 from . import cli
 from .source import (
