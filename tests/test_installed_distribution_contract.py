@@ -48,10 +48,11 @@ def test_ci_builds_wheels_online_but_installs_offline_without_git() -> None:
         ROOT / "scripts" / "validate_wheelhouse_install.py"
     ).read_text(encoding="utf-8")
     assert "pip wheel" in workflow
+    assert "wheel-manifest.txt" in workflow
+    assert '"pip", "check"' in runner
     for required in (
         "--no-index",
         "--no-deps",
-        "pip check",
         "smoke_installed_distribution.py",
         "sha256",
         "ORAEC_SOURCE_TREE",
@@ -74,9 +75,11 @@ def test_offline_wheelhouse_runs_real_windows_and_linux_installed_smokes() -> No
     assert "matrix.os" in workflow
     assert "validate_wheelhouse_install.py" in workflow
     assert "pip wheel" in workflow
+    assert "wheel-manifest.txt" in workflow
+    assert '"pip", "check"' in source
     for literal in (
-        "--no-index", "--no-deps", "--require-hashes", "pip check",
-        "wheel-manifest.txt", "PIP_NO_INDEX", "ORAEC_SOURCE_TREE",
+        "--no-index", "--no-deps", "--require-hashes",
+        "PIP_NO_INDEX", "ORAEC_SOURCE_TREE",
         "smoke_installed_distribution.py", "PATH", "sha256",
         "Requires-Dist", "da7ff9618259f1669bdb89b134970399919accc0",
     ):
