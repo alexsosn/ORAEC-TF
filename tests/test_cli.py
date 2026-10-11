@@ -554,3 +554,46 @@ def test_default_conversion_summary_does_not_expose_profile(tmp_path: Path) -> N
     with (_synthetic_conversion_inputs(source), patch("sys.stdout", out)):
         assert _synthetic_convert(source, tmp_path / "tf") == 0
     assert "profile" not in json.loads(out.getvalue())
+
+
+
+def test_conversion_counts_use_source_checked_stream_without_second_fabric_loader(
+    tmp_path: Path,
+) -> None:
+    """#64 RED: tf-build still loads all source .tf; ORAEC counts stream natively."""
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "tf"
+    # The independent tf-build source-only Fabric loader lives in tf-build,
+    # not oraec_tf.cli.Fabric. Do not re-load multi-GB warp caches a second time.
+    with (
+        _synthetic_conversion_inputs(source),
+        patch(
+            "oraec_tf.cli.Fabric",
+            side_effect=AssertionError("duplicate ORAEC Fabric count reload"),
+            create=True,
+        ),
+    ):
+        assert _synthetic_convert(source, target) == 0
+    assert (target / "otype.tf").is_file()
+    assert (target / "token_id.tf").is_file()
+
+
+def test_conversion_source_counts_fail_closed_before_atomic_publication(
+    tmp_path: Path,
+) -> None:
+    """#64 RED: inaccurate or forged probe results may never publish TF."""
+    source = tmp_path / "source"
+    source.mkdir()
+    output = tmp_path / "tf"
+    with (
+        _synthetic_conversion_inputs(source),
+        patch("oraec_tf.cli.probe_tf_counts", return_value={
+            "texts": 1, "sentences": 1, "tokens": 0,
+            "technical_anchors": 1, "slots": 1, "cr_occurrences": 0,
+        }),
+    ):
+        with pytest.raises(ValueError, match="counts|diverg"):
+            _synthetic_convert(source, output)
+    assert not output.exists()
+    assert not tuple(tmp_path.glob(".tf.tf-build-*"))
