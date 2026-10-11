@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from oraec_tf.audit_graph import audit_graph_with_provenance
+from oraec_tf.conversion_profile import PhaseRecorder
 
 
 def main() -> int:
@@ -17,7 +18,16 @@ def main() -> int:
     parser.add_argument("--converter-revision", required=True)
     parser.add_argument("--schema-version", type=int, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument(
+        "--profile-report", type=Path, default=None,
+        help="Optional provenance-only independent-audit phase timings JSON",
+    )
     args = parser.parse_args()
+    if args.profile_report is not None and (
+        args.profile_report.resolve() == args.report.resolve()
+    ):
+        parser.error("--profile-report must differ from --report")
+    recorder = PhaseRecorder(enabled=args.profile_report is not None)
 
     report = audit_graph_with_provenance(
         args.source,
@@ -26,12 +36,24 @@ def main() -> int:
         converter_revision=args.converter_revision,
         schema_version=args.schema_version,
         require_complete_source=True,
+        profile_recorder=recorder,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(
         json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
     )
+    if args.profile_report is not None:
+        profile = recorder.report()
+        profile["format"] = "oraec-independent-audit-profile-v1"
+        profile["phase_relationship"] = (
+            "source_graph_audit includes independent_fabric_load"
+        )
+        args.profile_report.parent.mkdir(parents=True, exist_ok=True)
+        args.profile_report.write_text(
+            json.dumps(profile, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
     print(json.dumps(
         {
             "ok": True,
