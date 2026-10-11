@@ -84,22 +84,25 @@ template. Read real TLA target URLs from `F.tla_url` on hierarchy nodes.
 ### Literal source values and carriage returns
 
 Text-Fabric 13.1 cannot directly serialize U+000D carriage returns in TF
-feature values. Schema v2 stores an exact reversible offset map on each node
-as `<node_type>_cr_offsets`. Standard display formats show CR-free transport
-text; for exact raw-source comparisons, reconstruct using *both* native fields:
+feature values. Schema v3 represents each original carriage return as a
+queryable `cr_occurrence` node with an integer `cr_offset`, `cr_feature`,
+and a `cr_owner` edge to its source-bearing node. Standard display formats
+show CR-free transport text; for exact raw-source comparisons, reconstruct
+from the ordinary native graph once with the reusable index:
 
 ```python
-from oraec_tf.text_codec import restore_source_string
+from oraec_tf.text_codec import NativeCRIndex
 
-exact_bibliography = restore_source_string(
-    api.F.bibliography.v(text),
-    api.F.text_cr_offsets.v(text),
-    "bibliography",
-)
+cr = NativeCRIndex(api)
+exact_bibliography = cr.restore(text, "bibliography")
+# The index can also reconstruct original sentence translations.
+exact_translation = cr.restore(sentence, "translation")
 ```
 
-This representation preserves CRLF vs. LF and original positions without
-semantic JSON/XML sidecars (see ADR 0006).
+This preserves isolated CR, CRLF vs. LF, and original Unicode code-point
+positions, without packed offset lists or semantic JSON/XML sidecars.
+See [ADR 0007](adr/0007-native-carriage-return-occurrences.md) for the
+native representation and Text-Fabric transport limitation.
 
 ## Validation and current limits
 
@@ -110,5 +113,5 @@ sufficient to certify browser behavior.
 
 Text-Fabric does not currently support an Egyptian-specific `writing: egy`
 setting; the app leaves `writing` unset and uses normal Unicode-capable
-font fallback. This project does not distribute fonts. Researcher-facing
-feature-by-feature documentation is tracked separately under issue #10.
+font fallback. This project does not distribute fonts. Researcher-facing feature documentation is provided in the generated
+[feature reference](feature-reference.md) and [query recipes](query-recipes.md).

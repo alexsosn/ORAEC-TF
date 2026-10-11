@@ -4,7 +4,7 @@ ORAEC-TF converts the [Open Richly Annotated Egyptian Corpus (ORAEC)](https://gi
 
 ## Status
 
-**Pre-0.1 / research and converter bootstrap.** There is not yet a released TF corpus.
+**Pre-release converter (`0.1.0.dev0`): no released TF corpus or bundled corpus data.** The pinned-source native schema v3 writer, complete independent source-conservation audit, standard Text-Fabric advanced app, researcher reference, and upstream Agora adapter are implemented and tested. A durable, independently distributable release and downstream Agora registration remain blocked by release issue #12, offline dependency distribution issue #59, and Agora #224.
 
 This repository contains only the software, tests, Text-Fabric app configuration, documentation, and source-acquisition helpers needed to build the corpus. It intentionally does **not** store either the ORAEC upstream files or generated Text-Fabric data.
 
@@ -14,11 +14,11 @@ The initial supported upstream snapshot is:
 - commit: `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`
 - upstream commit date: 2024-06-03
 
-The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The exact in-scope semantic contract is being audited in issue #2 before the TF ontology is frozen.
+The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The audited semantic contract is frozen as native **schema v3** in [`schema/core.json`](schema/core.json); all source-to-TF string and relationship conservation checks run on the complete immutable corpus. Excluded derived analytics and Karnak crosswalks with unresolved file-level licence evidence remain explicitly out of the default release scope.
 
-## Target architecture
+## Implemented architecture
 
-The release target is a complete native TF modelling of the supported ORAEC source semantics:
+The existing converter builds a complete native TF graph of the supported ORAEC source semantics:
 
 - no raw JSON/XML blobs inside features;
 - no delimiter-packed pseudo-lists standing in for structured source data;
@@ -66,7 +66,7 @@ therefore needs Git and access to that repository **during installation**. No
 tf-build PyPI release or hash-pinned wheel is assumed. A versioned, verified
 wheel/package artifact is required before ORAEC's independent offline release;
 this Git-commit pin is a temporary, reproducible development source, not a
-claim of offline wheel availability.
+claim of offline wheel availability. Upstream [tf-build #60](https://github.com/alexsosn/tf-build/issues/60) tracks the required durable, uniquely versioned release asset; ORAEC-TF issue #59 tracks its separately verified consumer installation. There is **no publicly released** matching tf-build wheel yet.
 
 A source-built wheelhouse installation smoke now exercises **noneditable**
 ORAEC-TF and tf-build wheels with locally recorded SHA-256 hashes, pip
@@ -75,7 +75,7 @@ TF conversion. This proves the *already-acquired wheelhouse* is importable
 without network/Git resolution; it does **not** establish availability of a
 published, independently verifiable tf-build wheel. See
 [`docs/installed-distribution.md`](docs/installed-distribution.md),
-ORAEC-TF issue #59, and upstream tf-build issue #57.
+ORAEC-TF issue #59, and upstream tf-build #60.
 
 
 ## Local Text-Fabric conversion (development builds)
@@ -108,7 +108,9 @@ new tf-build replacement API.
 
 The pinned source has 13,026 texts, 101,796 sentences and 815,026 real tokens,
 plus three explicitly marked technical anchor slots for zero-token sentences.
-**Native CR occurrence model (ADR 0007, schema v3):** Text-Fabric 13.1
+The independent full-source audit also verifies **2,930** native CR occurrences,
+representing the original U+000D positions without packed offset lists.
+**Native CR occurrence model ([ADR 0007](docs/adr/0007-native-carriage-return-occurrences.md), schema v3):** Text-Fabric 13.1
 cannot safely read literal carriage returns (U+000D) inside a regular .tf
 feature row. The scalar feature contains a CR-free transport string. Every
 original CR is a separate queryable `cr_occurrence` TF node with integer
@@ -130,13 +132,13 @@ Agora registration remain separate gates (#12 and Agora #224).
 
 ## Text-Fabric app/browser
 
-The repository includes the standard Text-Fabric advanced-app configuration under `app/`. Its display contract will be completed after the native TF schema is frozen in issue #3. A custom web application is not required to browse the generated corpus.
+The repository includes a tested standard Text-Fabric advanced app and browser configuration in `app/`, with transliteration and faithful hieroglyphic rendering (including upstream uncertainty markers). A custom web application is not required. See the [browser instructions](docs/app-browser.md), [complete native TF feature reference](docs/feature-reference.md), and [runnable researcher query recipes](docs/query-recipes.md). The documented application works with locally generated `.tf` data; no corpus is bundled.
 
 ## Agora
 
 ORAEC-TF owns source parsing, scholarly semantics, TF construction, validation, app configuration, and source-specific documentation.
 
-Agora owns marketplace registration, source acquisition/execution integration, sandbox/trust UX, artifact publication/provenance, and consumer composition. The materializer contract is tracked in issue #11 and must run with network access denied during conversion.
+Agora owns marketplace registration, source acquisition/execution integration, sandbox/trust UX, artifact publication/provenance, and consumer composition. The upstream [Agora materializer](docs/agora.md) and pinned offline converter execution contract are implemented and tested on the full corpus, but the downstream marketplace registration, host-enforced network denial, and Context-Fabric consumer integration remain unverified under Agora #224. Do not equate a declared `execution.network: deny` with host-level enforcement.
 
 ## Development process
 
