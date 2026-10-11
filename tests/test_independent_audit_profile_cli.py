@@ -38,7 +38,10 @@ def test_audit_cli_optional_profile_keeps_canonical_report_identical(
         if recorder is not None:
             with recorder.phase("source_graph_audit"):
                 with recorder.phase("independent_fabric_load"):
-                    pass
+                    with recorder.phase("independent_fabric_warp_load"):
+                        pass
+                    with recorder.phase("independent_fabric_features_load"):
+                        pass
             with recorder.phase("feature_hashes"):
                 pass
         return expected
@@ -66,6 +69,8 @@ def test_audit_cli_optional_profile_keeps_canonical_report_identical(
     payload = json.loads(timing.read_text(encoding="utf-8"))
     assert payload["format"] == "oraec-independent-audit-profile-v1"
     assert [phase["name"] for phase in payload["phases"]] == [
+        "independent_fabric_warp_load",
+        "independent_fabric_features_load",
         "independent_fabric_load", "source_graph_audit", "feature_hashes",
     ]
     assert payload["environment"]["text_fabric_version"]
