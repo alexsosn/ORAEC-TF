@@ -735,13 +735,43 @@ def _independent_load_all_with_subphases(
 
     def timed_load(features: Any, *args: Any, **kwargs: Any) -> Any:
         nonlocal invocation
+        is_first_load = invocation == 0
+        invocation += 1
         phase = (
             "independent_fabric_warp_load"
-            if invocation == 0 else "independent_fabric_features_load"
+            if is_first_load else "independent_fabric_features_load"
         )
-        invocation += 1
-        with recorder.phase(phase):
-            return real_load(features, *args, **kwargs)
+        # The first native load constructs the entire warp API. Time its
+        # native computation and API construction without replacing either.
+        internals = ("_precompute", "_makeApi")
+        if not is_first_load or not all(hasattr(fabric, name) for name in internals):
+            with recorder.phase(phase):
+                return real_load(features, *args, **kwargs)
+        original_methods = {name: getattr(fabric, name) for name in internals}
+        old_overrides = {
+            name: (name in vars(fabric), vars(fabric).get(name))
+            for name in internals
+        }
+
+        def timed_precompute(*method_args: Any, **method_kwargs: Any) -> Any:
+            with recorder.phase("independent_fabric_warp_precompute"):
+                return original_methods["_precompute"](*method_args, **method_kwargs)
+
+        def timed_api(*method_args: Any, **method_kwargs: Any) -> Any:
+            with recorder.phase("independent_fabric_warp_api"):
+                return original_methods["_makeApi"](*method_args, **method_kwargs)
+
+        fabric._precompute = timed_precompute
+        fabric._makeApi = timed_api
+        try:
+            with recorder.phase(phase):
+                return real_load(features, *args, **kwargs)
+        finally:
+            for name, (had_override, old_value) in old_overrides.items():
+                if had_override:
+                    setattr(fabric, name, old_value)
+                else:
+                    delattr(fabric, name)
 
     fabric.load = timed_load
     try:
