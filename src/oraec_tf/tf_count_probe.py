@@ -46,19 +46,21 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
     if path.is_symlink() or not path.is_file():
         raise ProbeError(f"missing or symlinked source feature: {path.name}")
     with path.open("r", encoding="utf-8", newline="") as handle:
-        first = handle.readline().rstrip("\n")
-        if first != "@node":
+        first = handle.readline()
+        newline = "\r\n" if first.endswith("\r\n") else "\n"
+        if first != "@node" + newline:
             raise ProbeError(f"{path.name}: not a native node feature")
         valid_type = False
         for line in handle:
-            if "\r" in line:
-                raise ProbeError(f"{path.name}: literal unescaped CR")
-            stripped = line.rstrip("\n")
-            if not stripped:
+            if line == newline:
                 break
-            if not stripped.startswith("@"):
-                raise ProbeError(f"{path.name}: invalid feature header")
-            if stripped == "@valueType=str":
+            if (
+                not line.endswith(newline)
+                or "\r" in line[: -len(newline)]
+                or not line.startswith("@")
+            ):
+                raise ProbeError(f"{path.name}: invalid feature header/newline")
+            if line[: -len(newline)] == "@valueType=str":
                 valid_type = True
         else:
             raise ProbeError(f"{path.name}: missing feature header separator")
@@ -68,9 +70,16 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
         next_implicit = 1
         had_rows = False
         for line in handle:
-            if "\r" in line:
+            if line.endswith(newline):
+                row = line[: -len(newline)]
+            elif "\r" not in line and "\n" not in line:
+                # The final text feature row may omit its terminal newline.
+                row = line
+            else:
+                raise ProbeError(f"{path.name}: mixed newline or unescaped CR")
+            if "\r" in row:
                 raise ProbeError(f"{path.name}: raw CR outside TF escaping contract")
-            fields = line.rstrip("\n").split("\t")
+            fields = row.split("\t")
             if len(fields) == 1:
                 spec, value = "", fields[0]
             elif len(fields) == 2 and fields[0]:
