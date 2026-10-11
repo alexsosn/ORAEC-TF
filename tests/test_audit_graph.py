@@ -935,6 +935,7 @@ def test_profile_wrapper_restores_fabric_load_after_native_failure() -> None:
     with pytest.raises(RuntimeError, match="native loader failure"):
         _independent_load_all_with_subphases(fabric, recorder)
     assert fabric.load == original, "profiled native method not restored"
+    assert "load" not in vars(fabric), "method descriptor was shadowed on failure"
     assert [phase["name"] for phase in recorder.phases] == [
         "independent_fabric_warp_load",
     ]
