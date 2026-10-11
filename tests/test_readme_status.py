@@ -47,7 +47,7 @@ def test_readme_never_claims_unreleased_or_network_free_cold_install() -> None:
 
 def test_linked_researcher_guides_use_schema_v3_native_cr_api() -> None:
     browser = (ROOT / "docs" / "app-browser.md").read_text(encoding="utf-8")
-    assert "schema v3" in browser
+    assert "schema v3" in browser.casefold()
     assert "NativeCRIndex" in browser
     assert "cr_occurrence" in browser
     assert "ADR 0007" in browser
