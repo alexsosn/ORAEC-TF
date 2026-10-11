@@ -42,3 +42,20 @@ def test_readme_never_claims_unreleased_or_network_free_cold_install() -> None:
     assert "Agora #224" in readme
     assert "no publicly released" in readme.casefold()
     assert "wheelhouse" in readme
+
+
+
+def test_linked_researcher_guides_use_schema_v3_native_cr_api() -> None:
+    browser = (ROOT / "docs" / "app-browser.md").read_text(encoding="utf-8")
+    assert "schema v3" in browser
+    assert "NativeCRIndex" in browser
+    assert "cr_occurrence" in browser
+    assert "ADR 0007" in browser
+    for obsolete in ("schema v2", "text_cr_offsets", "restore_source_string"):
+        assert obsolete not in browser, obsolete
+
+    installed = (ROOT / "docs" / "installed-distribution.md").read_text(
+        encoding="utf-8"
+    )
+    assert "tf-build #60" in installed
+    assert "tf-build #57" not in installed
