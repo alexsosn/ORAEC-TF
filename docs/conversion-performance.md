@@ -20,6 +20,7 @@ Phases:
 - `writer_and_ir`: parse text, metadata and mapping IR and write the whole native TF graph; this phase includes internal serialization and is not yet split further.
 - `uncached_tf_validation`: tf-build isolates and exhaustively reloads all actual `.tf` features without trusting existing binary caches.
 - `corpus_counts_reload`: independent Text-Fabric reload and exact text/sentence/token/anchor count reconciliation.
+- `source_tf_counts_probe`: experimental, strict streaming node-feature census of `otype.tf` and `token_id.tf`, compared *after* complete tf-build and Fabric reload validation. It cannot authorize publication or replace either loader; profile mode fails closed on mismatch.
 - `atomic_publish`: no-clobber completed native TF output publication.
 
 A full CI run additionally performs an **independent raw JSON/TSV-to-TF graph conservation audit** and standard advanced-app smoke *after conversion*. Those external stages have their own GitHub Actions timing; conversion phase totals do not pretend to include them.

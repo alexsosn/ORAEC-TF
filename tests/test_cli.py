@@ -536,6 +536,7 @@ def test_opt_in_conversion_profile_has_bounded_provenance_only_phases(
         "writer_and_ir",
         "uncached_tf_validation",
         "corpus_counts_reload",
+        "source_tf_counts_probe",
         "atomic_publish",
     ]
     for phase in profile["phases"]:
