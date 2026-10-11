@@ -814,7 +814,11 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     assert profiled == plain, "profiling must not alter source conservation evidence"
     record_names = [phase["name"] for phase in recorder.phases]
     assert record_names == [
-        "independent_fabric_load", "source_graph_audit", "feature_hashes",
+        "independent_fabric_warp_load",
+        "independent_fabric_features_load",
+        "independent_fabric_load",
+        "source_graph_audit",
+        "feature_hashes",
     ]
     profile = recorder.report()
     assert profile["total_wall_seconds"] >= 0
@@ -826,8 +830,13 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
             phase["process_peak_rss_kib_at_end"] is None
             or phase["process_peak_rss_kib_at_end"] >= 0
         )
-    assert profile["phases"][1]["wall_seconds"] >= 0
-    assert profile["phases"][0]["name"] == "independent_fabric_load"
+    # Both subphases are nested in the full independent Fabric load.
+    # Difference is feature exploration and scheduling, not a skipped stage.
+    assert (
+        profile["phases"][0]["wall_seconds"] + profile["phases"][1]["wall_seconds"]
+        <= profile["phases"][2]["wall_seconds"] + 0.1
+    )
+    assert profile["phases"][2]["name"] == "independent_fabric_load"
     assert "oraec1-1-1" not in json.dumps(profile)
     assert str(source) not in json.dumps(profile)
 
