@@ -33,7 +33,10 @@ def verify_installed_modules() -> dict[str, str]:
     environment = Path(sys.prefix).resolve()
     versions: dict[str, str] = {}
     for distribution, package in (("oraec-tf", oraec_tf), ("tf-build", tf_build)):
-        path = Path(package.__file__).resolve()
+        installed_file = package.__file__
+        if installed_file is None:
+            raise AssertionError(f"{distribution} has no concrete installed module")
+        path = Path(installed_file).resolve()
         if path.is_relative_to(source_tree):
             raise AssertionError(f"{distribution} imported from editable checkout: {path}")
         if not path.is_relative_to(environment):
