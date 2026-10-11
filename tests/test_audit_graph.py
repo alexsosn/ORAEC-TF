@@ -815,6 +815,8 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     assert profiled == plain, "profiling must not alter source conservation evidence"
     record_names = [phase["name"] for phase in recorder.phases]
     assert record_names == [
+        "independent_fabric_warp_precompute",
+        "independent_fabric_warp_api",
         "independent_fabric_warp_load",
         "independent_fabric_features_load",
         "independent_fabric_load",
@@ -834,10 +836,10 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     # Both subphases are nested in the full independent Fabric load.
     # Difference is feature exploration and scheduling, not a skipped stage.
     assert (
-        profile["phases"][0]["wall_seconds"] + profile["phases"][1]["wall_seconds"]
-        <= profile["phases"][2]["wall_seconds"] + 0.1
+        profile["phases"][2]["wall_seconds"] + profile["phases"][3]["wall_seconds"]
+        <= profile["phases"][4]["wall_seconds"] + 0.1
     )
-    assert profile["phases"][2]["name"] == "independent_fabric_load"
+    assert profile["phases"][4]["name"] == "independent_fabric_load"
     assert "oraec1-1-1" not in json.dumps(profile)
     assert str(source) not in json.dumps(profile)
 
@@ -910,7 +912,9 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
         if candidate.is_file() and not candidate.name.startswith(".")
     } - {"otext"}
     assert set(bulk_features) == emitted
-    assert [phase["name"] for phase in recorder.phases][:3] == [
+    assert [phase["name"] for phase in recorder.phases][:5] == [
+        "independent_fabric_warp_precompute",
+        "independent_fabric_warp_api",
         "independent_fabric_warp_load",
         "independent_fabric_features_load",
         "independent_fabric_load",
@@ -937,5 +941,37 @@ def test_profile_wrapper_restores_fabric_load_after_native_failure() -> None:
     assert fabric.load == original, "profiled native method not restored"
     assert "load" not in vars(fabric), "method descriptor was shadowed on failure"
     assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_warp_load",
+    ]
+
+
+
+def test_profiled_fabric_internal_precompute_failure_restores_all_methods() -> None:
+    """#78 RED: no native method override survives a computed-graph failure."""
+    from oraec_tf.audit_graph import _independent_load_all_with_subphases
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    class BrokenInternalFabric:
+        def _precompute(self) -> None:
+            raise RuntimeError("native precompute failure")
+
+        def _makeApi(self) -> None:
+            raise AssertionError("unexpected API construction after failure")
+
+        def load(self, features: object, *, silent: str = "deep") -> None:
+            self._precompute()
+
+        def loadAll(self, *, silent: str = "deep") -> None:
+            self.load("", silent=silent)
+
+    fabric = BrokenInternalFabric()
+    before = {key: getattr(fabric, key) for key in ("load", "_precompute", "_makeApi")}
+    recorder = PhaseRecorder(enabled=True)
+    with pytest.raises(RuntimeError, match="native precompute failure"):
+        _independent_load_all_with_subphases(fabric, recorder)
+    assert all(getattr(fabric, key) == value for key, value in before.items())
+    assert not set(before).intersection(vars(fabric))
+    assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_warp_precompute",
         "independent_fabric_warp_load",
     ]
