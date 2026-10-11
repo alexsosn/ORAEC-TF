@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -814,7 +815,11 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     assert profiled == plain, "profiling must not alter source conservation evidence"
     record_names = [phase["name"] for phase in recorder.phases]
     assert record_names == [
-        "independent_fabric_load", "source_graph_audit", "feature_hashes",
+        "independent_fabric_warp_load",
+        "independent_fabric_features_load",
+        "independent_fabric_load",
+        "source_graph_audit",
+        "feature_hashes",
     ]
     profile = recorder.report()
     assert profile["total_wall_seconds"] >= 0
@@ -826,8 +831,13 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
             phase["process_peak_rss_kib_at_end"] is None
             or phase["process_peak_rss_kib_at_end"] >= 0
         )
-    assert profile["phases"][1]["wall_seconds"] >= 0
-    assert profile["phases"][0]["name"] == "independent_fabric_load"
+    # Both subphases are nested in the full independent Fabric load.
+    # Difference is feature exploration and scheduling, not a skipped stage.
+    assert (
+        profile["phases"][0]["wall_seconds"] + profile["phases"][1]["wall_seconds"]
+        <= profile["phases"][2]["wall_seconds"] + 0.1
+    )
+    assert profile["phases"][2]["name"] == "independent_fabric_load"
     assert "oraec1-1-1" not in json.dumps(profile)
     assert str(source) not in json.dumps(profile)
 
@@ -844,3 +854,88 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
             schema_version=1,
             profile_recorder=PhaseRecorder(enabled=True),
         )
+
+
+def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#76 RED: profile the real Text-Fabric loader without changing its contract."""
+    from tf.fabric import Fabric
+
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    standard = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION, converter_revision="a" * 40, schema_version=3,
+    )
+    upstream_load = Fabric.load
+    seen: list[tuple[object, bool, object]] = []
+
+    def tracked_load(
+        self: Any, features: Any, add: bool = False, silent: Any = "deep",
+    ) -> Any:
+        seen.append((features, add, silent))
+        return upstream_load(self, features, add=add, silent=silent)
+
+    monkeypatch.setattr(Fabric, "load", tracked_load)
+    recorder = PhaseRecorder(enabled=True)
+    traced = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION, converter_revision="a" * 40, schema_version=3,
+        profile_recorder=recorder,
+    )
+    assert traced == standard
+    # Text-Fabric 13.1.0's real loadAll calls load("") then load(all, add=True).
+    assert len(seen) == 2
+    first_features, first_add, first_silent = seen[0]
+    bulk_features, bulk_add, bulk_silent = seen[1]
+    assert first_features == ""
+    assert first_add is False
+    assert first_silent == "deep"
+    assert bulk_add is True
+    assert bulk_silent == "deep"
+    assert isinstance(bulk_features, (tuple, list)), "native all-feature request type"
+    assert "token_id" in bulk_features
+    assert "written_form" in bulk_features
+    # The real loader must discover every emitted node/edge feature, not a
+    # synthetic subset chosen by this profiler.
+    # loadAll's explore() includes otype (node) and oslots (edge) even
+    # though its first load("") already loaded them; only configs are excluded.
+    emitted = {
+        candidate.stem
+        for candidate in output.glob("*.tf")
+        if candidate.is_file() and not candidate.name.startswith(".")
+    } - {"otext"}
+    assert set(bulk_features) == emitted
+    assert [phase["name"] for phase in recorder.phases][:3] == [
+        "independent_fabric_warp_load",
+        "independent_fabric_features_load",
+        "independent_fabric_load",
+    ]
+
+
+def test_profile_wrapper_restores_fabric_load_after_native_failure() -> None:
+    """Adversarial #76: a failed native load must propagate and restore the API."""
+    from oraec_tf.audit_graph import _independent_load_all_with_subphases
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    class BrokenFabric:
+        def load(self, features: object, *, silent: str = "deep") -> None:
+            raise RuntimeError("native loader failure")
+
+        def loadAll(self, *, silent: str = "deep") -> None:
+            self.load("", silent=silent)
+
+    fabric = BrokenFabric()
+    original = fabric.load
+    recorder = PhaseRecorder(enabled=True)
+    with pytest.raises(RuntimeError, match="native loader failure"):
+        _independent_load_all_with_subphases(fabric, recorder)
+    assert fabric.load == original, "profiled native method not restored"
+    assert "load" not in vars(fabric), "method descriptor was shadowed on failure"
+    assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_warp_load",
+    ]
