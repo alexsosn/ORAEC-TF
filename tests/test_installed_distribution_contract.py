@@ -17,7 +17,10 @@ def test_installed_smoke_is_syntax_valid_and_checks_real_wheel_api() -> None:
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
-    assert {"verify_installed_modules", "verify_native_tf", "verify_no_clobber", "main"} <= functions
+    required_functions = {
+        "verify_installed_modules", "verify_native_tf", "verify_no_clobber", "main",
+    }
+    assert required_functions <= functions
     for required in (
         "ORAEC_SOURCE_TREE",
         "NativeCRIndex",
