@@ -81,8 +81,20 @@ oraec-tf convert upstream/corpus_raw_data \
 Conversion uses **only local files** and performs no source fetch or network calls.
 The source must be a clean Git checkout at the exact supported immutable commit.
 The output path must be absent or empty, outside the source checkout and not a
-symbolic link. TF is first assembled in a temporary sibling directory, then
-reloaded through Text-Fabric for node-count checks before being published.
+symbolic link. TF is first assembled in a private sibling directory through
+tf-build's `BuildWorkspace`, validated from **raw .tf feature files** using
+`validate_tf_artifact(level="all")` (never trusting a newer compiled .tfx
+cache), then independently checked for ORAEC text/sentence/token/anchor
+conservation before atomic no-clobber publication. Conversion never silently
+replaces a destination created concurrently.
+
+For compatibility, an existing **empty** destination is also accepted. It is
+removed only after source validation, temporarily remains absent while the
+private build runs, and is restored on a failed conversion **only if** no
+other actor created a replacement. A concurrently created destination is
+never overwritten, even when publication fails; existing nonempty paths and
+symlinks remain forbidden. This is an ORAEC-specific output contract, not a
+new tf-build replacement API.
 
 The pinned source has 13,026 texts, 101,796 sentences and 815,026 real tokens,
 plus three explicitly marked technical anchor slots for zero-token sentences.
