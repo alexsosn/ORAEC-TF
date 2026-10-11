@@ -129,7 +129,7 @@ def test_windows_crlf_native_feature_header_preserves_timestamp_neutrality(
         f"{marker}\r\n@valueType=str\r\n"
         "@dateWritten=2026-10-11T08:00:00+00:00Z\r\n\r\n"
         "1\tword\r\n"
-    ).encode("utf-8")
+    ).encode()
     path.write_bytes(original)
     first = hash_tf_feature(path)
     assert len(first[0]) == len(first[1]) == 64
