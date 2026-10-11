@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from importlib.metadata import version
 from time import perf_counter, process_time
 from typing import Any
 
@@ -54,6 +55,12 @@ class PhaseRecorder:
     def report(self) -> dict[str, Any]:
         return {
             "format": "oraec-convert-phases-v1",
+            "environment": {
+                "python": ".".join(str(v) for v in sys.version_info[:3]),
+                "platform": sys.platform,
+                "text_fabric_version": version("text-fabric"),
+                "tf_build_version": version("tf-build"),
+            },
             "total_wall_seconds": max(0.0, perf_counter() - self._start_wall),
             "total_cpu_seconds": max(0.0, process_time() - self._start_cpu),
             "process_peak_rss_kib_at_end": _peak_rss_kib(),
