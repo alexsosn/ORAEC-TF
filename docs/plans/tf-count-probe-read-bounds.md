@@ -1,0 +1,7 @@
+# Implement count-probe line bounds (issue #72)
+
+1. **Research:** inspect actual promoted `_rows`, full real Text-Fabric writer format, LF/CRLF, source length constraints and independent full-source validation. Maintain semantic/nonsemantic boundary.
+2. **RED:** guard *actual feature streams* so any unbounded `readline` or iterator-driven line scan fails on real valid `otype.tf` and `token_id.tf`. Separate malicious unterminated first marker, header metadata and body row fixtures must raise `ProbeError` without allocating the whole attacker string in the reader. Exercise exact 4 MiB boundary where practical, including LF/CRLF preservation.
+3. **GREEN:** replace all unbounded iteration with a small helper `_bounded_line(handle, limit, context)` calling `readline(limit + 1)`; header tracks decreasing 4 MiB budget and rejects oversized records before update; body enforces 4 MiB per row. Preserve all existing syntax checks and count equations, allow final non-newline-terminated data row.
+4. **Exact-head verification:** Ruff/mypy/pytest 3.11–3.13, Windows/Linux wheelhouse, full pinned source writer+raw-source audit/advanced app, Agora independent audit; verify count parity and prior performance benefits. Independent adversarial reviewer pass on final head after tests. No merges while a gate is red or skipped.
+5. **Boundaries:** this does not impose arbitrary limits on other TF feature families or replace uncached `Fabric.load(all)`. Record legitimate-source outlier rows if full corpus falsifies the generous cap.
