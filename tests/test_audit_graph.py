@@ -897,6 +897,7 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
     assert first_silent == "deep"
     assert bulk_add is True
     assert bulk_silent == "deep"
+    assert isinstance(bulk_features, (tuple, list)), "native all-feature request type"
     assert "token_id" in bulk_features
     assert "written_form" in bulk_features
     # The real loader must discover every emitted node/edge feature, not a
