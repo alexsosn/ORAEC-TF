@@ -1,0 +1,91 @@
+name: Installed wheelhouse distribution smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "src/**"
+      - "scripts/smoke_installed_distribution.py"
+      - ".github/workflows/installed-wheelhouse.yml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "src/**"
+      - "scripts/smoke_installed_distribution.py"
+      - "tests/test_installed_distribution_contract.py"
+      - ".github/workflows/installed-wheelhouse.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-built-wheelhouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Acquire and build exact-source runtime wheels ONLINE
+        run: |
+          mkdir -p "$RUNNER_TEMP/wheelhouse"
+          python -m pip wheel --wheel-dir "$RUNNER_TEMP/wheelhouse" .
+      - name: Record SHA-256 wheel manifest and immutable tf-build pin
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import zipfile
+
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "wheelhouse"
+          artifacts = sorted(root.glob("*.whl"))
+          assert any(p.name.startswith("oraec_tf-") for p in artifacts)
+          assert any(p.name.startswith("tf_build-") for p in artifacts)
+          rows = []
+          for path in artifacts:
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              rows.append(f"{path.as_uri()} --hash=sha256:{digest}")
+              if path.name.startswith("oraec_tf-"):
+                  with zipfile.ZipFile(path) as zf:
+                      metas = [n for n in zf.namelist() if n.endswith(".dist-info/METADATA")]
+                      assert len(metas) == 1
+                      meta = zf.read(metas[0]).decode()
+                      assert "da7ff9618259f1669bdb89b134970399919accc0" in meta
+                      assert "Requires-Dist: tf-build" in meta
+          lock = pathlib.Path(os.environ["RUNNER_TEMP"]) / "wheel-manifest.txt"
+          lock.write_text("\n".join(rows) + "\n")
+          print("Wheels:", len(artifacts), "SHA-256 hashes recorded.")
+          PY
+      - name: Install source-built wheelhouse OFFLINE without Git or resolver access
+        run: |
+          python -m venv "$RUNNER_TEMP/offline-venv"
+          cd "$RUNNER_TEMP"
+          PIP_NO_INDEX=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+            "$RUNNER_TEMP/offline-venv/bin/python" -m pip install \
+            --no-index --no-deps --require-hashes \
+            -r "$RUNNER_TEMP/wheel-manifest.txt"
+          PIP_NO_INDEX=1 "$RUNNER_TEMP/offline-venv/bin/python" -m pip check
+      - name: Verify independent installed modules, CLI and native Text-Fabric
+        run: |
+          cd "$RUNNER_TEMP"
+          ORAEC_SOURCE_TREE="$GITHUB_WORKSPACE" \
+            PIP_NO_INDEX=1 \
+            PATH="$RUNNER_TEMP/offline-venv/bin" \
+            "$RUNNER_TEMP/offline-venv/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/smoke_installed_distribution.py"
+      - name: Upload checksum manifest only, not wheels or corpus
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oraec-local-wheelhouse-checksums
+          path: ${{ runner.temp }}/wheel-manifest.txt
+          if-no-files-found: warn
