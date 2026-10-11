@@ -7,7 +7,13 @@ all its modules, scripts, schema resources, or compatible pinned dependencies.
 from __future__ import annotations
 
 import ast
+import hashlib
+import zipfile
 from pathlib import Path
+
+import pytest
+
+from scripts.validate_wheelhouse_install import write_hash_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,3 +93,56 @@ def test_installed_distribution_rejects_git_on_smoke_path() -> None:
     ).read_text(encoding="utf-8")
     assert 'shutil.which("git")' in source
     assert "ORAEC_SOURCE_TREE" in source
+
+
+def _synthetic_wheel(
+    root: Path, distribution: str, *, requirement: str = "",
+) -> Path:
+    normalized = distribution.replace("-", "_")
+    file = root / f"{normalized}-0.1.0.dev0-py3-none-any.whl"
+    meta = f"Metadata-Version: 2.1\\nName: {distribution}\\nVersion: 0.1.0.dev0\\n"
+    if requirement:
+        meta += f"Requires-Dist: {requirement}\\n"
+    with zipfile.ZipFile(file, "w") as archive:
+        archive.writestr(f"{normalized}-0.1.0.dev0.dist-info/METADATA", meta)
+    return file
+
+
+def test_portable_manifest_binds_real_wheel_bytes_and_pinned_vcs_metadata(
+    tmp_path: Path,
+) -> None:
+    wheelhouse = tmp_path / "wheelhouse"
+    wheelhouse.mkdir()
+    sha = "da7ff9618259f1669bdb89b134970399919accc0"
+    oraec = _synthetic_wheel(
+        wheelhouse, "oraec-tf",
+        requirement=f"tf-build @ git+https://github.com/alexsosn/tf-build.git@{sha}",
+    )
+    _synthetic_wheel(wheelhouse, "tf-build")
+    lock = tmp_path / "manifest.txt"
+    recorded = write_hash_manifest(wheelhouse, lock)
+    lines = lock.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2
+    assert all(line.startswith("file://") and "--hash=sha256:" in line for line in lines)
+    assert recorded[oraec.name] == hashlib.sha256(oraec.read_bytes()).hexdigest()
+    assert f"--hash=sha256:{recorded[oraec.name]}" in lock.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        "",
+        "tf-build>=0.1",
+        "tf-build @ git+https://github.com/alexsosn/tf-build.git@" + "0" * 40,
+    ],
+)
+def test_portable_manifest_refuses_missing_or_mutable_tf_build_pin(
+    tmp_path: Path, requirement: str,
+) -> None:
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    _synthetic_wheel(wheels, "oraec-tf", requirement=requirement)
+    _synthetic_wheel(wheels, "tf-build")
+    with pytest.raises(ValueError, match="pin"):
+        write_hash_manifest(wheels, tmp_path / "manifest.txt")
+    assert not (tmp_path / "manifest.txt").exists()
