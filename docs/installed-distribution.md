@@ -5,7 +5,7 @@ The current immutable `tf-build` dependency is the Git commit
 `da7ff9618259f1669bdb89b134970399919accc0`, package version
 `0.1.0.dev0`. There is currently no verified public tf-build release
 wheel/tag/asset that can be downloaded independently of Git; upstream
-[tf-build issue #60](https://github.com/alexsosn/tf-build/issues/57)
+[tf-build issue #60](https://github.com/alexsosn/tf-build/issues/60)
 tracks a source-matched published distribution, stable version, and SHA-256.
 
 The exact working boundary is:
