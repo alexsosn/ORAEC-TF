@@ -26,13 +26,23 @@ def _quiet(_: str) -> None:
     return None
 
 
-def _timed(compute: Any) -> tuple[Any, dict[str, float]]:
+def _rss_highwater_kib() -> int | None:
+    """Process high-water RSS, not a per-phase memory allocation delta."""
+    if not sys.platform.startswith("linux"):
+        return None
+    import resource
+
+    return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+
+
+def _timed(compute: Any) -> tuple[Any, dict[str, float | int | None]]:
     wall = time.perf_counter()
     cpu = time.process_time()
     result = compute()
     return result, {
         "wall_seconds": time.perf_counter() - wall,
         "cpu_seconds": time.process_time() - cpu,
+        "process_peak_rss_kib_at_end": _rss_highwater_kib(),
     }
 
 
@@ -69,7 +79,8 @@ def benchmark(tf_path: Path) -> dict[str, Any]:
         "candidate_superset": candidate_time,
         "timing_caveat": (
             "single same-process order-dependent observation; native load "
-            "runs first and may warm caches; no production speedup claim"
+            "runs first and may warm caches; RSS is process high-water mark, "
+            "not phase allocation; no production speedup claim"
         ),
     }
 
