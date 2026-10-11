@@ -9,13 +9,22 @@ from __future__ import annotations
 import ast
 import hashlib
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
+from runpy import run_path
+from typing import cast
 
 import pytest
 
-from scripts.validate_wheelhouse_install import write_hash_manifest
-
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
+    """Load the repository-only release script without adding a package import."""
+    path = ROOT / "scripts" / "validate_wheelhouse_install.py"
+    module = run_path(str(path))
+    writer = cast(Callable[[Path, Path], dict[str, str]], module["write_hash_manifest"])
+    return writer(wheelhouse, manifest)
 
 
 def test_installed_smoke_is_syntax_valid_and_checks_real_wheel_api() -> None:
@@ -123,7 +132,7 @@ def test_portable_manifest_binds_real_wheel_bytes_and_pinned_vcs_metadata(
     )
     _synthetic_wheel(wheelhouse, "tf-build")
     lock = tmp_path / "manifest.txt"
-    recorded = write_hash_manifest(wheelhouse, lock)
+    recorded = _write_hash_manifest(wheelhouse, lock)
     lines = lock.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 2
     assert all(line.startswith("file://") and "--hash=sha256:" in line for line in lines)
@@ -147,5 +156,5 @@ def test_portable_manifest_refuses_missing_or_mutable_tf_build_pin(
     _synthetic_wheel(wheels, "oraec-tf", requirement=requirement)
     _synthetic_wheel(wheels, "tf-build")
     with pytest.raises(ValueError, match="pin"):
-        write_hash_manifest(wheels, tmp_path / "manifest.txt")
+        _write_hash_manifest(wheels, tmp_path / "manifest.txt")
     assert not (tmp_path / "manifest.txt").exists()
