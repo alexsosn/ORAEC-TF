@@ -7,9 +7,24 @@ all its modules, scripts, schema resources, or compatible pinned dependencies.
 from __future__ import annotations
 
 import ast
+import hashlib
+import zipfile
+from collections.abc import Callable
 from pathlib import Path
+from runpy import run_path
+from typing import cast
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
+    """Load the repository-only release script without adding a package import."""
+    path = ROOT / "scripts" / "validate_wheelhouse_install.py"
+    module = run_path(str(path))
+    writer = cast(Callable[[Path, Path], dict[str, str]], module["write_hash_manifest"])
+    return writer(wheelhouse, manifest)
 
 
 def test_installed_smoke_is_syntax_valid_and_checks_real_wheel_api() -> None:
@@ -38,15 +53,108 @@ def test_ci_builds_wheels_online_but_installs_offline_without_git() -> None:
     workflow = (
         ROOT / ".github" / "workflows" / "installed-wheelhouse.yml"
     ).read_text(encoding="utf-8")
+    runner = (
+        ROOT / "scripts" / "validate_wheelhouse_install.py"
+    ).read_text(encoding="utf-8")
+    assert "pip wheel" in workflow
+    assert "wheel-manifest.txt" in workflow
+    assert '"pip", "check"' in runner
     for required in (
-        "pip wheel",
         "--no-index",
         "--no-deps",
-        "pip check",
         "smoke_installed_distribution.py",
         "sha256",
         "ORAEC_SOURCE_TREE",
     ):
-        assert required in workflow
+        assert required in runner
     assert "pip install -e" not in workflow
     assert "workflow_dispatch:" in workflow
+
+
+def test_offline_wheelhouse_runs_real_windows_and_linux_installed_smokes() -> None:
+    """#59: Linux-only source-built wheelhouse is not cross-platform evidence."""
+    workflow = (
+        ROOT / ".github" / "workflows" / "installed-wheelhouse.yml"
+    ).read_text(encoding="utf-8")
+    helper = ROOT / "scripts" / "validate_wheelhouse_install.py"
+    assert helper.is_file(), "wheelhouse verifier must be platform portable"
+    source = helper.read_text(encoding="utf-8")
+    ast.parse(source, filename=str(helper))
+    assert "ubuntu-latest" in workflow and "windows-latest" in workflow
+    assert "matrix.os" in workflow
+    assert "validate_wheelhouse_install.py" in workflow
+    assert "pip wheel" in workflow
+    assert "wheel-manifest.txt" in workflow
+    assert '"pip", "check"' in source
+    for literal in (
+        "--no-index", "--no-deps", "--require-hashes",
+        "PIP_NO_INDEX", "ORAEC_SOURCE_TREE",
+        "smoke_installed_distribution.py", "PATH", "sha256",
+        "Requires-Dist", "da7ff9618259f1669bdb89b134970399919accc0",
+    ):
+        assert literal in source, literal
+    # A platform-specific venv/Scripts vs venv/bin layout must be resolved
+    # by the helper, never hardcoded to POSIX inside the workflow.
+    assert "offline-venv/bin" not in workflow
+    assert "source-built-wheelhouse" in workflow
+
+
+def test_installed_distribution_rejects_git_on_smoke_path() -> None:
+    source = (
+        ROOT / "scripts" / "smoke_installed_distribution.py"
+    ).read_text(encoding="utf-8")
+    assert 'shutil.which("git")' in source
+    assert "ORAEC_SOURCE_TREE" in source
+
+
+def _synthetic_wheel(
+    root: Path, distribution: str, *, requirement: str = "",
+) -> Path:
+    normalized = distribution.replace("-", "_")
+    file = root / f"{normalized}-0.1.0.dev0-py3-none-any.whl"
+    meta = f"Metadata-Version: 2.1\nName: {distribution}\nVersion: 0.1.0.dev0\n"
+    if requirement:
+        meta += f"Requires-Dist: {requirement}\n"
+    with zipfile.ZipFile(file, "w") as archive:
+        archive.writestr(f"{normalized}-0.1.0.dev0.dist-info/METADATA", meta)
+    return file
+
+
+def test_portable_manifest_binds_real_wheel_bytes_and_pinned_vcs_metadata(
+    tmp_path: Path,
+) -> None:
+    wheelhouse = tmp_path / "wheelhouse"
+    wheelhouse.mkdir()
+    sha = "da7ff9618259f1669bdb89b134970399919accc0"
+    oraec = _synthetic_wheel(
+        wheelhouse, "oraec-tf",
+        requirement=f"tf-build @ git+https://github.com/alexsosn/tf-build.git@{sha}",
+    )
+    _synthetic_wheel(wheelhouse, "tf-build")
+    lock = tmp_path / "manifest.txt"
+    recorded = _write_hash_manifest(wheelhouse, lock)
+    lines = lock.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2
+    assert all(line.startswith("file://") and "--hash=sha256:" in line for line in lines)
+    assert recorded[oraec.name] == hashlib.sha256(oraec.read_bytes()).hexdigest()
+    assert f"--hash=sha256:{recorded[oraec.name]}" in lock.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        "",
+        "tf-build>=0.1",
+        "tf-build @ git+https://github.com/alexsosn/tf-build.git@" + "0" * 40,
+    ],
+)
+def test_portable_manifest_refuses_missing_or_mutable_tf_build_pin(
+    tmp_path: Path, requirement: str,
+) -> None:
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    _synthetic_wheel(wheels, "oraec-tf", requirement=requirement)
+    _synthetic_wheel(wheels, "tf-build")
+    with pytest.raises(ValueError, match="pin"):
+        _write_hash_manifest(wheels, tmp_path / "manifest.txt")
+    assert not (tmp_path / "manifest.txt").exists()

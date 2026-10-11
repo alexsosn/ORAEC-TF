@@ -30,6 +30,25 @@ The exact working boundary is:
    Egyptian native TF graph, original Unicode reconstruction using
    `NativeCRIndex`, and the genuine cross-platform no-clobber publisher.
 
+## Portable development wheelhouse test
+
+The same installed-distribution check now runs as an Actions matrix on
+`ubuntu-latest` and `windows-latest`, using Python 3.12. Wheel acquisition
+and compilation happen online **before** the offline-install phase. A shared
+`scripts/validate_wheelhouse_install.py` harness inspects the actual wheel
+`METADATA` for the exact development tf-build commit, hashes every wheel,
+generates a local `file://...` SHA-256 pip manifest, creates a fresh virtual
+environment, and installs from wheel files using `--no-index --no-deps
+--require-hashes`. It then runs `pip check` and the same noneditable
+`smoke_installed_distribution.py` from outside the checkout on both operating
+systems with Git removed from `PATH`.
+
+Successful jobs demonstrate **platform-specific local-wheelhouse execution**,
+not a permanent independently published or version-locked tf-build wheel. No
+wheel payload, corpus source or generated TF is uploaded as an artifact; the
+job records only its local SHA-256 manifest. A passing Windows run is required
+before describing this matrix as validated across operating systems.
+
 The wheelhouse manifest is a record of **this particular CI job**, not an
 immutable cross-machine dependency lock. Wheels are *not uploaded* as CI
 artifacts or silently treated as an official release. Every offline install
