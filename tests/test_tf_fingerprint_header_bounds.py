@@ -18,6 +18,7 @@ class _GuardedBinaryReader:
     def __init__(self, stream: IO[Any], sizes: list[int]) -> None:
         self.stream = stream
         self.sizes = sizes
+        self.consumed_header = 0
 
     def __enter__(self) -> _GuardedBinaryReader:
         self.stream.__enter__()
@@ -36,7 +37,12 @@ class _GuardedBinaryReader:
         assert 0 < size <= tf_fingerprints.HEADER_LIMIT + 1, (
             "unbounded header read or budget overshoot"
         )
-        return cast(bytes, self.stream.readline(size))
+        assert size == tf_fingerprints.HEADER_LIMIT - self.consumed_header + 1, (
+            "header read does not respect remaining byte budget"
+        )
+        chunk = cast(bytes, self.stream.readline(size))
+        self.consumed_header += len(chunk)
+        return chunk
 
     def read(self, size: int = -1) -> bytes:
         assert 0 < size <= 1024 * 1024, "unbounded feature body read"
@@ -69,11 +75,13 @@ def test_authentic_header_reads_are_explicitly_bounded(
     assert observed[0] == tf_fingerprints.HEADER_LIMIT + 1
 
 
+@pytest.mark.parametrize("oversize_first_line", [False, True])
 def test_unterminated_oversize_metadata_cannot_be_read_without_a_cap(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, oversize_first_line: bool,
 ) -> None:
     path = tmp_path / "hostile.tf"
-    path.write_bytes(b"@node\n@description=" + b"x" * (tf_fingerprints.HEADER_LIMIT + 1))
+    prefix = b"" if oversize_first_line else b"@node\n@description="
+    path.write_bytes(prefix + b"x" * (tf_fingerprints.HEADER_LIMIT + 1))
     original_open = Path.open
     observed: list[int] = []
 
@@ -84,7 +92,7 @@ def test_unterminated_oversize_metadata_cannot_be_read_without_a_cap(
     monkeypatch.setattr(Path, "open", guarded_open)
     with pytest.raises(FingerprintError, match="oversized"):
         hash_tf_feature(path)
-    assert len(observed) == 2
+    assert len(observed) == (1 if oversize_first_line else 2)
     assert all(0 < size <= tf_fingerprints.HEADER_LIMIT + 1 for size in observed)
 
 
