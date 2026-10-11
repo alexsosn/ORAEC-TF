@@ -814,7 +814,13 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     )
     assert profiled == plain, "profiling must not alter source conservation evidence"
     record_names = [phase["name"] for phase in recorder.phases]
-    assert record_names[:3] == [
+    # Native Data.load may be invoked again for dependency checks. Verify
+    # the order of first computations without pretending each runs once.
+    compute_names = [
+        name for name in record_names
+        if name.startswith("independent_fabric_compute_")
+    ]
+    assert list(dict.fromkeys(compute_names))[:3] == [
         "independent_fabric_compute_levels",
         "independent_fabric_compute_order",
         "independent_fabric_compute_rank",
