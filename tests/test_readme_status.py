@@ -29,7 +29,7 @@ def test_readme_describes_implemented_schema_and_real_release_boundaries() -> No
         "docs/app-browser.md",
         "docs/agora.md",
         "docs/installed-distribution.md",
-        "docs/adr/0007-native-cr-occurrences.md",
+        "docs/adr/0007-native-carriage-return-occurrences.md",
     ):
         assert f"]({destination})" in readme, destination
         assert (ROOT / destination).is_file(), destination
