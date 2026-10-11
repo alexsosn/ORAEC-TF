@@ -14,7 +14,7 @@ The initial supported upstream snapshot is:
 - commit: `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`
 - upstream commit date: 2024-06-03
 
-The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The audited semantic contract is frozen as native **schema v3** in [`schema/core.json`](schema/core.json); all source-to-TF string and relationship conservation checks run on the complete immutable corpus. Excluded derived analytics and unlicensed Karnak crosswalks remain explicitly out of the default release scope.
+The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The audited semantic contract is frozen as native **schema v3** in [`schema/core.json`](schema/core.json); all source-to-TF string and relationship conservation checks run on the complete immutable corpus. Excluded derived analytics and Karnak crosswalks with unresolved file-level licence evidence remain explicitly out of the default release scope.
 
 ## Implemented architecture
 
