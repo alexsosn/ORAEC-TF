@@ -79,6 +79,14 @@ jobs:
           python scripts/validate_advanced_app.py reports/generated/tf \
             > reports/generated/advanced-app-validation.json
 
+      # Experimental branch-only native equivalence/performance proof.
+      # Never runs on the production main audit or ordinary PRs.
+      - name: Research native levUp versus candidate-superset on same pinned graph
+        if: ${{ github.head_ref == 'perf/levup-equivalence-prototype-82' }}
+        run: |
+          python scripts/benchmark_levup_prototype.py reports/generated/tf \
+            --report reports/generated/levup-benchmark.json
+
       - name: Upload counts and provenance only
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,4 +97,5 @@ jobs:
             reports/generated/graph-conservation.json
             reports/generated/independent-audit-profile.json
             reports/generated/advanced-app-validation.json
+            reports/generated/levup-benchmark.json
           if-no-files-found: warn
