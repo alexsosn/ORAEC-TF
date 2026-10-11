@@ -20,6 +20,8 @@ from typing import Any
 
 from tf.fabric import Fabric
 
+from .tf_fingerprints import hash_tf_feature
+
 TEXT_NAME_RE = re.compile(r"oraec[0-9]+\.json\Z")
 RAW_RECORD_KEYS = {
     "oraecid", "title", "sentences", "credits", "bibliography", "condition",
@@ -1019,13 +1021,12 @@ def audit_graph_with_provenance(
     if not paths:
         raise GraphConservationError("generated TF contains no feature files")
     output_hashes: dict[str, str] = {}
+    semantic_hashes: dict[str, str] = {}
     output_bytes: dict[str, int] = {}
     for path in paths:
-        digest = hashlib.sha256()
-        with path.open("rb") as handle:
-            for block in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(block)
-        output_hashes[path.name] = digest.hexdigest()
+        raw_digest, semantic_digest = hash_tf_feature(path)
+        output_hashes[path.name] = raw_digest
+        semantic_hashes[path.name] = semantic_digest
         output_bytes[path.name] = path.stat().st_size
     return {
         "ok": True,
@@ -1038,4 +1039,5 @@ def audit_graph_with_provenance(
         "counts": counts,
         "native_cr_occurrences": cr_census,
         "output_sha256": output_hashes,
+        "output_semantic_sha256": semantic_hashes,
     }

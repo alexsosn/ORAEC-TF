@@ -134,6 +134,8 @@ Agora registration remain separate gates (#12 and Agora #224).
 
 The repository includes a tested standard Text-Fabric advanced app and browser configuration in `app/`, with transliteration and faithful hieroglyphic rendering (including upstream uncertainty markers). A custom web application is not required. See the [browser instructions](docs/app-browser.md), [complete native TF feature reference](docs/feature-reference.md), and [runnable researcher query recipes](docs/query-recipes.md). The documented application works with locally generated `.tf` data; no corpus is bundled.
 
+Reproducibility metadata now records both exact artifact-byte SHA-256 and a separate [timestamp-neutral Text-Fabric feature fingerprint](docs/semantic-fingerprints.md) in validation and Agora manifests. These are provenance diagnostics, not substitutes for complete independent source-to-graph conservation.
+
 ## Agora
 
 ORAEC-TF owns source parsing, scholarly semantics, TF construction, validation, app configuration, and source-specific documentation.

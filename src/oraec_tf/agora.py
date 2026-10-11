@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import hashlib
 import io
 import json
 import shutil
@@ -28,27 +27,27 @@ from .source import (
     SourceAcquisitionError,
     validate_revision,
 )
+from .tf_fingerprints import hash_tf_feature
 
 REQUIRED_WARP = ("otype.tf", "oslots.tf", "otext.tf")
 
 
-def _fingerprints(tf_path: Path) -> dict[str, str]:
-    """Hash research features without copying their source contents."""
-    result: dict[str, str] = {}
+def _fingerprint_pairs(tf_path: Path) -> dict[str, tuple[str, str]]:
+    """Hash once per feature, retaining both raw and timestamp-neutral SHA256."""
+    result: dict[str, tuple[str, str]] = {}
     for path in sorted(tf_path.glob("*.tf")):
-        # Text-Fabric creates a cache directory literally named ".tf" after
-        # loading the graph. pathlib.glob("*.tf") includes that directory.
-        # Refuse feature symlinks rather than hashing arbitrary external data.
+        # TF creates a cache directory named ".tf", which glob("*.tf") finds.
         if path.is_symlink():
             raise ValueError(f"unexpected symlinked TF feature: {path.name}")
         if not path.is_file():
             continue
-        digest = hashlib.sha256()
-        with path.open("rb") as handle:
-            for block in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(block)
-        result[path.name] = digest.hexdigest()
+        result[path.name] = hash_tf_feature(path)
     return result
+
+
+def _fingerprints(tf_path: Path) -> dict[str, str]:
+    """Backward-compatible raw-byte hash view of validated native features."""
+    return {name: pair[0] for name, pair in _fingerprint_pairs(tf_path).items()}
 
 
 def _discard_tf_runtime_cache(tf_path: Path) -> None:
@@ -146,8 +145,8 @@ def materialize(
         missing = [name for name in REQUIRED_WARP if not (tf_dir / name).is_file()]
         if missing:
             raise RuntimeError(f"converted TF missing mandatory warp files: {missing}")
-        hashes = _fingerprints(tf_dir)
-        if not hashes:
+        fingerprints = _fingerprint_pairs(tf_dir)
+        if not fingerprints:
             raise RuntimeError("converted TF has no feature files")
         report: dict[str, Any] = {
             "format": "text-fabric",
@@ -157,7 +156,10 @@ def materialize(
             "converter_version": version("oraec-tf"),
             "validation": "public CLI pinned-source preflight + TF reload and counts",
             "counts": cli_summary["counts"],
-            "tf_sha256": hashes,
+            "tf_sha256": {name: pair[0] for name, pair in fingerprints.items()},
+            "tf_semantic_sha256": {
+                name: pair[1] for name, pair in fingerprints.items()
+            },
         }
         (stage / "conversion-summary.json").write_text(
             json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",

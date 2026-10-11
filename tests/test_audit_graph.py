@@ -360,6 +360,9 @@ def test_audit_report_hashes_generated_tf_without_semantic_sidecars(
         path.stat().st_size for path in output.glob("*.tf") if path.is_file()
     )
     assert all(path.endswith(".tf") for path in report["output_sha256"])
+    assert report["output_semantic_sha256"]
+    assert set(report["output_semantic_sha256"]) == set(report["output_sha256"])
+    assert len(report["output_semantic_sha256"]["otype.tf"]) == 64
 
 
 @pytest.mark.parametrize("field", ["bibliography", "condition"])
