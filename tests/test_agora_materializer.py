@@ -90,6 +90,116 @@ def test_adapter_delegates_to_public_cli_without_fetching(
     assert not destination.joinpath("verified-source").exists()
 
 
+
+def test_agora_outer_publication_never_replaces_competing_empty_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: old Path.replace silently overwrote the concurrent empty directory."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "source"
+    output = tmp_path / "published"
+    competitor_inode: list[int] = []
+
+    def competing_cli(argv: list[str]) -> int:
+        assert argv[0] == "convert"
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for name, kind in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / name).write_text(f"{kind}\n\n", encoding="utf-8")
+        assert not output.exists()
+        output.mkdir()
+        competitor_inode.append(output.stat().st_ino)
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", competing_cli)
+    with pytest.raises(FileExistsError):
+        agora.materialize(
+            source, output, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert competitor_inode
+    assert output.is_dir()
+    assert output.stat().st_ino == competitor_inode[0]
+    assert not any(output.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
+def test_agora_publishes_into_preexisting_empty_output_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    output = tmp_path / "published"
+    output.mkdir()
+
+    def successful_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for name, marker in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / name).write_text(f"{marker}\n\n", encoding="utf-8")
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", successful_cli)
+    report = agora.materialize(
+        source, output, source_revision=DEFAULT_SOURCE_REVISION
+    )
+    assert report["source_revision"] == DEFAULT_SOURCE_REVISION
+    assert (output / "tf" / "otype.tf").is_file()
+    assert (output / "conversion-summary.json").is_file()
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
+def test_agora_restores_existing_empty_output_after_failed_conversion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "source"
+    destination = tmp_path / "published"
+    destination.mkdir()
+
+    def failed_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        (tf_dir / "partial.tf").write_bytes(b"partial")
+        raise RuntimeError("late ORAEC conversion failure")
+
+    monkeypatch.setattr(cli, "main", failed_cli)
+    with pytest.raises(RuntimeError, match="late ORAEC"):
+        agora.materialize(
+            source, destination, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert destination.is_dir()
+    assert not any(destination.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))
+
+
+
 def test_adapter_rejects_mutable_or_unapproved_source_revision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
@@ -160,3 +270,141 @@ def test_fingerprints_refuse_symlinked_feature_data(tmp_path: Path) -> None:
     (tf_dir / "otype.tf").symlink_to(external)
     with pytest.raises(ValueError, match="symlink"):
         _fingerprints(tf_dir)
+
+
+
+def test_agora_parent_alias_swap_preserves_verified_source_and_original_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: after CLI returns, a moved output-parent alias must be irrelevant."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    source.mkdir()
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    output = alias / "published"
+    output.mkdir()
+
+    def source_safe_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for name, kind in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / name).write_text(f"{kind}\n\n", encoding="utf-8")
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        return 0
+
+    monkeypatch.setattr(cli, "main", source_safe_cli)
+    report = agora.materialize(source, output, source_revision=DEFAULT_SOURCE_REVISION)
+    assert report["source_revision"] == DEFAULT_SOURCE_REVISION
+    assert (safe / "published" / "tf" / "otype.tf").is_file()
+    assert not (source / "published").exists()
+    assert not tuple(safe.glob(".published.agora-*"))
+
+
+def test_agora_late_failure_restores_only_original_canonical_empty_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: recovery must not create a directory inside source via moved alias."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    source.mkdir()
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    alias = tmp_path / "output-alias"
+    alias.symlink_to(safe, target_is_directory=True)
+    output = alias / "published"
+    output.mkdir()
+
+    def failed_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        (tf_dir / "partial.tf").write_text("partial", encoding="utf-8")
+        alias.unlink()
+        alias.symlink_to(source, target_is_directory=True)
+        raise RuntimeError("late failure after parent alias moved")
+
+    monkeypatch.setattr(cli, "main", failed_cli)
+    with pytest.raises(RuntimeError, match="parent alias moved"):
+        agora.materialize(source, output, source_revision=DEFAULT_SOURCE_REVISION)
+    assert (safe / "published").is_dir()
+    assert not any((safe / "published").iterdir())
+    assert not (source / "published").exists()
+    assert not tuple(safe.glob(".published.agora-*"))
+
+
+
+def test_agora_uses_published_tf_build_no_clobber_api() -> None:
+    """RED: do not depend on the private tf-build._atomic implementation."""
+    from tf_build.publication import publish_path_no_clobber
+
+    from oraec_tf import agora
+
+    assert vars(agora)["publish_path_no_clobber"] is publish_path_no_clobber
+
+
+
+def test_agora_preserves_replacement_of_preexisting_empty_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """RED: a rival empty directory replaces the original during conversion."""
+    from oraec_tf import agora, cli
+
+    source = tmp_path / "verified-source"
+    destination = tmp_path / "published"
+    destination.mkdir()
+    initial_inode = destination.stat().st_ino
+    parked = tmp_path / "parked-original-empty"
+    rival_inode: list[int] = []
+
+    def racing_cli(argv: list[str]) -> int:
+        tf_dir = Path(argv[3])
+        tf_dir.mkdir(parents=True)
+        for filename, marker in (
+            ("otype.tf", "@node"),
+            ("oslots.tf", "@edge"),
+            ("otext.tf", "@config"),
+        ):
+            (tf_dir / filename).write_text(f"{marker}\n\n", encoding="utf-8")
+        # The original empty output remains physically present under a new
+        # name. Its concurrently installed successor must never be removed.
+        destination.rename(parked)
+        destination.mkdir()
+        rival_inode.append(destination.stat().st_ino)
+        assert rival_inode[-1] != initial_inode
+        print(json.dumps({
+            "output": str(tf_dir.resolve()),
+            "revision": DEFAULT_SOURCE_REVISION,
+            "counts": {
+                "texts": 1, "sentences": 1, "tokens": 1,
+                "technical_anchors": 0, "slots": 1,
+            },
+        }))
+        return 0
+
+    monkeypatch.setattr(cli, "main", racing_cli)
+    with pytest.raises(FileExistsError, match="output|changed|destination"):
+        agora.materialize(
+            source, destination, source_revision=DEFAULT_SOURCE_REVISION
+        )
+    assert rival_inode
+    assert parked.stat().st_ino == initial_inode
+    assert destination.stat().st_ino == rival_inode[-1]
+    assert not any(destination.iterdir())
+    assert not tuple(tmp_path.glob(".published.agora-*"))

@@ -14,7 +14,7 @@ authors = [
 ]
 dependencies = [
   "text-fabric>=13.1,<14",
-  "tf-build @ git+https://github.com/alexsosn/tf-build.git@2b2f0f8776b42423d4b450d4e2fe0040ab63a8e6",
+  "tf-build @ git+https://github.com/alexsosn/tf-build.git@da7ff9618259f1669bdb89b134970399919accc0",
 ]
 
 [project.scripts]
