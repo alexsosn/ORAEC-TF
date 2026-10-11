@@ -12,7 +12,6 @@ import argparse
 import hashlib
 import os
 import subprocess
-import sys
 import venv
 import zipfile
 from email.parser import Parser
