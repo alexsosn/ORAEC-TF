@@ -726,6 +726,10 @@ def _independent_load_all_with_subphases(
     """
     if not recorder.enabled:
         return fabric.loadAll(silent="deep")
+    # Preserve the object's descriptor resolution as well as method values:
+    # assigning a bound method back would leave a persistent instance override.
+    previous_override = vars(fabric).get("load")
+    had_override = "load" in vars(fabric)
     real_load = fabric.load
     invocation = 0
 
@@ -743,7 +747,10 @@ def _independent_load_all_with_subphases(
     try:
         return fabric.loadAll(silent="deep")
     finally:
-        fabric.load = real_load
+        if had_override:
+            fabric.load = previous_override
+        else:
+            del fabric.load
 
 
 def audit_basic_graph(
