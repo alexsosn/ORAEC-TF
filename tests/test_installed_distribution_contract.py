@@ -38,8 +38,11 @@ def test_ci_builds_wheels_online_but_installs_offline_without_git() -> None:
     workflow = (
         ROOT / ".github" / "workflows" / "installed-wheelhouse.yml"
     ).read_text(encoding="utf-8")
+    runner = (
+        ROOT / "scripts" / "validate_wheelhouse_install.py"
+    ).read_text(encoding="utf-8")
+    assert "pip wheel" in workflow
     for required in (
-        "pip wheel",
         "--no-index",
         "--no-deps",
         "pip check",
@@ -47,7 +50,7 @@ def test_ci_builds_wheels_online_but_installs_offline_without_git() -> None:
         "sha256",
         "ORAEC_SOURCE_TREE",
     ):
-        assert required in workflow
+        assert required in runner
     assert "pip install -e" not in workflow
     assert "workflow_dispatch:" in workflow
 
