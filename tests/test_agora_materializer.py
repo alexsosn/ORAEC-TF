@@ -261,7 +261,8 @@ def test_fingerprints_skip_real_text_fabric_dot_tf_cache_directory(
     expected = b"@node\n@dateWritten=2026-10-11T08:00:00Z\n\n1\tword\n"
     (tmp_path / "otype.tf").write_bytes(expected)
     (tmp_path / "oslots.tf").write_bytes(
-        b"@edge\n@dateWritten=2026-10-11T08:00:00Z\n\n"\n    )
+        b"@edge\n@dateWritten=2026-10-11T08:00:00Z\n\n"
+    )
 
     # The file fingerprint inventory should contain only actual feature
     # files, not the dot-prefixed TF cache directory matched by glob('*.tf').
