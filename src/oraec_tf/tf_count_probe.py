@@ -9,6 +9,7 @@ the documented @node text feature format, never binary caches or source JSON.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 from .text_codec import NODE_TYPES
@@ -40,11 +41,10 @@ def _span(spec: str, next_implicit: int) -> tuple[tuple[tuple[int, int], ...], i
     return tuple(spans), max(stop for _start, stop in spans) + 1
 
 
-def _rows(path: Path) -> list[tuple[tuple[tuple[int, int], ...], str]]:
+def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
     """Read only two particular TF node features with strict fail-closed syntax."""
     if path.is_symlink() or not path.is_file():
         raise ProbeError(f"missing or symlinked source feature: {path.name}")
-    rows: list[tuple[tuple[tuple[int, int], ...], str]] = []
     with path.open("r", encoding="utf-8", newline="") as handle:
         first = handle.readline().rstrip("\n")
         if first != "@node":
@@ -66,6 +66,7 @@ def _rows(path: Path) -> list[tuple[tuple[tuple[int, int], ...], str]]:
             raise ProbeError(f"{path.name}: expected string node feature")
         previous = 0
         next_implicit = 1
+        had_rows = False
         for line in handle:
             if "\r" in line:
                 raise ProbeError(f"{path.name}: raw CR outside TF escaping contract")
@@ -80,10 +81,10 @@ def _rows(path: Path) -> list[tuple[tuple[tuple[int, int], ...], str]]:
             if spans[0][0] <= previous:
                 raise ProbeError(f"{path.name}: duplicate or out-of-order node assignment")
             previous = spans[-1][1]
-            rows.append((spans, value))
-    if not rows:
-        raise ProbeError(f"{path.name}: source feature contains no data")
-    return rows
+            had_rows = True
+            yield spans, value
+        if not had_rows:
+            raise ProbeError(f"{path.name}: source feature contains no data")
 
 
 def probe_tf_counts(directory: str | Path) -> dict[str, int]:
