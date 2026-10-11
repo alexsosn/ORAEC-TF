@@ -11,6 +11,6 @@ Date: 2026-10-11. Scope: `src/oraec_tf/tf_fingerprints.py` only; no graph/schema
 
 ## Required invariant
 
-Every header `readline` must have an explicit positive maximum based on the remaining `HEADER_LIMIT` budget, including the initial type marker. No oversize/partial row is accepted or fed into either digest. Ordinary LF/CRLF feature hashes, clock neutrality, and failures for invalid metadata must remain identical. Hashes are not a substitute for independent source-to-graph conservation.
+Every header `readline` must have an explicit positive maximum based on the remaining `HEADER_LIMIT` budget, including the initial type marker. No oversized row is hashed before the size rejection; incomplete metadata rows fail closed without yielding either digest. Ordinary LF/CRLF feature hashes, clock neutrality, and failures for invalid metadata must remain identical. Hashes are not a substitute for independent source-to-graph conservation.
 
 This is a header-parsing resource-exhaustion fix, not a change to published TF bytes or corpus semantics.
