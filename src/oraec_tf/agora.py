@@ -96,14 +96,24 @@ def materialize(
         raise ValueError("output must be an absent or empty directory, not a symlink")
 
     source_path = Path(source).resolve()
+    # Pin the output's *physical* parent exactly once. A caller-owned parent
+    # symlink may be repointed during the nested CLI or cleanup; never use it
+    # for the final artifact, stage cleanup, or restoration.
     resolved_target = target.resolve()
     if source_path == resolved_target or source_path in resolved_target.parents:
         raise ValueError("output cannot be inside the ORAEC source worktree")
+    if resolved_target.is_symlink() or (
+        resolved_target.exists()
+        and (not resolved_target.is_dir() or any(resolved_target.iterdir()))
+    ):
+        raise ValueError("output must be an absent or empty directory, not a symlink")
 
-    parent = target.parent
+    parent = resolved_target.parent
     parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.agora-", dir=parent))
-    preexisting_empty_dir = target.exists()
+    stage = Path(
+        tempfile.mkdtemp(prefix=f".{resolved_target.name}.agora-", dir=parent)
+    )
+    preexisting_empty_dir = resolved_target.is_dir()
     try:
         tf_dir = stage / "tf"
         capture = io.StringIO()
@@ -149,15 +159,23 @@ def materialize(
             encoding="utf-8",
         )
         if preexisting_empty_dir:
-            target.rmdir()
-        # The target can be claimed after preflight or empty-directory removal.
-        # A no-clobber rename is required at this independent outer boundary.
-        publish_path_no_clobber(stage, target)
+            resolved_target.rmdir()
+        # A competitor can claim the canonical target after the empty-directory
+        # removal. The no-clobber publisher must not replace that claim.
+        publish_path_no_clobber(stage, resolved_target)
         return report
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
-        if preexisting_empty_dir and not target.exists():
-            target.mkdir()
+        if (
+            preexisting_empty_dir
+            and not resolved_target.exists()
+            and not resolved_target.is_symlink()
+        ):
+            try:
+                resolved_target.mkdir()
+            except FileExistsError:
+                # Another actor won the publication/restore race.
+                pass
         raise
 
 
