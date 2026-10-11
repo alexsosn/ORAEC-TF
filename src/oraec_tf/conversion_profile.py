@@ -8,9 +8,10 @@ mark since process start, NOT a phase-local allocation delta.
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from contextlib import contextmanager
 from time import perf_counter, process_time
-from typing import Any, Iterator
+from typing import Any
 
 
 def _peak_rss_kib() -> int | None:
