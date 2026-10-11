@@ -5,7 +5,7 @@ features are created independently at different controlled TF writer times.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -22,7 +22,7 @@ def _graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str,
     at: datetime,
 ) -> Path:
-    monkeypatch.setattr(tf_data, "utcnow", lambda: at)
+    monkeypatch.setattr(tf_data, "utcnow", lambda: at.replace(tzinfo=timezone.utc))
     output = tmp_path / name
     text = TextIR(
         oraec_id="oraec1", title="Immutable glyph 𓀀",
@@ -79,7 +79,7 @@ def test_semantic_hash_detects_content_and_nontimestamp_metadata_changes(
 
 @pytest.mark.parametrize(
     "mutation",
-    ["missing", "duplicate", "bad-date", "empty-date", "no-separator", "header-cr"],
+    ["missing", "duplicate", "bad-date", "empty-date", "wrong-zone", "no-separator", "header-cr"],
 )
 def test_fails_closed_on_untrustworthy_timestamp_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
@@ -87,7 +87,7 @@ def test_fails_closed_on_untrustworthy_timestamp_metadata(
     output = _graph(tmp_path, monkeypatch, "graph", datetime(2026, 10, 11, 8, 0))
     path = output / "otype.tf"
     original = path.read_bytes()
-    timestamp = b"@dateWritten=2026-10-11T08:00:00Z\n"
+    timestamp = b"@dateWritten=2026-10-11T08:00:00+00:00Z\n"
     assert timestamp in original
     if mutation == "missing":
         altered = original.replace(timestamp, b"")
@@ -97,6 +97,8 @@ def test_fails_closed_on_untrustworthy_timestamp_metadata(
         altered = original.replace(timestamp, b"@dateWritten=2026-99-99T08:00:00Z\n")
     elif mutation == "empty-date":
         altered = original.replace(timestamp, b"@dateWritten=\n")
+    elif mutation == "wrong-zone":
+        altered = original.replace(timestamp, b"@dateWritten=2026-10-11T08:00:00+03:00Z\n")
     elif mutation == "no-separator":
         altered = original.replace(b"\n\n", b"\n", 1)
     else:
