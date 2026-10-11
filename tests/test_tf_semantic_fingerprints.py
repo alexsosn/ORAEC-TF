@@ -117,3 +117,61 @@ def test_symlinked_features_are_not_hashable(
     linked.symlink_to(root / "otype.tf")
     with pytest.raises(FingerprintError, match="symlink"):
         hash_tf_feature(linked)
+
+
+@pytest.mark.parametrize("marker", ["@node", "@edge", "@config"])
+def test_windows_crlf_native_feature_header_preserves_timestamp_neutrality(
+    tmp_path: Path, marker: str,
+) -> None:
+    """TF 13.1 uses text-mode writes, yielding CRLF on Windows."""
+    path = tmp_path / "sample.tf"
+    original = (
+        f"{marker}\r\n@valueType=str\r\n"
+        "@dateWritten=2026-10-11T08:00:00+00:00Z\r\n\r\n"
+        "1\tword\r\n"
+    ).encode("utf-8")
+    path.write_bytes(original)
+    first = hash_tf_feature(path)
+    assert len(first[0]) == len(first[1]) == 64
+    changed = original.replace(b"08:00:00", b"08:00:05")
+    path.write_bytes(changed)
+    second = hash_tf_feature(path)
+    assert first[0] != second[0]
+    assert first[1] == second[1]
+
+    # The canonical hash removes *only* the clock line; it does not silently
+    # normalize platform newlines (this is not a graph-isomorphism hash).
+    lf_path = tmp_path / "unix.tf"
+    lf_path.write_bytes(original.replace(b"\r\n", b"\n"))
+    assert hash_tf_feature(lf_path)[1] != first[1]
+
+
+@pytest.mark.parametrize("corruption", ["mixed", "embedded-cr", "oversized"])
+def test_windows_header_rejects_unsafe_control_characters_and_bad_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, corruption: str,
+) -> None:
+    from oraec_tf import tf_fingerprints
+
+    feature = tmp_path / "header.tf"
+    header = (
+        b"@node\r\n@valueType=str\r\n"
+        b"@dateWritten=2026-10-11T08:00:00+00:00Z\r\n\r\n"
+        b"1\tword\r\n"
+    )
+    if corruption == "mixed":
+        header = header.replace(
+            b"@valueType=str\r\n", b"@valueType=str\n"
+        )
+    elif corruption == "embedded-cr":
+        header = header.replace(
+            b"@valueType=str\r\n", b"@valueType=s\rtr\r\n"
+        )
+    else:
+        monkeypatch.setattr(tf_fingerprints, "HEADER_LIMIT", 128)
+        header = header.replace(
+            b"@valueType=str\r\n",
+            b"@description=" + b"x" * 512 + b"\r\n",
+        )
+    feature.write_bytes(header)
+    with pytest.raises(FingerprintError):
+        hash_tf_feature(feature)
