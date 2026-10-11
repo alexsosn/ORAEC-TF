@@ -12,7 +12,6 @@ from tf_build.validate import FeatureRequirement, validate_tf_artifact
 from tf_build.workspace import BuildWorkspace
 
 from .conversion_profile import PhaseRecorder
-from .tf_count_probe import probe_tf_counts
 from .parser import (
     iter_texts,
     parse_corpus_metadata,
@@ -26,6 +25,7 @@ from .source import (
     fetch_source,
     verify_source,
 )
+from .tf_count_probe import probe_tf_counts
 from .writer import write_tf
 
 
