@@ -13,15 +13,28 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TextIO
 
 from .text_codec import NODE_TYPES
 
 _INT = re.compile(r"[1-9][0-9]*\Z")
 _ALLOWED_TYPES = NODE_TYPES | {"cr_occurrence"}
+HEADER_LIMIT = 4 * 1024 * 1024
+ROW_LIMIT = 4 * 1024 * 1024
 
 
 class ProbeError(ValueError):
     """A source .tf census is missing, malformed, or ambiguous."""
+
+
+def _bounded_line(handle: TextIO, remaining: int, path: Path) -> str:
+    """Read at most the available character budget, plus one rejection sentinel."""
+    if remaining < 0:
+        raise ProbeError(f"{path.name}: oversized source feature line")
+    line = handle.readline(remaining + 1)
+    if len(line) > remaining:
+        raise ProbeError(f"{path.name}: oversized source feature line")
+    return line
 
 
 def _span(spec: str, next_implicit: int) -> tuple[tuple[tuple[int, int], ...], int]:
@@ -48,12 +61,18 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
     if path.is_symlink() or not path.is_file():
         raise ProbeError(f"missing or symlinked source feature: {path.name}")
     with path.open("r", encoding="utf-8", newline="") as handle:
-        first = handle.readline()
+        header_size = 0
+        first = _bounded_line(handle, HEADER_LIMIT, path)
+        header_size += len(first)
         newline = "\r\n" if first.endswith("\r\n") else "\n"
         if first != "@node" + newline:
             raise ProbeError(f"{path.name}: not a native node feature")
         valid_type = False
-        for line in handle:
+        while True:
+            line = _bounded_line(handle, HEADER_LIMIT - header_size, path)
+            header_size += len(line)
+            if not line:
+                raise ProbeError(f"{path.name}: missing feature header separator")
             if line == newline:
                 break
             if (
@@ -64,14 +83,15 @@ def _rows(path: Path) -> Iterator[tuple[tuple[tuple[int, int], ...], str]]:
                 raise ProbeError(f"{path.name}: invalid feature header/newline")
             if line[: -len(newline)] == "@valueType=str":
                 valid_type = True
-        else:
-            raise ProbeError(f"{path.name}: missing feature header separator")
         if not valid_type:
             raise ProbeError(f"{path.name}: expected string node feature")
         previous = 0
         next_implicit = 1
         had_rows = False
-        for line in handle:
+        while True:
+            line = _bounded_line(handle, ROW_LIMIT, path)
+            if not line:
+                break
             if line.endswith(newline):
                 row = line[: -len(newline)]
             elif "\r" not in line and "\n" not in line:
