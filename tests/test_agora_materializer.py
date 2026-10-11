@@ -59,7 +59,10 @@ def test_adapter_delegates_to_public_cli_without_fetching(
         (tf_dir / ".tf").mkdir()
         (tf_dir / ".tf" / "otype.tfx").write_bytes(b"private TF runtime cache")
         for name in ("otype.tf", "oslots.tf", "otext.tf"):
-            (tf_dir / name).write_text(\n                "@node\n@dateWritten=2026-10-11T08:00:00Z\n\n"\n                f"1\t{name}\n", encoding="utf-8"\n            )
+            (tf_dir / name).write_text(
+                "@node\n@dateWritten=2026-10-11T08:00:00Z\n\n"
+                f"1\t{name}\n", encoding="utf-8"
+            )
         print(json.dumps({
             "output": str(tf_dir),
             "revision": DEFAULT_SOURCE_REVISION,
@@ -111,7 +114,10 @@ def test_agora_outer_publication_never_replaces_competing_empty_directory(
             ("oslots.tf", "@edge"),
             ("otext.tf", "@config"),
         ):
-            (tf_dir / name).write_text(\n                f"{kind}\n@dateWritten=2026-10-11T08:00:00Z\n\n",\n                encoding="utf-8",\n            )
+            (tf_dir / name).write_text(
+                f"{kind}\n@dateWritten=2026-10-11T08:00:00Z\n\n",
+                encoding="utf-8",
+            )
         assert not output.exists()
         output.mkdir()
         competitor_inode.append(output.stat().st_ino)
@@ -154,7 +160,10 @@ def test_agora_publishes_into_preexisting_empty_output_directory(
             ("oslots.tf", "@edge"),
             ("otext.tf", "@config"),
         ):
-            (tf_dir / name).write_text(\n                f"{marker}\n@dateWritten=2026-10-11T08:00:00Z\n\n",\n                encoding="utf-8",\n            )
+            (tf_dir / name).write_text(
+                f"{marker}\n@dateWritten=2026-10-11T08:00:00Z\n\n",
+                encoding="utf-8",
+            )
         print(json.dumps({
             "output": str(tf_dir.resolve()),
             "revision": DEFAULT_SOURCE_REVISION,
@@ -251,7 +260,8 @@ def test_fingerprints_skip_real_text_fabric_dot_tf_cache_directory(
     (tmp_path / ".tf" / "otype.tfx").write_text("cache", encoding="utf-8")
     expected = b"@node\n@dateWritten=2026-10-11T08:00:00Z\n\n1\tword\n"
     (tmp_path / "otype.tf").write_bytes(expected)
-    (tmp_path / "oslots.tf").write_bytes(\n        b"@edge\n@dateWritten=2026-10-11T08:00:00Z\n\n"\n    )
+    (tmp_path / "oslots.tf").write_bytes(
+        b"@edge\n@dateWritten=2026-10-11T08:00:00Z\n\n"\n    )
 
     # The file fingerprint inventory should contain only actual feature
     # files, not the dot-prefixed TF cache directory matched by glob('*.tf').
@@ -297,7 +307,10 @@ def test_agora_parent_alias_swap_preserves_verified_source_and_original_output(
             ("oslots.tf", "@edge"),
             ("otext.tf", "@config"),
         ):
-            (tf_dir / name).write_text(\n                f"{kind}\n@dateWritten=2026-10-11T08:00:00Z\n\n",\n                encoding="utf-8",\n            )
+            (tf_dir / name).write_text(
+                f"{kind}\n@dateWritten=2026-10-11T08:00:00Z\n\n",
+                encoding="utf-8",
+            )
         print(json.dumps({
             "output": str(tf_dir.resolve()),
             "revision": DEFAULT_SOURCE_REVISION,
