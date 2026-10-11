@@ -356,4 +356,4 @@ def test_agora_uses_published_tf_build_no_clobber_api() -> None:
 
     from oraec_tf import agora
 
-    assert getattr(agora, "publish_path_no_clobber") is publish_path_no_clobber
+    assert vars(agora)["publish_path_no_clobber"] is publish_path_no_clobber
