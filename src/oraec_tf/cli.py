@@ -61,7 +61,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     convert.add_argument("source", help="Clean local ORAEC Git checkout")
     convert.add_argument("--output", required=True, help="Empty/nonexistent TF output")
-    convert.add_argument("--profile", action="store_true", help="Emit source-free per-phase timing metrics in the JSON summary")
+    convert.add_argument(
+        "--profile", action="store_true",
+        help="Emit source-free per-phase timing metrics in the JSON summary",
+    )
     convert.add_argument(
         "--upstream-commit", required=True,
         help="Immutable source commit (must match the frozen supported schema)",
