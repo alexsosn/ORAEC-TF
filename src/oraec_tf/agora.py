@@ -19,6 +19,8 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from tf_build.publication import publish_path_no_clobber
+
 from . import cli
 from .source import (
     DEFAULT_SOURCE_REVISION,
@@ -94,14 +96,29 @@ def materialize(
         raise ValueError("output must be an absent or empty directory, not a symlink")
 
     source_path = Path(source).resolve()
+    # Pin the output's *physical* parent exactly once. A caller-owned parent
+    # symlink may be repointed during the nested CLI or cleanup; never use it
+    # for the final artifact, stage cleanup, or restoration.
     resolved_target = target.resolve()
     if source_path == resolved_target or source_path in resolved_target.parents:
         raise ValueError("output cannot be inside the ORAEC source worktree")
+    if resolved_target.is_symlink() or (
+        resolved_target.exists()
+        and (not resolved_target.is_dir() or any(resolved_target.iterdir()))
+    ):
+        raise ValueError("output must be an absent or empty directory, not a symlink")
 
-    parent = target.parent
+    parent = resolved_target.parent
     parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.agora-", dir=parent))
-    preexisting_empty_dir = target.exists()
+    stage = Path(
+        tempfile.mkdtemp(prefix=f".{resolved_target.name}.agora-", dir=parent)
+    )
+    preexisting_empty_dir = resolved_target.is_dir()
+    original_empty_inode: tuple[int, int] | None = None
+    if preexisting_empty_dir:
+        original = resolved_target.lstat()
+        original_empty_inode = (original.st_dev, original.st_ino)
+    removed_original_empty = False
     try:
         tf_dir = stage / "tf"
         capture = io.StringIO()
@@ -147,13 +164,39 @@ def materialize(
             encoding="utf-8",
         )
         if preexisting_empty_dir:
-            target.rmdir()
-        stage.replace(target)
+            # The 10+ minute conversion must not delete a different empty
+            # directory that another actor installed at this pathname.
+            try:
+                current = resolved_target.lstat()
+            except FileNotFoundError as exc:
+                raise FileExistsError(
+                    "preexisting output directory disappeared during conversion"
+                ) from exc
+            if resolved_target.is_symlink() or (
+                current.st_dev, current.st_ino
+            ) != original_empty_inode:
+                raise FileExistsError(
+                    "preexisting output directory changed during conversion"
+                )
+            resolved_target.rmdir()
+            removed_original_empty = True
+        # This syscall refuses any new destination created after removal.
+        # The preceding inode check reduces (but cannot completely eliminate)
+        # the separate preexisting-empty ownership race.
+        publish_path_no_clobber(stage, resolved_target)
         return report
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
-        if preexisting_empty_dir and not target.exists():
-            target.mkdir()
+        if (
+            removed_original_empty
+            and not resolved_target.exists()
+            and not resolved_target.is_symlink()
+        ):
+            try:
+                resolved_target.mkdir()
+            except FileExistsError:
+                # Another actor won the publication/restore race.
+                pass
         raise
 
 

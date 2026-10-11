@@ -39,7 +39,29 @@ python -m oraec_tf.agora upstream/corpus_raw_data build/agora-oraec \
 `build/agora-oraec` must be nonexistent or empty, not a symlink and not inside
 the source checkout. The adapter builds in a sibling private directory,
 rechecks the public CLI output and minimum TF warp files, and publishes the
-complete artifact only after success. On failure no partial dataset is published.
+complete artifact only after success. The **outer** artifact (native `tf/`
+features plus the operational `conversion-summary.json`) is atomically
+published without clobbering a destination created concurrently—even a new
+**empty** directory. On failure the private stage is cleaned without deleting
+another owner's destination. This protection is distinct from the direct
+converter CLI's inner staging/publication and preserves the existing allowance
+for caller-owned empty output directories, which are removed only at the
+final promotion boundary. For a **preexisting empty** output, the adapter records
+the original filesystem (device, inode) identity and fails closed if that
+directory is replaced during the long conversion. There remains a narrow
+check-to-remove race in any non-transactional handoff of a caller-owned
+empty directory; for strict concurrent ownership guarantees the Agora host
+should supply an **absent** output path or otherwise control the path
+exclusively. Once the old directory has been removed, the final atomic
+no-clobber syscall never overwrites a newly created competitor. The adapter
+uses the supported public
+`tf_build.publication.publish_path_no_clobber` function at immutable tf-build
+revision `da7ff9618259f1669bdb89b134970399919accc0`, not an internal module.
+The output's canonical parent is pinned before nested conversion so an alias
+redirect during a long build cannot move the published artifact or restore
+a failed empty output inside the upstream source checkout. This is an
+**online-installable source dependency**, not yet a verified offline wheel
+distribution; packaging remains tracked separately under issue #59.
 
 Output layout:
 
