@@ -945,6 +945,8 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
         "independent_fabric_warp_load",
         "independent_fabric_features_load",
         "independent_fabric_load",
+        "source_graph_audit",
+        "feature_hashes",
     ]
 
 
