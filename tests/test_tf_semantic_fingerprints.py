@@ -5,7 +5,7 @@ features are created independently at different controlled TF writer times.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -22,7 +22,7 @@ def _graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str,
     at: datetime,
 ) -> Path:
-    monkeypatch.setattr(tf_data, "utcnow", lambda: at.replace(tzinfo=timezone.utc))
+    monkeypatch.setattr(tf_data, "utcnow", lambda: at.replace(tzinfo=UTC))
     output = tmp_path / name
     text = TextIR(
         oraec_id="oraec1", title="Immutable glyph 𓀀",
