@@ -12,7 +12,7 @@ oraec-tf convert upstream/corpus_raw_data \
   --profile > build/phase-profile.json
 ```
 
-The ordinary JSON conversion summary gains a `profile` property only when the flag is passed. It records nonnegative `total_wall_seconds`, `total_cpu_seconds`, and an ordered `phases` array. Each phase contains `name`, `wall_seconds`, `cpu_seconds`, and `process_peak_rss_kib_at_end`. Peak RSS is **process-lifetime high-water RSS at each phase's end**, not an exclusive per-phase allocation. Linux `ru_maxrss` is measured in KiB; unsupported platforms return `null`, never a guessed number.
+The ordinary JSON conversion summary gains a `profile` property only when the flag is passed. Its `environment` identifies the Python, Text-Fabric, tf-build versions and platform for comparisons; it records nonnegative `total_wall_seconds`, `total_cpu_seconds`, and an ordered `phases` array. Each phase contains `name`, `wall_seconds`, `cpu_seconds`, and `process_peak_rss_kib_at_end`. Peak RSS is **process-lifetime high-water RSS at each phase's end**, not an exclusive per-phase allocation. Linux `ru_maxrss` is measured in KiB; unsupported platforms return `null`, never a guessed number.
 
 Phases:
 - `source_identity`: verify the canonical pinned clean local Git source.
