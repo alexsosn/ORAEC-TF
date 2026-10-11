@@ -12,6 +12,7 @@ from tf_build.validate import FeatureRequirement, validate_tf_artifact
 from tf_build.workspace import BuildWorkspace
 
 from .conversion_profile import PhaseRecorder
+from .tf_count_probe import probe_tf_counts
 from .parser import (
     iter_texts,
     parse_corpus_metadata,
@@ -161,6 +162,24 @@ def _convert(
                     or word_count != real_words + expected["empty_token_sentences"]
                 ):
                     raise ValueError("generated TF node counts diverge from parsed source")
+            if profile:
+                # Experimental, independent streaming count implementation.
+                # Crucially, the full uncached TF validation AND original
+                # Fabric reload above still execute before this comparison.
+                with recorder.phase("source_tf_counts_probe"):
+                    probe = probe_tf_counts(stage)
+                    expected_probe = {
+                        "texts": text_count,
+                        "sentences": sentence_count,
+                        "tokens": real_words,
+                        "technical_anchors": word_count - real_words,
+                        "slots": word_count,
+                        "cr_occurrences": len(api.F.otype.s("cr_occurrence")),
+                    }
+                    if probe != expected_probe:
+                        raise ValueError(
+                            "streaming TF count candidate differs from Fabric census"
+                        )
             with recorder.phase("atomic_publish"):
                 workspace.publish()
     except Exception as error:
