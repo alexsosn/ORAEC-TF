@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import json
 import sys
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from scripts import validate_graph_source as audit_cli
+# The installed package exposes src/, not the repository's CLI script directory.
+# Load the exact real script by path without depending on a pytest sys.path alias.
+_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "validate_graph_source.py"
+_SCRIPT_SPEC = spec_from_file_location("oraec_graph_audit_cli_under_test", _SCRIPT_PATH)
+assert _SCRIPT_SPEC is not None and _SCRIPT_SPEC.loader is not None
+audit_cli = module_from_spec(_SCRIPT_SPEC)
+_SCRIPT_SPEC.loader.exec_module(audit_cli)
 
 
 def test_audit_cli_optional_profile_keeps_canonical_report_identical(
