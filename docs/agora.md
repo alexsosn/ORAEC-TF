@@ -46,7 +46,15 @@ published without clobbering a destination created concurrently—even a new
 another owner's destination. This protection is distinct from the direct
 converter CLI's inner staging/publication and preserves the existing allowance
 for caller-owned empty output directories, which are removed only at the
-final promotion boundary. The adapter uses the supported public
+final promotion boundary. For a **preexisting empty** output, the adapter records
+the original filesystem (device, inode) identity and fails closed if that
+directory is replaced during the long conversion. There remains a narrow
+check-to-remove race in any non-transactional handoff of a caller-owned
+empty directory; for strict concurrent ownership guarantees the Agora host
+should supply an **absent** output path or otherwise control the path
+exclusively. Once the old directory has been removed, the final atomic
+no-clobber syscall never overwrites a newly created competitor. The adapter
+uses the supported public
 `tf_build.publication.publish_path_no_clobber` function at immutable tf-build
 revision `da7ff9618259f1669bdb89b134970399919accc0`, not an internal module.
 The output's canonical parent is pinned before nested conversion so an alias
