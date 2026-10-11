@@ -21,13 +21,13 @@ from typing import Any
 from tf_build.publication import publish_path_no_clobber
 
 from . import cli
-from .tf_fingerprints import hash_tf_feature
 from .source import (
     DEFAULT_SOURCE_REVISION,
     SOURCE_REPOSITORY,
     SourceAcquisitionError,
     validate_revision,
 )
+from .tf_fingerprints import hash_tf_feature
 
 REQUIRED_WARP = ("otype.tf", "oslots.tf", "otext.tf")
 
