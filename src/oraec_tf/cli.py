@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
 from tf.fabric import Fabric
+from tf_build.validate import FeatureRequirement, validate_tf_artifact
+from tf_build.workspace import BuildWorkspace
 
 from .parser import (
     iter_texts,
@@ -81,59 +81,94 @@ def _convert(source: str, destination: str, revision: str) -> dict[str, object]:
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise ValueError("output must be an empty directory or not exist")
 
-    # Validate the source before any output publication.
+    # Validate the source before any caller-owned output mutation. A parent
+    # symlink can change while that audit runs: pin the *canonical* destination
+    # once it completes, and never again use the mutable alias for rmdir,
+    # workspace creation, or exception cleanup.
     report = validate_corpus_source(snapshot.path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    stage = Path(
-        tempfile.mkdtemp(
-            prefix=f".{target.name}.oraec-tf-",
-            dir=target.parent,
-        )
-    )
-    existed_as_empty_dir = target.exists()
+    canonical_target = target.resolve()
+    if target.is_symlink() or canonical_target == snapshot.path or (
+        snapshot.path in canonical_target.parents
+    ):
+        raise ValueError("output must not be a symlink or be inside the source checkout")
+    if canonical_target.exists() and (
+        not canonical_target.is_dir() or any(canonical_target.iterdir())
+    ):
+        raise ValueError("output must be an empty directory or not exist")
+    existed_as_empty_dir = canonical_target.is_dir()
+    if existed_as_empty_dir:
+        # BuildWorkspace is create-only; preserve the accepted empty-target
+        # contract while avoiding a symlink-parent restoration race.
+        canonical_target.rmdir()
     try:
-        write_tf(
-            iter_texts(snapshot.path),
-            stage,
-            source_revision=snapshot.revision,
-            corpus_metadata=parse_corpus_metadata(snapshot.path),
-            mapping_tables=parse_mapping_tables(snapshot.path),
-            hierarchy_rows=parse_hierarchy(snapshot.path),
-        )
+        workspace = BuildWorkspace(canonical_target)
+        with workspace:
+            stage = workspace.path
+            write_tf(
+                iter_texts(snapshot.path),
+                stage,
+                source_revision=snapshot.revision,
+                corpus_metadata=parse_corpus_metadata(snapshot.path),
+                mapping_tables=parse_mapping_tables(snapshot.path),
+                hierarchy_rows=parse_hierarchy(snapshot.path),
+            )
 
-        # Reload the staging build, never a publicly visible partial target.
-        api = Fabric(locations=str(stage), silent="deep").load(
-            "oraec_id sentence_index token_id", silent="deep"
-        )
-        if not api:
-            raise ValueError("generated Text-Fabric corpus did not load")
-        word_count = len(api.F.otype.s("word"))
-        text_count = len(api.F.otype.s("text"))
-        sentence_count = len(api.F.otype.s("sentence"))
-        real_words = sum(
-            api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
-        )
-        expected = report["counts"]
+            # TF may silently load newer compiled .tfx instead of corrupted
+            # shipped .tf bodies. Exhaustively reload a private source-only
+            # view before claiming any build was validated or publishing it.
+            validate_tf_artifact(
+                stage,
+                level="all",
+                require_otext=True,
+                required_features=(
+                    FeatureRequirement("oraec_id", kind="node", value_type="str"),
+                    FeatureRequirement("sentence_index", kind="node", value_type="int"),
+                    FeatureRequirement("token_id", kind="node", value_type="str"),
+                ),
+            )
+
+            # Keep ORAEC's independent source-specific conservation contract:
+            # tf-build cannot infer the meaning of text/sentence/token nodes.
+            api = Fabric(locations=str(stage), silent="deep").load(
+                "oraec_id sentence_index token_id", silent="deep"
+            )
+            if not api:
+                raise ValueError("generated Text-Fabric corpus did not load")
+            word_count = len(api.F.otype.s("word"))
+            text_count = len(api.F.otype.s("text"))
+            sentence_count = len(api.F.otype.s("sentence"))
+            real_words = sum(
+                api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
+            )
+            expected = report["counts"]
+            if (
+                text_count != expected["texts"]
+                or sentence_count != expected["sentences"]
+                or real_words != expected["tokens"]
+                or word_count != real_words + expected["empty_token_sentences"]
+            ):
+                raise ValueError("generated TF node counts diverge from parsed source")
+            workspace.publish()
+    except Exception as error:
+        # Restore the caller's formerly empty directory only if no competing
+        # actor has created a replacement during staging or publication.
         if (
-            text_count != expected["texts"]
-            or sentence_count != expected["sentences"]
-            or real_words != expected["tokens"]
-            or word_count != real_words + expected["empty_token_sentences"]
+            existed_as_empty_dir
+            and not canonical_target.exists()
+            and not canonical_target.is_symlink()
         ):
-            raise ValueError("generated TF node counts diverge from parsed source")
-
-        # Rename within the same parent/file system only after all checks pass.
-        if existed_as_empty_dir:
-            target.rmdir()
-        stage.replace(target)
-    except Exception:
-        shutil.rmtree(stage, ignore_errors=True)
-        if existed_as_empty_dir and not target.exists():
-            target.mkdir()
+            try:
+                canonical_target.mkdir()
+            except FileExistsError:
+                pass
+            except OSError as restore_error:
+                error.add_note(
+                    f"failed to restore empty output {canonical_target}: {restore_error}"
+                )
         raise
 
     return {
-        "output": str(target.resolve()),
+        "output": str(canonical_target),
         "revision": snapshot.revision,
         "counts": {
             "texts": text_count,
