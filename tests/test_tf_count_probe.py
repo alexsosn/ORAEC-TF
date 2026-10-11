@@ -83,8 +83,8 @@ def test_native_count_probe_rejects_corrupted_feature_identity(
     else:
         with token_feature.open("a", encoding="utf-8") as stream:
             stream.write(
-                ("999999\tforged-token\n" if corruption == "nonword-token"
-                 else "1\tduplicate-token\n")
+                "999999\tforged-token\n" if corruption == "nonword-token"
+                else "1\tduplicate-token\n"
             )
     with pytest.raises(ProbeError, match="token_id|word|duplicate|missing"):
         probe_tf_counts(output)
