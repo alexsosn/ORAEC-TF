@@ -14,7 +14,11 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-STAMP = re.compile(rb"@dateWritten=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\n\Z")
+# Text-Fabric 13.1's UTC-aware utcnow().isoformat() appends "+00:00Z".
+# Also support the historically naive ISO timestamp ending in a plain "Z".
+STAMP = re.compile(
+    rb"@dateWritten=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\+00:00)?Z)\n\Z"
+)
 HEADER_LIMIT = 4 * 1024 * 1024
 
 
@@ -74,11 +78,14 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
                     if match is None:
                         raise FingerprintError(f"{feature.name}: malformed @dateWritten")
                     clock = match.group(1).decode("ascii")
+                    suffix = "+00:00Z" if clock.endswith("+00:00Z") else "Z"
                     try:
-                        parsed = datetime.strptime(clock, "%Y-%m-%dT%H:%M:%SZ")
+                        parsed = datetime.strptime(
+                            clock[: -len(suffix)], "%Y-%m-%dT%H:%M:%S"
+                        )
                     except ValueError as exc:
                         raise FingerprintError(f"{feature.name}: invalid UTC @dateWritten") from exc
-                    if parsed.strftime("%Y-%m-%dT%H:%M:%SZ") != clock:
+                    if parsed.strftime("%Y-%m-%dT%H:%M:%S") + suffix != clock:
                         raise FingerprintError(f"{feature.name}: noncanonical @dateWritten")
                     seen_clock = True
                 else:
