@@ -71,7 +71,8 @@ jobs:
             --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
             --converter-revision "$(git rev-parse HEAD)" \
             --schema-version 3 \
-            --report reports/generated/graph-conservation.json
+            --report reports/generated/graph-conservation.json \
+            --profile-report reports/generated/independent-audit-profile.json
 
       - name: Smoke local standard Text-Fabric advanced app and browser
         run: |
@@ -86,5 +87,6 @@ jobs:
           path: |
             reports/generated/native-tf-validation.json
             reports/generated/graph-conservation.json
+            reports/generated/independent-audit-profile.json
             reports/generated/advanced-app-validation.json
           if-no-files-found: warn

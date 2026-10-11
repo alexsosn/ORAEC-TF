@@ -20,6 +20,7 @@ from typing import Any
 
 from tf.fabric import Fabric
 
+from .conversion_profile import PhaseRecorder
 from .tf_fingerprints import hash_tf_feature
 
 TEXT_NAME_RE = re.compile(r"oraec[0-9]+\.json\Z")
@@ -718,6 +719,7 @@ def audit_basic_graph(
     source: str | Path, tf_dir: str | Path, *,
     require_complete_source: bool = False,
     cr_census: dict[str, Any] | None = None,
+    profile_recorder: PhaseRecorder | None = None,
 ) -> dict[str, int]:
     """Independently compare raw ORAEC semantics against loaded TF."""
     root = Path(source)
@@ -742,7 +744,9 @@ def audit_basic_graph(
     # Use Text-Fabric's built-in index to discover loadable features. This
     # includes all node and valued-edge features without assuming a writer
     # feature inventory or constructing a fragile string from file names.
-    api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
+    recorder = profile_recorder or PhaseRecorder(enabled=False)
+    with recorder.phase("independent_fabric_load"):
+        api = Fabric(locations=str(output), silent="deep").loadAll(silent="deep")
     if not api:
         raise GraphConservationError("generated Text-Fabric output did not load")
 
@@ -999,6 +1003,7 @@ def audit_graph_with_provenance(
     converter_revision: str,
     schema_version: int,
     require_complete_source: bool = False,
+    profile_recorder: PhaseRecorder | None = None,
 ) -> dict[str, Any]:
     """Emit only reproducible build identities, counts and output hashes."""
     for kind, sha in (
@@ -1009,25 +1014,30 @@ def audit_graph_with_provenance(
             raise GraphConservationError(f"{kind} must be a full commit SHA")
     if schema_version < 1:
         raise GraphConservationError("schema version must be a positive integer")
+    recorder = profile_recorder or PhaseRecorder(enabled=False)
     cr_census: dict[str, Any] = {}
-    counts = audit_basic_graph(
-        source, tf_dir, require_complete_source=require_complete_source,
-        cr_census=cr_census,
-    )
-    paths = sorted(
-        path for path in Path(tf_dir).glob("*.tf")
-        if path.is_file() and not path.name.startswith(".")
-    )
-    if not paths:
-        raise GraphConservationError("generated TF contains no feature files")
+    # The outer phase includes the nested independent Fabric load; the
+    # difference is an estimate of semantic source/graph comparison duration.
+    with recorder.phase("source_graph_audit"):
+        counts = audit_basic_graph(
+            source, tf_dir, require_complete_source=require_complete_source,
+            cr_census=cr_census, profile_recorder=recorder,
+        )
     output_hashes: dict[str, str] = {}
     semantic_hashes: dict[str, str] = {}
     output_bytes: dict[str, int] = {}
-    for path in paths:
-        raw_digest, semantic_digest = hash_tf_feature(path)
-        output_hashes[path.name] = raw_digest
-        semantic_hashes[path.name] = semantic_digest
-        output_bytes[path.name] = path.stat().st_size
+    with recorder.phase("feature_hashes"):
+        paths = sorted(
+            path for path in Path(tf_dir).glob("*.tf")
+            if path.is_file() and not path.name.startswith(".")
+        )
+        if not paths:
+            raise GraphConservationError("generated TF contains no feature files")
+        for path in paths:
+            raw_digest, semantic_digest = hash_tf_feature(path)
+            output_hashes[path.name] = raw_digest
+            semantic_hashes[path.name] = semantic_digest
+            output_bytes[path.name] = path.stat().st_size
     return {
         "ok": True,
         "output_bytes": output_bytes,

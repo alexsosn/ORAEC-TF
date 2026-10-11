@@ -29,3 +29,17 @@ The [pinned-source validation workflow](../.github/workflows/writer-validation.y
 ## Controlled optimization gate
 
 Record timings, peak RSS, pinned source/revision, Python, TF and tf-build versions, and runner model on comparable runs. Identify an actual measured hotspot. An optimization PR must use RED tests, compare before/after on the same snapshot/runner configuration, preserve identical semantic graph hashes, pass both independent conservation and installed-app gates, and undergo exact-head adversarial review. Do not remove the uncached source-only validation or source-count reload solely because they look redundant; their trust and semantic contracts differ.
+
+## Independent full source→TF conservation profiler (#74)
+
+The **separate mandatory** raw JSON/TSV→TF auditor has an opt-in provenance-only timing report, unrelated to and not a replacement for conversion timing. The full writer CI invokes:
+
+```bash
+python scripts/validate_graph_source.py upstream/corpus_raw_data build/tf \
+  --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+  --converter-revision "$(git rev-parse HEAD)" --schema-version 3 \
+  --report build/graph-conservation.json \
+  --profile-report build/independent-audit-profile.json
+```
+
+The optional `independent-audit-profile.json` uses `oraec-independent-audit-profile-v1` and reports **in completion order**: `independent_fabric_load` (full independently loaded `Fabric.loadAll`), `source_graph_audit` (inclusive of that load and all raw-source/TF semantic comparisons), and `feature_hashes` (raw+timestamp-neutral SHA-256 across every `*.tf`). To estimate time spent comparing the corpus after its independent load, subtract `independent_fabric_load.wall_seconds` from inclusive `source_graph_audit.wall_seconds`; wall clock variance means this is approximate. Peak RSS is a high-water mark, **not** the memory allocated by a particular phase. Original `graph-conservation.json` contents and stdout aggregate counts remain unchanged, and the profile never contains source strings, paths, feature values, or corpus payload. The profile measures costs; it does not enable skipping a single validation.

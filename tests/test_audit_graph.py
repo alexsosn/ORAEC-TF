@@ -786,3 +786,61 @@ def test_independent_auditor_rejects_cr_owner_edge_from_nonoccurrence(
     monkeypatch.setattr(audit_module, "Fabric", CorruptedFabric)
     with pytest.raises(GraphConservationError, match="CR.*owner|occurrence"):
         audit_basic_graph(source, output)
+
+
+def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
+    tmp_path: Path,
+) -> None:
+    """#74 RED: nested Fabric, complete graph audit, and digest stages remain."""
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    plain = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION,
+        converter_revision="a" * 40,
+        schema_version=1,
+    )
+    recorder = PhaseRecorder(enabled=True)
+    profiled = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION,
+        converter_revision="a" * 40,
+        schema_version=1,
+        profile_recorder=recorder,
+    )
+    assert profiled == plain, "profiling must not alter source conservation evidence"
+    record_names = [phase["name"] for phase in recorder.phases]
+    assert record_names == [
+        "independent_fabric_load", "source_graph_audit", "feature_hashes",
+    ]
+    profile = recorder.report()
+    assert profile["total_wall_seconds"] >= 0
+    assert profile["total_cpu_seconds"] >= 0
+    for phase in profile["phases"]:
+        assert phase["wall_seconds"] >= 0
+        assert phase["cpu_seconds"] >= 0
+        assert (
+            phase["process_peak_rss_kib_at_end"] is None
+            or phase["process_peak_rss_kib_at_end"] >= 0
+        )
+    assert profile["phases"][1]["wall_seconds"] >= 0
+    assert profile["phases"][0]["name"] == "independent_fabric_load"
+    assert "oraec1-1-1" not in json.dumps(profile)
+    assert str(source) not in json.dumps(profile)
+
+    corrupt = json.loads((source / "oraec1.json").read_text(encoding="utf-8"))
+    corrupt["oraec1"]["sentences"][0]["token"][0]["written_form"] = "FORGED"
+    (source / "oraec1.json").write_text(
+        json.dumps(corrupt, ensure_ascii=False), encoding="utf-8",
+    )
+    with pytest.raises(GraphConservationError):
+        audit_graph_with_provenance(
+            source, output,
+            source_revision=REVISION,
+            converter_revision="a" * 40,
+            schema_version=1,
+            profile_recorder=PhaseRecorder(enabled=True),
+        )
