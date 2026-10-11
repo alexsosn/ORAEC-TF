@@ -41,7 +41,9 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
     canonical = hashlib.sha256()
     try:
         with feature.open("rb") as stream:
-            first = stream.readline()
+            first = stream.readline(HEADER_LIMIT + 1)
+            if len(first) > HEADER_LIMIT:
+                raise FingerprintError(f"{feature.name}: oversized or unterminated header")
             newline = b"\r\n" if first.endswith(b"\r\n") else b"\n"
             if first not in tuple(
                 kind + newline for kind in (b"@node", b"@edge", b"@config")
@@ -52,7 +54,7 @@ def hash_tf_feature(path: str | Path) -> tuple[str, str]:
             seen_clock = False
             header_size = len(first)
             while True:
-                line = stream.readline()
+                line = stream.readline(HEADER_LIMIT - header_size + 1)
                 header_size += len(line)
                 if header_size > HEADER_LIMIT:
                     raise FingerprintError(f"{feature.name}: oversized or unterminated header")
