@@ -61,12 +61,22 @@ oraec-tf verify-source upstream/corpus_raw_data
 The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout, requiring the Git **worktree root**. Acquisition uses tf-build's pinned, bounded Git subprocesses and atomic no-clobber publication; the published checkout retains neither the origin remote URL nor transient `FETCH_HEAD` metadata. Conversion itself remains network-free; Agora owns acquisition and then invokes ORAEC-TF on the verified local source directory.
 
 **Pre-release dependency:** the current development package pins `tf-build` to the exact Git commit
-`2b2f0f8776b42423d4b450d4e2fe0040ab63a8e6`. Installing ORAEC-TF
+`da7ff9618259f1669bdb89b134970399919accc0`. Installing ORAEC-TF
 therefore needs Git and access to that repository **during installation**. No
 tf-build PyPI release or hash-pinned wheel is assumed. A versioned, verified
 wheel/package artifact is required before ORAEC's independent offline release;
 this Git-commit pin is a temporary, reproducible development source, not a
 claim of offline wheel availability.
+
+A source-built wheelhouse installation smoke now exercises **noneditable**
+ORAEC-TF and tf-build wheels with locally recorded SHA-256 hashes, pip
+`--no-index --no-deps --require-hashes`, a clean venv and synthetic native
+TF conversion. This proves the *already-acquired wheelhouse* is importable
+without network/Git resolution; it does **not** establish availability of a
+published, independently verifiable tf-build wheel. See
+[`docs/installed-distribution.md`](docs/installed-distribution.md),
+ORAEC-TF issue #59, and upstream tf-build issue #57.
+
 
 ## Local Text-Fabric conversion (development builds)
 
