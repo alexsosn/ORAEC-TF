@@ -904,7 +904,11 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
     # synthetic subset chosen by this profiler.
     # loadAll's explore() includes otype (node) and oslots (edge) even
     # though its first load("") already loaded them; only configs are excluded.
-    emitted = {path.stem for path in output.glob("*.tf")} - {"otext"}
+    emitted = {
+        candidate.stem
+        for candidate in output.glob("*.tf")
+        if candidate.is_file() and not candidate.name.startswith(".")
+    } - {"otext"}
     assert set(bulk_features) == emitted
     assert [phase["name"] for phase in recorder.phases][:3] == [
         "independent_fabric_warp_load",
