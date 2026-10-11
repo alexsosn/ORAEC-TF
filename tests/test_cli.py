@@ -524,6 +524,10 @@ def test_opt_in_conversion_profile_has_bounded_provenance_only_phases(
     }
     profile = result["profile"]
     assert profile["format"] == "oraec-convert-phases-v1"
+    assert profile["environment"]["python"]
+    assert profile["environment"]["platform"]
+    assert profile["environment"]["text_fabric_version"]
+    assert profile["environment"]["tf_build_version"]
     assert profile["total_wall_seconds"] >= 0
     assert profile["total_cpu_seconds"] >= 0
     assert [phase["name"] for phase in profile["phases"]] == [
