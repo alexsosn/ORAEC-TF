@@ -100,9 +100,9 @@ def _synthetic_wheel(
 ) -> Path:
     normalized = distribution.replace("-", "_")
     file = root / f"{normalized}-0.1.0.dev0-py3-none-any.whl"
-    meta = f"Metadata-Version: 2.1\\nName: {distribution}\\nVersion: 0.1.0.dev0\\n"
+    meta = f"Metadata-Version: 2.1\nName: {distribution}\nVersion: 0.1.0.dev0\n"
     if requirement:
-        meta += f"Requires-Dist: {requirement}\\n"
+        meta += f"Requires-Dist: {requirement}\n"
     with zipfile.ZipFile(file, "w") as archive:
         archive.writestr(f"{normalized}-0.1.0.dev0.dist-info/METADATA", meta)
     return file
