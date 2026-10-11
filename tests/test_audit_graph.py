@@ -6,6 +6,7 @@ import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -853,3 +854,53 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
             schema_version=1,
             profile_recorder=PhaseRecorder(enabled=True),
         )
+
+
+def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#76 RED: profile the real Text-Fabric loader without changing its contract."""
+    from tf.fabric import Fabric
+
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    source, record = _source(tmp_path)
+    output = tmp_path / "tf"
+    write_tf((record,), output, source_revision=REVISION)
+    standard = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION, converter_revision="a" * 40, schema_version=3,
+    )
+    upstream_load = Fabric.load
+    seen: list[tuple[object, bool, object]] = []
+
+    def tracked_load(
+        self: Any, features: Any, add: bool = False, silent: Any = "deep",
+    ) -> Any:
+        seen.append((features, add, silent))
+        return upstream_load(self, features, add=add, silent=silent)
+
+    monkeypatch.setattr(Fabric, "load", tracked_load)
+    recorder = PhaseRecorder(enabled=True)
+    traced = audit_graph_with_provenance(
+        source, output,
+        source_revision=REVISION, converter_revision="a" * 40, schema_version=3,
+        profile_recorder=recorder,
+    )
+    assert traced == standard
+    # Text-Fabric 13.1.0's real loadAll calls load("") then load(all, add=True).
+    assert len(seen) == 2
+    first_features, first_add, first_silent = seen[0]
+    bulk_features, bulk_add, bulk_silent = seen[1]
+    assert first_features == ""
+    assert first_add is False
+    assert first_silent == "deep"
+    assert bulk_add is True
+    assert bulk_silent == "deep"
+    assert "token_id" in bulk_features
+    assert "cr_owner" in bulk_features
+    assert [phase["name"] for phase in recorder.phases][:3] == [
+        "independent_fabric_warp_load",
+        "independent_fabric_features_load",
+        "independent_fabric_load",
+    ]
