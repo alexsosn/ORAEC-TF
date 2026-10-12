@@ -199,7 +199,7 @@ Supported release mappings are:
 
 Wikidata source keys are heterogeneous. A key must resolve exactly once, either to exact author_name or exact cv_id. No match or more than one match fails closed.
 
-The Karnak text and lemma mapping files remain excluded from distributable materializations under issue #17. Their source semantics may be researched and tested, but they are not included in a release until explicit file-level licence clarification exists.
+The Karnak text and lemma mapping files remain excluded from the **current default** TF output and frozen schema. They are not included in the converter's existing generated graph; opt-in local support is planned under #85 and is not yet implemented. This default limitation is a code/schema status, not a licence barrier for releasing the **software-only** v0.1.0 package (#12). Issue #17 separately gates project/host redistribution of a future Karnak-bearing corpus until appropriate rights have been established. Any #85 semantic change must revise the schema contract with RED-first tests and a full independent raw-source graph audit.
 
 ## Derived upstream analytical files
 

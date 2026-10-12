@@ -24,7 +24,7 @@ ADR 0005 consumes #14/#2 plus ADRs 0002–0004. Downstream semantic implementati
 Dependencies:
 - #5 is unblocked by ADR 0005; it must parse the complete `schema/core.json` source contract and preserve exact/missing `lineCount` and `hiero` values.
 - #6 requires #5 and implements ADR 0005 directly with `tf.convert.walker.CV`, including ADR 0002 anchors, ADR 0003 exact `hiero`, and ADR 0004 exact token-level `lineCount` without core line nodes.
-- #7 requires the ADR 0005 entity/edge contract plus the relevant #5/#6 interfaces; Karnak remains gated by #17.
+- #7 implemented the current native mapping model; both Karnak crosswalks remain excluded by the current converter. Opt-in local mapping support is tracked separately as #85 (with independent source→TF conservation), separate from software release #12. Dataset redistribution rights remain tracked in #17.
 
 #4 may proceed in parallel because it concerns source identity rather than corpus semantics.
 

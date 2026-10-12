@@ -2,7 +2,7 @@
 
 ## ORAEC-TF software
 
-Converter code, tests, CI/configuration, acquisition helpers, app configuration, and software documentation authored for this repository are licensed under the MIT License in `LICENSE`.
+Converter code, tests, CI/configuration, acquisition helpers, app configuration, and software documentation authored for this repository are licensed under the MIT License in `LICENSE`. The 0.1.0 deliverable is a **software-only release**: wheels/sdist, project source, app configuration and documentation, not upstream ORAEC JSON/TSV files or any generated TF corpus. The Karnak redistribution licence question in #17 **does not block the software-only v0.1.0 release**; licensing concerns for data become relevant when those datasets or their derived content are actually shared.
 
 ## ORAEC source and generated corpus
 
@@ -62,9 +62,13 @@ The Karnak classification therefore does not use the blog footer as a blanket li
 
 The evidence discussed here concerns only the ORAEC-authored mapping/crosswalk pairs: ORAEC identifiers paired with SITH Karnak identifiers/URLs. It does **not** relicense the external target resource and specifically is **not the content behind SITH URLs**.
 
-Until an **explicit upstream clarification** or canonical file-level licence declaration is available, release/materialization code must **exclude the Karnak mappings from distributable generated corpora**. Local research/audit code may inspect them, and #7 may prepare a native one-to-many graph model behind an explicit licence gate, but the default release path must fail closed rather than infer CC0 or CC BY-SA.
+**Current implementation:** the shipped default converter intentionally omits both Karnak crosswalks: its typed parser sets `release_included=False`, its TF writer skips these mappings, and the independent graph auditor rejects generated Karnak edges. Opt-in local processing of both mappings is **not yet implemented**. Issue #85 tracks the separate research/TDD change to support user-selected local conversion with exact native one-to-many edges and independent raw-source conservation. Do not present the software policy change as functionality already shipped.
 
-If upstream later clarifies the two files explicitly, this section and the release gate should be updated with the exact evidence before inclusion.
+**Local processing vs distribution:** a user who lawfully obtains the source may process it locally under applicable source terms. Such local use does not itself distribute the upstream tables or generated TF data; it is not a blanket legal determination for every jurisdiction or access contract. For a future #85 local artifact, document provenance and state exactly **Karnak mapping redistribution terms: unresolved**. Do not label either TSV definitively CC0 on the present evidence. This warning must not be placed solely in a separate semantic sidecar instead of in the product's usage/provenance documentation.
+
+**Project/host publication:** until an **explicit upstream clarification** or a recorded independent rights determination justifies release of these exact TSV-derived correspondences, project release artifacts and hosts must **exclude the Karnak mappings from distributable generated corpora**. This includes hosted downloads, published GitHub Release assets, public Context-Fabric resources and Agora-hosted artifacts that are shared or cached for distribution. A remote execution service can access the result even if a manifest declares `network: deny`; review the actual service boundary before calling it private use.
+
+If upstream later clarifies the two files explicitly, update this section and #17 with the exact rights evidence before publishing any Karnak-bearing dataset; this does not retroactively limit the MIT converter software release.
 
 ## Generated reports
 

@@ -168,7 +168,7 @@ ORAEC's 2022 licensing policy says that “our own things we create in the futur
 
 A VÉgA control case prevents an overbroad inference: its ORAEC post also carries a CC0 footer, but says the mapping was adapted from scraped TLA data and the source README classifies the file CC BY-SA. The Karnak evidence therefore cannot be reduced to a page footer.
 
-Because no explicit licence statement tied to the exact two Karnak TSV files has been located, the intent evidence is insufficient for release-grade file-level licensing. `LICENSE_SCOPE.md` therefore requires distributable builds to exclude the Karnak mappings until explicit upstream clarification is available. Their one-to-many semantics may still be audited and designed under #7 behind that licence gate.
+Because no explicit licence statement tied to the exact two Karnak TSV files has been located, the intent evidence is insufficient for release-grade file-level licensing. `LICENSE_SCOPE.md` therefore requires **published or hosted generated datasets** to exclude the Karnak correspondences until their redistribution rights have been established. The converter's existing default also excludes those edges; #85 separately governs user-selected local processing and native one-to-many conservation. The software-only release #12 itself does not distribute these mapping files or TF artifacts and is not blocked by this licensing uncertainty. See the 2026-10-12 release-boundary clarification below.
 
 
 ## R-006 — ORAEC hieroglyphic placeholder/replacement semantics
@@ -211,7 +211,7 @@ The schema assigns every audited source field to a native node feature, node typ
 
 The hierarchy identity was tightened during adversarial design review: a TLA URL is retained as upstream identity evidence but is not used to collapse path occurrences, because that would assume one parent/depth context per TLA entity and could lose source path semantics.
 
-All source-vs-derived feature provenance is explicit. Exact source strings remain exact. Karnak mappings remain excluded by the #17 fail-closed licence gate. Unknown shapes, edge-collapsing duplicates, ambiguous Wikidata keys, malformed hierarchy alignment, unlinked semantic nodes, and source-string normalization are fatal schema violations.
+All source-vs-derived feature provenance is explicit. Exact source strings remain exact. The current default excludes Karnak mappings; #85 will specify/test an opt-in local mode, while #17 continues to govern redistribution of datasets containing those mappings. Unknown shapes, edge-collapsing duplicates, ambiguous Wikidata keys, malformed hierarchy alignment, unlinked semantic nodes, and source-string normalization are fatal schema violations.
 
 
 ## R-009 — schema-preflight source anomalies
@@ -225,3 +225,7 @@ The first full-source ADR 0005 preflight rejected two real cases, which were inv
 - Empty hierarchy component labels are legitimate. Five linked hierarchy components have an empty label. Four are trailing empty labels; `oraec12216` has a one-component hierarchy whose plain label is empty and whose linked component is TLA text `JPGGWWBWTBEFXPBJNMCQQSYSW4`. Empty strings are therefore preserved as exact labels rather than interpreted as zero components.
 
 These refinements keep the preflight fail-closed while making ADR 0005 represent the actual pinned source rather than weakening validation.
+
+## 2026-10-12 release-boundary clarification
+
+The historical licence investigation above remains valid evidence, but does not impose a **software-only** release blockade. Issue #12 ships MIT converter code, not ORAEC source or generated TF data. File-level Karnak redistribution clearance (#17) is required before ORAEC-TF or Agora publishes Karnak-bearing derived datasets. Local opt-in inclusion is not yet implemented; #85 tracks the native edges and independent conservation requirements. See `docs/research/software-only-karnak-release-boundary.md` for the actual parser/writer/auditor exclusions and host trust boundary.

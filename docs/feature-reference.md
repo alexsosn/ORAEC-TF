@@ -187,6 +187,6 @@ Slot mapping: same_as_owner.
 - Hierarchy nodes represent exact linked path prefixes, including
   potentially empty source labels.
 - Licensed Trismegistos, Wikidata and Vega mappings are native TF
-  relations. Karnak mapping TSVs remain excluded pending licensing.
+  relations. The current converter **currently excludes the Karnak** mapping TSVs; opt-in local graph inclusion is planned in #85. Licence issue #17 concerns distribution of future Karnak-bearing datasets, not publishing the software-only converter (#12).
 - The source corpus and generated TF feature data are acquired or
   built separately, not committed to this software repository.
