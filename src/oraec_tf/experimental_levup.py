@@ -38,7 +38,9 @@ def candidate_superset_levup(
         for slot in slots:
             inverse.setdefault(slot, set()).add(candidate_node)
 
-    @lru_cache(maxsize=2048)
+    # Full ORAEC profiling exposed >3 GiB RSS growth at 2048 entries. A
+    # tightly bounded cache tests the CPU/RSS tradeoff on the SAME corpus.
+    @lru_cache(maxsize=64)
     def node_slot_set(node: int) -> frozenset[int]:
         return frozenset(membership[node - max_slot - 1])
 
