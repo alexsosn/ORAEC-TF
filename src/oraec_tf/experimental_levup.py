@@ -9,7 +9,6 @@ before considering an upstream optimization proposal.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from functools import lru_cache
 
 
 def candidate_superset_levup(
@@ -21,10 +20,11 @@ def candidate_superset_levup(
 ) -> tuple[tuple[int, ...], ...]:
     """Compute every native embedding tuple via candidate slot-set containment.
 
-    A node *m* embeds node *n* iff oslots[n] is a subset of oslots[m].
-    Native Text-Fabric implements this as repeated posting-list intersections.
-    We restrict candidates using the first required slot, then test complete
-    containment with compiled set operations; no contiguous-slot assumption.
+    A node *m* embeds node *n* iff every slot in oslots[n] occurs in
+    oslots[m]. Native Text-Fabric allocates repeated intermediate posting-set
+    intersections. We choose the smallest existing inverted posting as a
+    candidate list and test membership in the others directly; no contiguous
+    assumption or cached copies of large per-node slot sets are needed.
 
     This is an experimental pure function; it MUST NOT be used to bypass
     unmodified Text-Fabric loading in the independent corpus auditor.
@@ -38,30 +38,32 @@ def candidate_superset_levup(
         for slot in slots:
             inverse.setdefault(slot, set()).add(candidate_node)
 
-    # Full ORAEC profiling exposed >3 GiB RSS growth at 2048 entries. A
-    # tightly bounded cache tests the CPU/RSS tradeoff on the SAME corpus.
-    @lru_cache(maxsize=64)
-    def node_slot_set(node: int) -> frozenset[int]:
-        return frozenset(membership[node - max_slot - 1])
-
+    # An empty oslots list has no non-slot embedders in native Text-Fabric.
+    # For a nonempty list, native computes the intersection of inverted
+    # postings. Iterate the smallest posting (fewest candidate parents), then
+    # test membership in all other postings. This uses no cached/frozenset
+    # copies of entire text-node slot sets.
     embedders: list[tuple[int, ...]] = []
     for node in range(1, max_node + 1):
         if node <= max_slot:
             candidates = inverse.get(node, set())
+            eligible = (candidate for candidate in candidates if candidate != node)
         else:
             slots = membership[node - max_slot - 1]
             if not slots:
                 embedders.append(())
                 continue
-            required = frozenset(slots)
-            candidates = {
-                candidate for candidate in inverse.get(slots[0], set())
+            # Materialize all lookups first so invalid missing slot postings
+            # still raise the same KeyError as native prepare.levUp().
+            postings = tuple(inverse[slot] for slot in slots)
+            pivot = min(postings, key=len)
+            eligible = (
+                candidate for candidate in pivot
                 if candidate != node
-                and len(node_slot_set(candidate)) >= len(required)
-                and node_slot_set(candidate).issuperset(required)
-            }
+                and all(candidate in posting for posting in postings)
+            )
         ordered = tuple(sorted(
-            (candidate for candidate in candidates if candidate != node),
+            eligible,
             key=lambda candidate: -rank[candidate - 1],
         ))
         embedders.append(ordered)
