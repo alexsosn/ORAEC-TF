@@ -33,7 +33,7 @@ def _check_mapping(
     cv_domains: dict[str, set[str]],
 ) -> None:
     if not table.release_included:
-        # Explicitly unlicensed/pending sources never enter the release graph.
+        # Ordinary software/default output omits optional mapping data.
         return
 
     for row in table.rows:
@@ -52,14 +52,31 @@ def _check_mapping(
                 raise CorpusValidationError(
                     f"wikidata key {key!r} has {matches} native source identities"
                 )
+        elif table.target_system == "karnak":
+            if table.filename == "mapping_oraec_karnak.tsv":
+                found = key in texts
+                kind = "text"
+            elif table.filename == "mapping_oraec_lemmata_karnak.tsv":
+                found = key in lemmas
+                kind = "lemma"
+            else:
+                raise CorpusValidationError(
+                    f"unapproved karnak mapping family: {table.filename}"
+                )
+            if not found:
+                raise CorpusValidationError(
+                    f"unresolved karnak {kind} source {key!r}"
+                )
         else:
             raise CorpusValidationError(
                 f"unsupported included mapping family: {table.filename}"
             )
 
 
-def validate_corpus_source(root: str | Path) -> dict[str, Any]:
-    """Parse and independently validate the complete local source snapshot."""
+def validate_corpus_source(
+    root: str | Path, *, include_karnak: bool = False,
+) -> dict[str, Any]:
+    """Parse and validate the full source, including optional local mappings."""
     source = Path(root)
     if not source.is_dir():
         raise CorpusValidationError(f"source directory does not exist: {source}")
@@ -132,7 +149,7 @@ def validate_corpus_source(root: str | Path) -> dict[str, Any]:
                 "hierarchy text identities do not match parsed ORAEC texts"
             )
 
-        tables = parse_mapping_tables(source)
+        tables = parse_mapping_tables(source, include_karnak=include_karnak)
         for table in tables:
             _check_mapping(
                 table,
