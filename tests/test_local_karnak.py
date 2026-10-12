@@ -172,6 +172,7 @@ def test_opt_in_is_explicit_direct_cli_and_tracks_origin_without_source_copy(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
     from unittest.mock import patch
+
     from oraec_tf.cli import main
     from oraec_tf.source import SourceSnapshot
 
