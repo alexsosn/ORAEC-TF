@@ -143,12 +143,10 @@ def _measure_loaded_graph(
     }
     if fingerprint:
         start = time.perf_counter()
-        if backend == "native":
-            def get_parents(n: int) -> Iterable[int]:
+        def get_parents(n: int) -> Iterable[int]:
+            if backend == "native":
                 return api.C.levUp.data[n - 1]
-        else:
-            def get_parents(n: int) -> Iterable[int]:
-                return api.C.levUp[n]
+            return api.C.levUp[n]
         result["fingerprint"] = digest_graph(
             max_slot=max_slot,
             max_node=max_node,
