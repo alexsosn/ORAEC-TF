@@ -16,7 +16,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def process_peak_rss_kib() -> int | None:
@@ -112,7 +112,7 @@ def _measure_loaded_graph(
         from tf.fabric import Fabric
         fabric = Fabric(locations=str(tf_dir), silent="deep")
     elif backend == "cfm":
-        from cfabric.core.fabric import Fabric
+        from cfabric.core.fabric import Fabric  # type: ignore[import-not-found]
         fabric = Fabric(locations=str(tf_dir), silent="deep")
     else:
         raise ValueError(f"unsupported benchmark backend {backend}")
@@ -146,8 +146,8 @@ def _measure_loaded_graph(
         start = time.perf_counter()
         def get_parents(n: int) -> Iterable[int]:
             if backend == "native":
-                return api.C.levUp.data[n - 1]
-            return api.C.levUp[n]
+                return cast(Iterable[int], api.C.levUp.data[n - 1])
+            return cast(Iterable[int], api.C.levUp[n])
         result["fingerprint"] = digest_graph(
             max_slot=max_slot,
             max_node=max_node,
@@ -179,7 +179,7 @@ def _cfm_location(tf_dir: Path) -> Path:
 def _compile(tf_dir: Path) -> dict[str, Any]:
     if (tf_dir / ".cfm").exists():
         raise ValueError("refuse compilation over an existing CFM cache")
-    from cfabric.io.compiler import Compiler
+    from cfabric.io.compiler import Compiler  # type: ignore[import-not-found]
 
     t0 = time.perf_counter()
     c0 = time.process_time()
@@ -220,7 +220,7 @@ def _stage(tf_dir: Path, stage: str, output: Path) -> dict[str, Any]:
          "--stage", stage, "--output", str(output)],
         check=True,
     )
-    return json.loads(output.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(output.read_text(encoding="utf-8")))
 
 
 def run_benchmark(tf_dir: Path, output: Path) -> dict[str, Any]:
