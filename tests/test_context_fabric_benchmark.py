@@ -6,8 +6,8 @@ import pytest
 
 from scripts.benchmark_context_fabric import (
     digest_graph,
-    verify_equivalence,
     verify_compiled_metadata,
+    verify_equivalence,
 )
 
 
