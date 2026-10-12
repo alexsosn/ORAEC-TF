@@ -485,8 +485,9 @@ def write_tf(
     }
     if any(t.release_included and t.target_system == "karnak" for t in tables):
         generic_metadata["karnakMappingRedistributionTerms"] = "unresolved"
-        generic_metadata["karnakMappingSourceFiles"] = (
-            "mapping_oraec_karnak.tsv;mapping_oraec_lemmata_karnak.tsv"
+        generic_metadata["karnakTextMappingSource"] = "mapping_oraec_karnak.tsv"
+        generic_metadata["karnakLemmaMappingSource"] = (
+            "mapping_oraec_lemmata_karnak.tsv"
         )
     good = cv.walk(
         director,
