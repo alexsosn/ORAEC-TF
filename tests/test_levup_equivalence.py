@@ -70,3 +70,20 @@ def test_candidate_superset_levup_matches_native_for_deterministic_random_graphs
         ranks = list(range(1, n_slots + n_nodes + 1))
         rng.shuffle(ranks)
         _compare(n_slots, graph, tuple(ranks))
+
+
+def test_posting_intersections_do_not_infer_embedding_from_first_slot() -> None:
+    """#82 RED: candidate must occur in *every* relevant inverted posting."""
+    # 11's oslots is (1, 3) whereas 12 and 13 share only its first slot.
+    # 14 embeds 11, and 15 is a narrow 3-only node. Discontiguous parent
+    # memberships invalidate interval-only or first-slot-only shortcuts.
+    graph = (
+        (1, 2, 4),
+        (1, 2, 5),
+        (1, 3),
+        (1, 2, 3, 4, 5),
+        (3,),
+        (1, 3),
+    )
+    ranks = (8, 14, 7, 13, 6, 12, 5, 11, 4, 10, 3)
+    _compare(5, graph, ranks)
