@@ -1,0 +1,121 @@
+name: Real ORAEC Context-Fabric mmap comparison
+
+on:
+  pull_request:
+    paths:
+      - "scripts/benchmark_context_fabric.py"
+      - "tests/test_context_fabric_benchmark.py"
+      - ".github/workflows/context-fabric-oraec-benchmark.yml"
+      - "docs/research/context-fabric-oraec-benchmark.md"
+      - "docs/plans/context-fabric-oraec-benchmark.md"
+  workflow_dispatch:
+
+jobs:
+  real-pinned-corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install ORAEC native TF and exact Context-Fabric source
+        run: |
+          python -m pip install -e '.[dev]'
+          git clone https://github.com/alexsosn/context-fabric.git "${RUNNER_TEMP}/context-fabric"
+          git -C "${RUNNER_TEMP}/context-fabric" checkout dd54b73255d19f9ce230e7785d391106f4b94df2
+          test "$(git -C "${RUNNER_TEMP}/context-fabric" rev-parse HEAD)" = dd54b73255d19f9ce230e7785d391106f4b94df2
+          python -m pip install -e "${RUNNER_TEMP}/context-fabric/libs/core"
+          python - <<'PY'
+          import importlib.metadata as m
+          import sys
+          assert sys.version_info >= (3, 13)
+          assert m.version("text-fabric").startswith("13.1.")
+          assert m.version("context-fabric") == "0.5.7"
+          print("Pinned Python/TF/Context-Fabric runtime installed")
+          PY
+
+      - name: Test fail-closed benchmark fingerprints and inventory
+        run: |
+          python -m pytest -q tests/test_context_fabric_benchmark.py
+          python -m ruff check scripts/benchmark_context_fabric.py tests/test_context_fabric_benchmark.py
+
+      - name: Fetch and verify exact immutable ORAEC raw source
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+
+      - name: Convert full pinned source with unmodified native Text-Fabric
+        run: |
+          mkdir -p reports/generated
+          oraec-tf convert upstream/corpus_raw_data \
+            --output reports/generated/tf \
+            --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --profile > reports/generated/native-tf-validation.json
+
+      - name: Independently verify raw source against every generated native feature
+        run: |
+          python scripts/validate_graph_source.py \
+            upstream/corpus_raw_data reports/generated/tf \
+            --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --converter-revision "$(git rev-parse HEAD)" \
+            --schema-version 3 \
+            --report reports/generated/graph-conservation.json \
+            --profile-report reports/generated/independent-audit-profile.json
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          d = json.loads(Path("reports/generated/graph-conservation.json").read_text())
+          assert d["ok"] is True
+          assert d["source_revision"] == "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
+          assert d["counts"] == {"texts":13026,"sentences":101796,"tokens":815026,"anchors":3}
+          assert d["native_cr_occurrences"]["total"] == 2930
+          assert d["total_tf_bytes"] == 105254838
+          assert len(d["output_semantic_sha256"]) == 65
+          commitment = hashlib.sha256(
+              json.dumps(d["output_semantic_sha256"], sort_keys=True,
+                         ensure_ascii=False, separators=(",",":")).encode("utf-8")
+          ).hexdigest()
+          assert commitment == "abd68a103f13407f48824cebb7516cb7187f98916f9d74f60d90b2d8cf622e5b"
+          print("All 65 native semantic feature hashes exactly conserved:", commitment)
+          PY
+
+      - name: Verify original advanced app on full corpus
+        run: |
+          python scripts/validate_advanced_app.py reports/generated/tf \
+            > reports/generated/advanced-app-validation.json
+
+      - name: Compile CFM and measure repeated full loads in separate processes
+        run: |
+          python scripts/benchmark_context_fabric.py reports/generated/tf \
+            --output reports/generated/context-fabric-benchmark.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("reports/generated/context-fabric-benchmark.json").read_text())
+          assert d["equivalent_to_native"] is True
+          assert d["cfm_first_verified_load"]["loaded_from_cfm"] is True
+          assert len(d["cfm_repeated_loads"]) == 2
+          print("Native load wall:", d["native"]["load_wall_seconds"])
+          print("One-time CFM compile wall:", d["compile"]["compile_wall_seconds"])
+          print("CFM full load wall:", d["cfm_first_verified_load"]["load_wall_seconds"])
+          print("CFM repeated load walls:",
+                [v["load_wall_seconds"] for v in d["cfm_repeated_loads"]])
+          print("All-node graph fingerprint:", d["native"]["fingerprint"])
+          PY
+
+      - name: Upload provenance-only audit and benchmark
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oraec-context-fabric-real-comparison
+          path: |
+            reports/generated/native-tf-validation.json
+            reports/generated/graph-conservation.json
+            reports/generated/independent-audit-profile.json
+            reports/generated/advanced-app-validation.json
+            reports/generated/context-fabric-benchmark.json
+          if-no-files-found: warn
