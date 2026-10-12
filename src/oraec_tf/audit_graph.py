@@ -271,7 +271,7 @@ def _verify_text_relations(api: Any, text_node: int, source: dict[str, Any],
 
 def _verify_readme_and_external_crosswalks(
     api: Any, root: Path, tf_texts: dict[str, int],
-    credited_authors: set[str],
+    credited_authors: set[str], *, include_karnak: bool = False,
 ) -> None:
     """Independently resolve external edges and README contributor identities."""
     tf_authors = {
@@ -345,6 +345,11 @@ def _verify_readme_and_external_crosswalks(
         ("mapping_oraec_lemmata_vega.tsv", "\t", "vega"),
         ("mapping_oraec_wikidata.tsv", "\t", "wikidata"),
     )
+    if include_karnak:
+        families += (
+            ("mapping_oraec_karnak.tsv", "\t", "karnak"),
+            ("mapping_oraec_lemmata_karnak.tsv", "\t", "karnak"),
+        )
     expected: set[tuple[int, str, str, str]] = set()
     for filename, delimiter, system in families:
         path = root / filename
@@ -365,6 +370,11 @@ def _verify_readme_and_external_crosswalks(
                 source_node = tf_texts.get(key)
             elif system == "vega":
                 source_node = tf_lex.get(key)
+            elif system == "karnak":
+                source_node = (
+                    tf_texts.get(key) if filename == "mapping_oraec_karnak.tsv"
+                    else tf_lex.get(key)
+                )
             else:
                 matches = ([tf_authors[key]] if key in tf_authors else []) + (
                     tf_cvs.get(key, [])
@@ -405,9 +415,11 @@ def _verify_readme_and_external_crosswalks(
         used_external_nodes, set(external_nodes),
         context="unreferenced or invented external_ref nodes",
     )
-    if any(_node_value(api, "external_system", n) == "karnak"
-           for n in external_nodes):
-        raise GraphConservationError("unlicensed Karnak mapping in generated TF")
+    if not include_karnak and any(
+        _node_value(api, "external_system", n) == "karnak"
+        for n in external_nodes
+    ):
+        raise GraphConservationError("unexpected Karnak mapping in default TF")
 
 
 class _StrictLinkedHierarchy(HTMLParser):
@@ -835,6 +847,7 @@ def audit_basic_graph(
     require_complete_source: bool = False,
     cr_census: dict[str, Any] | None = None,
     profile_recorder: PhaseRecorder | None = None,
+    include_karnak: bool = False,
 ) -> dict[str, int]:
     """Independently compare raw ORAEC semantics against loaded TF."""
     root = Path(source)
@@ -1101,7 +1114,7 @@ def audit_basic_graph(
         len(api.F.otype.s("word")), expected_word_count, context="TF total slots"
     )
     _verify_readme_and_external_crosswalks(
-        api, root, tf_texts, credited_authors,
+        api, root, tf_texts, credited_authors, include_karnak=include_karnak,
     )
     _verify_hierarchy(api, root, tf_texts)
     _verify_native_entity_oslots(api, tf_texts)
@@ -1120,6 +1133,7 @@ def audit_graph_with_provenance(
     schema_version: int,
     require_complete_source: bool = False,
     profile_recorder: PhaseRecorder | None = None,
+    include_karnak: bool = False,
 ) -> dict[str, Any]:
     """Emit only reproducible build identities, counts and output hashes."""
     for kind, sha in (
@@ -1138,6 +1152,7 @@ def audit_graph_with_provenance(
         counts = audit_basic_graph(
             source, tf_dir, require_complete_source=require_complete_source,
             cr_census=cr_census, profile_recorder=recorder,
+            include_karnak=include_karnak,
         )
     output_hashes: dict[str, str] = {}
     semantic_hashes: dict[str, str] = {}
@@ -1156,6 +1171,10 @@ def audit_graph_with_provenance(
             output_bytes[path.name] = path.stat().st_size
     return {
         "ok": True,
+        **({
+            "mapping_mode": "local-karnak-opt-in",
+            "karnak_mapping_redistribution_terms": "unresolved",
+        } if include_karnak else {}),
         "output_bytes": output_bytes,
         "total_tf_bytes": sum(output_bytes.values()),
         "source_revision": source_revision,
