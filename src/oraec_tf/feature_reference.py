@@ -99,10 +99,10 @@ def render_feature_reference(schema: dict[str, Any]) -> str:
         "- Hierarchy nodes represent exact linked path prefixes, including",
         "  potentially empty source labels.",
         "- Licensed Trismegistos, Wikidata and Vega mappings are native TF",
-        "  relations. The current converter **currently excludes the Karnak** "
-        "mapping TSVs; opt-in local graph inclusion is planned in #85. Licence "
-        "issue #17 concerns distribution of future Karnak-bearing datasets, "
-        "not publishing the software-only converter (#12).",
+        "  relations. The default output excludes Karnak TSV crosswalks; explicit "
+        "direct local CLI `--include-karnak` includes both files as native TF "
+        "one-to-many source-provenance edges (#85). Public Karnak dataset "
+        "redistribution remains under separate rights review (#17).",
         "- The source corpus and generated TF feature data are acquired or",
         "  built separately, not committed to this software repository.",
         "",

@@ -87,6 +87,51 @@ jobs:
           python scripts/benchmark_levup_prototype.py reports/generated/tf \
             --report reports/generated/levup-benchmark.json
 
+      # Feature-head E2E: verify opted-in data entirely on the hosted worker,
+      # but upload ONLY provenance/counts, never the newly generated TF corpus.
+      # Keeping this branch-scoped avoids doubling the full CI runtime on
+      # unrelated PRs while providing full 13,026-text release evidence for #85.
+      - name: E2E local Karnak opt-in conversion and independent corpus audit (#85)
+        if: ${{ github.head_ref == 'feature/local-karnak-opt-in-85' }}
+        run: |
+          oraec-tf convert upstream/corpus_raw_data \
+            --output reports/generated/local-karnak-tf \
+            --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --include-karnak > reports/generated/local-karnak-summary.json
+          python scripts/validate_graph_source.py \
+            upstream/corpus_raw_data reports/generated/local-karnak-tf \
+            --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --converter-revision "$(git rev-parse HEAD)" \
+            --schema-version 3 --include-karnak \
+            --report reports/generated/local-karnak-audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from tf.fabric import Fabric
+
+          root = Path("reports/generated")
+          summary = json.loads((root / "local-karnak-summary.json").read_text())
+          assert summary["mapping_mode"] == "local-karnak-opt-in"
+          assert summary["karnak_mapping_redistribution_terms"] == "unresolved"
+          assert summary["counts"]["texts"] == 13026
+          api = Fabric(locations=str(root / "local-karnak-tf"), silent="deep").loadAll(
+              silent="deep"
+          )
+          per_file = {
+              "mapping_oraec_karnak.tsv": 0,
+              "mapping_oraec_lemmata_karnak.tsv": 0,
+          }
+          for source_node, targets in api.E.external.items():
+              for _, filename in targets.items():
+                  if filename in per_file:
+                      per_file[filename] += 1
+          assert per_file == {
+              "mapping_oraec_karnak.tsv": 31,
+              "mapping_oraec_lemmata_karnak.tsv": 1973,
+          }, per_file
+          print(per_file)
+          PY
+
       - name: Upload counts and provenance only
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,4 +143,6 @@ jobs:
             reports/generated/independent-audit-profile.json
             reports/generated/advanced-app-validation.json
             reports/generated/levup-benchmark.json
+            reports/generated/local-karnak-summary.json
+            reports/generated/local-karnak-audit.json
           if-no-files-found: warn

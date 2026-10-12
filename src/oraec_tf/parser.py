@@ -622,8 +622,10 @@ def _read_mapping_rows(
     return tuple(result)
 
 
-def parse_mapping_tables(root: str | Path) -> tuple[MappingTableIR, ...]:
-    """Parse every audited mapping family, retaining release gating explicitly."""
+def parse_mapping_tables(
+    root: str | Path, *, include_karnak: bool = False,
+) -> tuple[MappingTableIR, ...]:
+    """Parse all mappings; only explicit local opt-in enables Karnak output."""
     source = Path(root)
     result: list[MappingTableIR] = []
 
@@ -643,7 +645,9 @@ def parse_mapping_tables(root: str | Path) -> tuple[MappingTableIR, ...]:
                 filename=filename,
                 source_domain=source_domain,
                 target_system=target_system,
-                release_included=release_included,
+                release_included=release_included or (
+                    include_karnak and target_system == "karnak"
+                ),
                 rows=rows,
             )
         )

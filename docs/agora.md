@@ -113,8 +113,8 @@ Downstream Agora registration must verify the executor actually enforces
 `network: deny` and delivers the exact source revision binding.
 
 Generated corpus content adapts CC BY-SA 4.0 input. The upstream converter
-currently excludes the two Karnak mapping files; opt-in local conversion is
-not yet implemented (#85). A software-only ORAEC-TF release can proceed
+still excludes both Karnak mapping files; the separate **direct local CLI**
+`--include-karnak` option (#85) is intentionally not exposed in Agora. A software-only ORAEC-TF release can proceed
 without a file-level Karnak redistribution licence; see
 [`LICENSE_SCOPE.md`](../LICENSE_SCOPE.md) and issue #17. **Hosted use differs
 from private local use**: Agora #224 must review **remote execution** and whether

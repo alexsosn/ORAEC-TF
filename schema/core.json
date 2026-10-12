@@ -760,14 +760,22 @@
       "targetSystem": "karnak",
       "releaseStatus": "excluded_pending_issue_17",
       "rowOrderSemantic": false,
-      "rowSemantics": "mapping_pair"
+      "rowSemantics": "mapping_pair",
+      "localOptInStatus": "direct_cli_only",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "sourceProvenance": "edge value: original mapping TSV filename"
     },
     "mapping_oraec_lemmata_karnak.tsv": {
       "sourceDomain": "lex.lemma_id",
       "targetSystem": "karnak",
       "releaseStatus": "excluded_pending_issue_17",
       "rowOrderSemantic": false,
-      "rowSemantics": "mapping_pair"
+      "rowSemantics": "mapping_pair",
+      "localOptInStatus": "direct_cli_only",
+      "targetFeature": "external_ref.external_value",
+      "relation": "edge.external",
+      "sourceProvenance": "edge value: original mapping TSV filename"
     }
   },
   "hierarchyContract": {
@@ -812,7 +820,13 @@
     "excludedDerivedFamilies": [
       "collocation",
       "statistics"
-    ]
+    ],
+    "localOptInMappings": [
+      "mapping_oraec_karnak.tsv",
+      "mapping_oraec_lemmata_karnak.tsv"
+    ],
+    "localOptInFlag": "--include-karnak",
+    "datasetRedistributionGate": "Karnak-bearing generated datasets require independent rights review (#17)"
   },
   "failClosed": [
     "unknown_source_field",

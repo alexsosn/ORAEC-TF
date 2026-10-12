@@ -66,6 +66,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Emit source-free per-phase timing metrics in the JSON summary",
     )
     convert.add_argument(
+        "--include-karnak", action="store_true",
+        help="Explicit local-only TF inclusion of two Karnak TSV mappings; "
+             "redistribution rights unresolved. Never auto-enabled for Agora.",
+    )
+    convert.add_argument(
         "--upstream-commit", required=True,
         help="Immutable source commit (must match the frozen supported schema)",
     )
@@ -75,6 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _convert(
     source: str, destination: str, revision: str, *, profile: bool = False,
+    include_karnak: bool = False,
 ) -> dict[str, object]:
     recorder = PhaseRecorder(enabled=profile)
     if revision.lower() != DEFAULT_SOURCE_REVISION:
@@ -95,7 +101,10 @@ def _convert(
     # once it completes, and never again use the mutable alias for rmdir,
     # workspace creation, or exception cleanup.
     with recorder.phase("source_semantics"):
-        report = validate_corpus_source(snapshot.path)
+        report = (
+            validate_corpus_source(snapshot.path, include_karnak=True)
+            if include_karnak else validate_corpus_source(snapshot.path)
+        )
     canonical_target = target.resolve()
     if target.is_symlink() or canonical_target == snapshot.path or (
         snapshot.path in canonical_target.parents
@@ -120,7 +129,10 @@ def _convert(
                     stage,
                     source_revision=snapshot.revision,
                     corpus_metadata=parse_corpus_metadata(snapshot.path),
-                    mapping_tables=parse_mapping_tables(snapshot.path),
+                    mapping_tables=(
+                        parse_mapping_tables(snapshot.path, include_karnak=True)
+                        if include_karnak else parse_mapping_tables(snapshot.path)
+                    ),
                     hierarchy_rows=parse_hierarchy(snapshot.path),
                 )
 
@@ -193,6 +205,13 @@ def _convert(
             "slots": word_count,
         },
     }
+    if include_karnak:
+        result["mapping_mode"] = "local-karnak-opt-in"
+        result["karnak_mapping_redistribution_terms"] = "unresolved"
+        result["karnak_mapping_files"] = [
+            "mapping_oraec_karnak.tsv",
+            "mapping_oraec_lemmata_karnak.tsv",
+        ]
     if profile:
         result["profile"] = recorder.report()
     return result
@@ -226,7 +245,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "convert":
-        result = _convert(args.source, args.output, args.upstream_commit, profile=args.profile)
+        result = _convert(
+            args.source, args.output, args.upstream_commit,
+            profile=args.profile, include_karnak=args.include_karnak,
+        )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
 
