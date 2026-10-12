@@ -14,7 +14,7 @@ The initial supported upstream snapshot is:
 - commit: `b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd`
 - upstream commit date: 2024-06-03
 
-The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The audited semantic contract is frozen as native **schema v3** in [`schema/core.json`](schema/core.json); all source-to-TF string and relationship conservation checks run on the complete immutable corpus. Derived upstream analytics remain outside the core schema. The current default conversion still excludes the two Karnak crosswalks (#17); opt-in local conversion is planned under #85 and is not yet implemented. This data-redistribution issue does not block the software-only release.
+The upstream repository contains 13,026 `oraec*.json` text records plus corpus-level hierarchy, mapping, collocation, and statistics files. The audited semantic contract is frozen as native **schema v3** in [`schema/core.json`](schema/core.json); all source-to-TF string and relationship conservation checks run on the complete immutable corpus. Derived upstream analytics remain outside the core schema. The current default conversion still excludes the two Karnak crosswalks (#17); opt-in local conversion is available through the explicit direct-CLI `--include-karnak` option (#85). This data-redistribution issue does not block the software-only release.
 
 ## Implemented architecture
 
@@ -123,11 +123,34 @@ from `oraec_tf.text_codec` after loading the standard Fabric API. It is
 `F.bibliography.v(text_node)`. Full-source independent CI reconstructs and
 verifies every source string, including standalone CR and CRLF.
 
-The current converter excludes both Karnak mapping tables from generated TF; opt-in private/local mapping inclusion (#85) is not yet implemented. Karnak licence clarification does not block the software-only v0.1.0 release because the software package ships no upstream source or generated corpus data. The question remains open for any later publication or hosted redistribution of Karnak-bearing TF datasets (#17). This is a development conversion path;
+By default the converter excludes both Karnak mapping tables. Direct local `oraec-tf convert --include-karnak` explicitly includes both text and lemma crosswalks as native TF `external_ref` nodes and `external` edges, retaining source filename provenance and one-to-many relations (#85). Agora's adapter does not enable this option. Karnak licence clarification does not block the software-only v0.1.0 release because the software package ships no upstream source or generated corpus data. The question remains open for any later publication or hosted redistribution of Karnak-bearing TF datasets (#17). This is a development conversion path;
 independent raw-source-to-TF validation (#8), the TF advanced app (#9),
 researcher documentation (#10), and the upstream Agora materializer (#11)
 are implemented and tested. Final 0.1.0 release verification and downstream
 Agora registration remain separate gates (#12 and Agora #224).
+
+### Optional local Karnak crosswalks
+
+After acquiring the pinned source independently, create an explicitly opted-in **local**
+Text-Fabric dataset with both upstream Karnak mapping tables:
+
+```bash
+oraec-tf convert upstream/corpus_raw_data \\
+  --output build/oraec-with-karnak \\
+  --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \\
+  --include-karnak
+```
+
+The command operates offline after source acquisition. It models 31 source text links
+and 1,973 source lemma links (including one-to-many mappings), checks source
+identities before writing, and records both original mapping filenames as provenance
+in native TF edge values. Generated TF `otext.tf` includes
+`karnakMappingRedistributionTerms=unresolved`; the CLI JSON summary repeats
+this warning without embedding the source tables. The independent auditor supports
+`python scripts/validate_graph_source.py ... --include-karnak`.
+Ordinary conversion, Agora, and distributable project assets continue to omit Karnak
+data. **Do not share or publish a Karnak-bearing TF corpus on the assumption that
+the MIT software licence covers the mapping rows.** See #17.
 
 ## Text-Fabric app/browser
 
@@ -153,6 +176,6 @@ The 0.1.0 release gate is issue #12.
 
 ## Licensing
 
-Repository-authored software is MIT licensed. ORAEC source texts and generated TF adaptations retain their upstream data terms; the main corpus is CC BY-SA 4.0. Some auxiliary mappings are CC0, while the two Karnak files lack an explicit file-level distribution licence declaration. Karnak licence clarification does not block the software-only release; anyone publishing or hosting a generated corpus containing those crosswalks must assess redistribution rights separately (issue #17). The existing default converter omits Karnak; local opt-in inclusion is tracked in #85.
+Repository-authored software is MIT licensed. ORAEC source texts and generated TF adaptations retain their upstream data terms; the main corpus is CC BY-SA 4.0. Some auxiliary mappings are CC0, while the two Karnak files lack an explicit file-level distribution licence declaration. Karnak licence clarification does not block the software-only release; anyone publishing or hosting a generated corpus containing those crosswalks must assess redistribution rights separately (issue #17). The existing default converter omits Karnak; the direct local `--include-karnak` option includes both TSV mappings in user-generated TF (#85), with redistribution terms explicitly unresolved.
 
 See `LICENSE_SCOPE.md`.
