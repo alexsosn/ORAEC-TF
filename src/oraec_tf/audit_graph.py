@@ -340,7 +340,7 @@ def _verify_readme_and_external_crosswalks(
         context="complete source-declared author identities (no invented authors)",
     )
 
-    families = (
+    families: tuple[tuple[str, str, str], ...] = (
         ("mapping_oraec_trismegistos.csv", ",", "trismegistos"),
         ("mapping_oraec_lemmata_vega.tsv", "\t", "vega"),
         ("mapping_oraec_wikidata.tsv", "\t", "wikidata"),
