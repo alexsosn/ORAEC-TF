@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
+
 def process_peak_rss_kib() -> int | None:
     """Linux process high-water RSS, not incremental phase allocation."""
     if not sys.platform.startswith("linux"):
