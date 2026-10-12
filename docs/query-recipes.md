@@ -131,8 +131,9 @@ if text is not None:
 Hierarchy links come from the exact source linked paths, with the original
 labels (including possible empty strings) and `tla_url` retained. External
 mapping families currently implemented are Trismegistos, Wikidata, and VÉgA.
-The current converter **currently excludes** Karnak from locally generated TF;
-opt-in private/local inclusion with audited one-to-many edges is planned in #85.
+The default converter **excludes** Karnak mappings. For local research only,
+pass `--include-karnak` to `oraec-tf convert` to preserve both tables as
+native `external_ref` nodes and filename-valued `external` edges (#85).
 Redistributing generated datasets with Karnak content remains a separate
 rights question (#17), not a software release blocker (#12).
 
