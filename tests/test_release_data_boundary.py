@@ -48,3 +48,16 @@ def test_agora_hosted_karnak_artifacts_have_separate_rights_review() -> None:
     assert "Karnak-bearing" in docs
     assert "rights review" in docs
     assert "Karnak mapping redistribution terms: unresolved" in scope
+
+
+def test_researcher_docs_and_roadmap_distinguish_current_exclusion_from_rights() -> None:
+    feature_ref = _text("docs/feature-reference.md")
+    recipes = _text("docs/query-recipes.md")
+    plan = _text("plan.md")
+    research = _text("research.md")
+
+    assert "currently excludes the Karnak" in feature_ref
+    assert "#85" in recipes and "currently excludes" in recipes
+    assert "#85" in plan and "separate from software release #12" in plan
+    assert "2026-10-12 release-boundary clarification" in research
+    assert "Karnak mappings remain excluded by the #17 fail-closed licence gate" not in research
