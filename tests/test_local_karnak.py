@@ -166,3 +166,50 @@ def test_writer_rejects_karnak_with_forged_family_filename(tmp_path: Path) -> No
     with pytest.raises(WriterError, match="unapproved"):
         write_tf(iter_texts(source), tmp_path / "tf",
                  source_revision=REVISION, mapping_tables=(table,))
+
+
+def test_opt_in_is_explicit_direct_cli_and_tracks_origin_without_source_copy(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    from unittest.mock import patch
+    from oraec_tf.cli import main
+    from oraec_tf.source import SourceSnapshot
+
+    source = _fixture(tmp_path)
+    out = tmp_path / "explicit-tf"
+    with patch("oraec_tf.cli.verify_source", return_value=SourceSnapshot(
+        path=source, revision=REVISION,
+    )):
+        assert main([
+            "convert", str(source), "--output", str(out),
+            "--upstream-commit", REVISION, "--include-karnak",
+        ]) == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["mapping_mode"] == "local-karnak-opt-in"
+    assert summary["karnak_mapping_redistribution_terms"] == "unresolved"
+    assert summary["karnak_mapping_files"] == [
+        "mapping_oraec_karnak.tsv",
+        "mapping_oraec_lemmata_karnak.tsv",
+    ]
+    assert audit_basic_graph(source, out, include_karnak=True)["tokens"] == 2
+    otext = (out / "otext.tf").read_text(encoding="utf-8")
+    assert "karnakMappingRedistributionTerms=unresolved" in otext
+    assert "karnakTextMappingSource=mapping_oraec_karnak.tsv" in otext
+    assert "karnakLemmaMappingSource=mapping_oraec_lemmata_karnak.tsv" in otext
+    assert not (out / "mapping_oraec_karnak.tsv").exists()
+    assert not (out / "mapping_oraec_lemmata_karnak.tsv").exists()
+
+
+def test_schema_separates_default_exclusion_and_local_opt_in() -> None:
+    schema = json.loads((Path(__file__).resolve().parents[1] /
+                         "schema/core.json").read_text(encoding="utf-8"))
+    files = {
+        "mapping_oraec_karnak.tsv", "mapping_oraec_lemmata_karnak.tsv",
+    }
+    assert set(schema["release"]["excludedMappings"]) == files
+    assert set(schema["release"]["localOptInMappings"]) == files
+    assert schema["release"]["localOptInFlag"] == "--include-karnak"
+    for filename in files:
+        assert schema["mappingFamilies"][filename]["localOptInStatus"] == (
+            "direct_cli_only"
+        )
