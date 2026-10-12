@@ -1,26 +1,34 @@
-"""CI acceptance: compare real native TF writer fixtures with raw and compiled cfabric."""
+"""CI check: native TF, raw Context-Fabric and compiled .cfm graph equivalence."""
 
 from __future__ import annotations
 
+import hashlib
 import importlib
+import runpy
 from pathlib import Path
 from typing import Any
 
 import pytest
+from tf.fabric import Fabric as NativeFabric
 
-# Ordinary 3.11/3.12 unit CI omits cfabric. The dedicated 3.13 acceptance job
-# installs cfabric explicitly, so this test must run there (not skip).
+from oraec_tf.writer import write_tf
+
+# Normal unit matrices omit Python 3.13-only cfabric; the dedicated job installs it.
 pytest.importorskip("cfabric.core")
 
-from tf.fabric import Fabric as NativeFabric  # type: ignore[import-untyped]
 
-
-def snapshot(api: Any, types: tuple[str, ...], features: tuple[str, ...],
-             parent_type: str, slot_type: str, query: str,
-             edges: tuple[str, ...] = ()) -> dict[str, Any]:
-    """Capture actual graph semantics, not just .tf/.cfm file presence."""
+def snapshot(
+    api: Any,
+    types: tuple[str, ...],
+    features: tuple[str, ...],
+    parent_type: str,
+    slot_type: str,
+    query: str,
+    edges: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Capture real graph semantics, not only .tf/.cfm file existence."""
     type_nodes = {kind: tuple(api.F.otype.s(kind)) for kind in types}
-    nodes = sorted({n for values in type_nodes.values() for n in values})
+    nodes = sorted({n for members in type_nodes.values() for n in members})
     parents = type_nodes[parent_type]
     assert parents, f"missing {parent_type} parent"
     assert type_nodes[slot_type], f"missing {slot_type} slots"
@@ -37,7 +45,7 @@ def snapshot(api: Any, types: tuple[str, ...], features: tuple[str, ...],
         "query": tuple(tuple(row) for row in api.S.search(query, silent="deep")),
         "edges": {
             feature: tuple(
-                (n, tuple(getattr(api.E, feature).f(n))) for n in nodes
+                (n, tuple(sorted(getattr(api.E, feature).f(n)))) for n in nodes
             )
             for feature in edges
         },
@@ -47,9 +55,15 @@ def snapshot(api: Any, types: tuple[str, ...], features: tuple[str, ...],
     return result
 
 
-def verify(output: Path, types: tuple[str, ...], features: tuple[str, ...],
-           parent_type: str, slot_type: str, query: str,
-           edges: tuple[str, ...] = ()) -> None:
+def verify(
+    output: Path,
+    types: tuple[str, ...],
+    features: tuple[str, ...],
+    parent_type: str,
+    slot_type: str,
+    query: str,
+    edges: tuple[str, ...] = (),
+) -> None:
     assert (output / "otype.tf").is_file()
     assert (output / "oslots.tf").is_file()
     assert (output / "otext.tf").is_file()
@@ -57,8 +71,10 @@ def verify(output: Path, types: tuple[str, ...], features: tuple[str, ...],
     assert native is not None and native is not False
     baseline = snapshot(native, types, features, parent_type, slot_type, query, edges)
     assert baseline["slot_type"] == slot_type
-    assert all(any(value is not None for _, value in baseline["values"][f])
-               for f in features), "fixture has no values for one required feature"
+    assert all(
+        any(value is not None for _, value in baseline["values"][feature])
+        for feature in features
+    ), "fixture lacks values for a required feature"
 
     cf_fabric = importlib.import_module("cfabric.core").Fabric
     raw_fabric = cf_fabric(locations=str(output), silent="deep")
@@ -70,15 +86,13 @@ def verify(output: Path, types: tuple[str, ...], features: tuple[str, ...],
     )
 
     tf_names = sorted(p.name for p in output.glob("*.tf"))
-    import hashlib
-    before = {n: hashlib.sha256((output / n).read_bytes()).hexdigest() for n in tf_names}
+    before = {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in tf_names}
     assert raw_fabric.compile(silent="deep"), "Context-Fabric .cfm compilation failed"
     assert list((output / ".cfm").glob("*/meta.json")), "compiled .cfm manifest missing"
     assert before == {
-        n: hashlib.sha256((output / n).read_bytes()).hexdigest() for n in tf_names
-    }, "compilation changed native TF features"
+        name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in tf_names
+    }, "compilation modified native TF source features"
 
-    # A new instance must use the compiled memory-mapped path.
     compiled_fabric = cf_fabric(locations=str(output), silent="deep")
     compiled_api = compiled_fabric.loadAll(silent="deep")
     assert compiled_api is not None and compiled_api is not False
@@ -88,10 +102,6 @@ def verify(output: Path, types: tuple[str, ...], features: tuple[str, ...],
     assert snapshot(
         compiled_api, types, features, parent_type, slot_type, query, edges
     ) == baseline, "compiled Context-Fabric graph differs from native Text-Fabric"
-
-import runpy
-
-from oraec_tf.writer import write_tf
 
 
 def test_native_to_context_fabric_raw_and_compiled(tmp_path: Path) -> None:
