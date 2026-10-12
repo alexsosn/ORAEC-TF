@@ -904,6 +904,10 @@ def audit_basic_graph(
     if len(tf_texts) != len(paths):
         raise GraphConservationError("missing or extra Text-Fabric text nodes")
 
+    # Text-Fabric omits the entire sparse is_anchor.tf feature when a valid
+    # synthetic/local source has no empty sentences. Do not require its
+    # accessor unless an actual zero-token source sentence needs an anchor.
+    anchor_feature = getattr(api.F, "is_anchor", None)
     counts = {"texts": 0, "sentences": 0, "tokens": 0, "anchors": 0}
     hiero_counts = {"present": 0, "distinct": 0, "placeholder": 0, "replacement": 0}
     hiero_distinct: set[str] = set()
@@ -989,7 +993,7 @@ def audit_basic_graph(
                 )
                 anchor = tf_slots[0]
                 _expect_equal(
-                    api.F.is_anchor.v(anchor),
+                    None if anchor_feature is None else anchor_feature.v(anchor),
                     1,
                     context=f"{text_id}.sentence[{index}].is_anchor",
                 )
@@ -1032,7 +1036,10 @@ def audit_basic_graph(
                 for token_idx, (raw_token, slot) in enumerate(
                     zip(raw_tokens, tf_slots, strict=True), start=1
                 ):
-                    if api.F.is_anchor.v(slot) is not None:
+                    if (
+                        anchor_feature is not None
+                        and anchor_feature.v(slot) is not None
+                    ):
                         raise GraphConservationError("fabricated anchor in real sentence")
                     # Count *source* code points; no TF/writer-derived tags.
                     # Distinguish missing hiero from a present empty string.
