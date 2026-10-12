@@ -1,0 +1,36 @@
+name: Context-Fabric native corpus acceptance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-raw-compiled-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install source converter and pinned Context-Fabric runtime
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pip install 'context-fabric==0.5.7'
+      - name: Require importable Context-Fabric (no skipped acceptance)
+        run: python -c 'from cfabric.core import Fabric; assert Fabric'
+      - name: Assert native TF, raw cfabric, and compiled .cfm graph equivalence
+        run: |
+          python -m pytest -q tests/test_context_fabric_acceptance.py -rs
