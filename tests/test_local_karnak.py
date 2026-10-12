@@ -35,7 +35,10 @@ def _fixture(tmp_path: Path) -> Path:
             "oraecid": "oraec1",
             "title": "Research sample",
             "credits": {"license": "cc-by-sa-4.0", "author": "Editor",
-                        "source": ["https://example.invalid/text"]},
+                        "source": [
+                            "https://example.invalid/text",
+                            "https://example.invalid/edition",
+                        ]},
             "sentences": [{
                 "translation": "",
                 "token": [
