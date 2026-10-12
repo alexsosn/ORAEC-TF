@@ -29,7 +29,7 @@ def _compare(
     )
     assert len(baseline) == len(alternative) == max_node
     # Compare EACH original TF embedder sequence, including rank order.
-    for node_id, (native, proposed) in enumerate(zip(baseline, alternative), start=1):
+    for node_id, (native, proposed) in enumerate(zip(baseline, alternative, strict=True), start=1):
         assert native == proposed, f"node {node_id}: changed native TF embedding"
     assert alternative == baseline
 
