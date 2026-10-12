@@ -6,6 +6,12 @@ import importlib
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+# Ordinary 3.11/3.12 unit CI omits cfabric. The dedicated 3.13 acceptance job
+# installs cfabric explicitly, so this test must run there (not skip).
+pytest.importorskip("cfabric.core")
+
 from tf.fabric import Fabric as NativeFabric  # type: ignore[import-untyped]
 
 
