@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from scripts.benchmark_context_fabric import (
+from oraec_tf.benchmark_fingerprint import (
     digest_graph,
     verify_compiled_metadata,
     verify_equivalence,
