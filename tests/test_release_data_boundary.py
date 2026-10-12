@@ -30,9 +30,10 @@ def test_current_converter_exclusion_is_not_misrepresented_as_local_support() ->
     adr = _text("docs/adr/0005-native-tf-schema.md")
     schema = json.loads(_text("schema/core.json"))
 
-    assert "#85" in readme and "not yet implemented" in readme
-    assert "#85" in scope and "not yet implemented" in scope
+    assert "#85" in readme and "--include-karnak" in readme
+    assert "#85" in scope and "--include-karnak" in scope
     assert "#85" in adr and "current default" in adr
+    assert "--include-karnak" in adr
     assert set(schema["release"]["excludedMappings"]) == {
         "mapping_oraec_karnak.tsv",
         "mapping_oraec_lemmata_karnak.tsv",
