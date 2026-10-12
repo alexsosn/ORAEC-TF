@@ -17,6 +17,10 @@ def main() -> int:
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--converter-revision", required=True)
     parser.add_argument("--schema-version", type=int, required=True)
+    parser.add_argument(
+        "--include-karnak", action="store_true",
+        help="Audit both local opt-in Karnak mapping TSVs independently",
+    )
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument(
         "--profile-report", type=Path, default=None,
@@ -36,7 +40,7 @@ def main() -> int:
         converter_revision=args.converter_revision,
         schema_version=args.schema_version,
         require_complete_source=True,
-        profile_recorder=recorder,
+        profile_recorder=recorder, include_karnak=args.include_karnak,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(
