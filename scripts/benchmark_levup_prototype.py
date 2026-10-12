@@ -10,6 +10,7 @@ production APIs, or the independent source-conservation audit.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 import time
@@ -64,17 +65,24 @@ def benchmark(tf_path: Path) -> dict[str, Any]:
     )
     if baseline != native_result:
         raise RuntimeError("native recalculation disagrees with loaded Text-Fabric")
+    # The reference native result remains available in Fabric. Keeping the
+    # separate timed native recomputation alive during the candidate step
+    # artificially inflates process RSS and risks OOM on the full corpus.
+    # Prove reference equality first, then release that redundant copy.
+    checked = len(baseline)
+    del baseline
+    gc.collect()
 
     proposed, candidate_time = _timed(
         lambda: candidate_superset_levup(_quiet, _quiet, otype, oslots, rank),
     )
-    if proposed != baseline:
+    if proposed != native_result:
         raise RuntimeError("candidate-superset levUp changes native TF embeddings")
 
     return {
         "format": "oraec-levup-research-prototype-v1",
         "equivalent_to_native": True,
-        "nodes_checked": len(baseline),
+        "nodes_checked": checked,
         "native_recomputation": native_time,
         "candidate_superset": candidate_time,
         "timing_caveat": (
