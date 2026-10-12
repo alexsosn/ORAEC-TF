@@ -19,7 +19,13 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from ._benchmark_compat import process_peak_rss_kib
+def process_peak_rss_kib() -> int | None:
+    """Linux process high-water RSS, not incremental phase allocation."""
+    if not sys.platform.startswith("linux"):
+        return None
+    import resource
+
+    return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
 
 EXPECTED_SOURCE_REVISION = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
