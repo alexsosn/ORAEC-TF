@@ -715,6 +715,21 @@ REQUIRED_SOURCE_COMPANIONS = (
 )
 
 
+# Exact native Text-Fabric 13.1.0 PRECOMPUTE identifiers. They are internal
+# code names, never values read from corpus metadata or user-provided paths.
+_TF_COMPUTE_PHASES = {
+    "__levels__": "independent_fabric_compute_levels",
+    "__order__": "independent_fabric_compute_order",
+    "__rank__": "independent_fabric_compute_rank",
+    "__levUp__": "independent_fabric_compute_levUp",
+    "__levDown__": "independent_fabric_compute_levDown",
+    "__characters__": "independent_fabric_compute_characters",
+    "__boundary__": "independent_fabric_compute_boundary",
+    "__sections__": "independent_fabric_compute_sections",
+    "__structure__": "independent_fabric_compute_structure",
+}
+
+
 def _independent_load_all_with_subphases(
     fabric: Any, recorder: PhaseRecorder,
 ) -> Any:
@@ -754,8 +769,40 @@ def _independent_load_all_with_subphases(
         }
 
         def timed_precompute(*method_args: Any, **method_kwargs: Any) -> Any:
-            with recorder.phase("independent_fabric_warp_precompute"):
-                return original_methods["_precompute"](*method_args, **method_kwargs)
+            # Instrument actual native computed Data.load objects, not an
+            # emulation of Fabric._precompute or a curated subset of work.
+            # Only hardcoded Text-Fabric internal names enter telemetry.
+            overrides: list[tuple[Any, bool, Any]] = []
+            try:
+                for name, _dependency in getattr(fabric, "precomputeList", ()):
+                    phase_name = _TF_COMPUTE_PHASES.get(name)
+                    if phase_name is None:
+                        continue
+                    computed = fabric.features.get(name)
+                    if computed is None:
+                        continue
+                    existing = vars(computed)
+                    had_override = "load" in existing
+                    old_override = existing.get("load")
+                    native_load = computed.load
+
+                    def timed_computed_load(
+                        *args: Any, _native: Any = native_load,
+                        _phase: str = phase_name, **kwargs: Any,
+                    ) -> Any:
+                        with recorder.phase(_phase):
+                            return _native(*args, **kwargs)
+
+                    computed.load = timed_computed_load
+                    overrides.append((computed, had_override, old_override))
+                with recorder.phase("independent_fabric_warp_precompute"):
+                    return original_methods["_precompute"](*method_args, **method_kwargs)
+            finally:
+                for computed, had_override, old_override in reversed(overrides):
+                    if had_override:
+                        computed.load = old_override
+                    else:
+                        del computed.load
 
         def timed_api(*method_args: Any, **method_kwargs: Any) -> Any:
             with recorder.phase("independent_fabric_warp_api"):

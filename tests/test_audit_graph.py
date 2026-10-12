@@ -814,7 +814,32 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
     )
     assert profiled == plain, "profiling must not alter source conservation evidence"
     record_names = [phase["name"] for phase in recorder.phases]
-    assert record_names == [
+    # Native Data.load may be invoked again for dependency checks. Verify
+    # the order of first computations without pretending each runs once.
+    compute_names = [
+        name for name in record_names
+        if name.startswith("independent_fabric_compute_")
+    ]
+    assert list(dict.fromkeys(compute_names))[:3] == [
+        "independent_fabric_compute_levels",
+        "independent_fabric_compute_order",
+        "independent_fabric_compute_rank",
+    ]
+    assert set(record_names).issubset({
+        "independent_fabric_compute_levels",
+        "independent_fabric_compute_order",
+        "independent_fabric_compute_rank",
+        "independent_fabric_compute_levUp",
+        "independent_fabric_compute_levDown",
+        "independent_fabric_compute_characters",
+        "independent_fabric_compute_boundary",
+        "independent_fabric_compute_sections",
+        "independent_fabric_compute_structure",
+        "independent_fabric_warp_precompute", "independent_fabric_warp_api",
+        "independent_fabric_warp_load", "independent_fabric_features_load",
+        "independent_fabric_load", "source_graph_audit", "feature_hashes",
+    })
+    assert record_names[-7:] == [
         "independent_fabric_warp_precompute",
         "independent_fabric_warp_api",
         "independent_fabric_warp_load",
@@ -835,11 +860,19 @@ def test_independent_audit_phase_profile_is_opt_in_and_preserves_evidence(
         )
     # Both subphases are nested in the full independent Fabric load.
     # Difference is feature exploration and scheduling, not a skipped stage.
+    by_phase = {phase["name"]: phase for phase in profile["phases"]}
     assert (
-        profile["phases"][2]["wall_seconds"] + profile["phases"][3]["wall_seconds"]
-        <= profile["phases"][4]["wall_seconds"] + 0.1
+        by_phase["independent_fabric_warp_load"]["wall_seconds"]
+        + by_phase["independent_fabric_features_load"]["wall_seconds"]
+        <= by_phase["independent_fabric_load"]["wall_seconds"] + 0.1
     )
-    assert profile["phases"][4]["name"] == "independent_fabric_load"
+    assert (
+        sum(
+            phase["wall_seconds"] for phase in profile["phases"]
+            if phase["name"].startswith("independent_fabric_compute_")
+        ) <= by_phase["independent_fabric_warp_precompute"]["wall_seconds"] + 0.1
+    )
+    assert profile["phases"][-3]["name"] == "independent_fabric_load"
     assert "oraec1-1-1" not in json.dumps(profile)
     assert str(source) not in json.dumps(profile)
 
@@ -912,12 +945,14 @@ def test_fabric_subphase_profile_forwards_actual_upstream_loader_calls(
         if candidate.is_file() and not candidate.name.startswith(".")
     } - {"otext"}
     assert set(bulk_features) == emitted
-    assert [phase["name"] for phase in recorder.phases][:5] == [
+    assert [phase["name"] for phase in recorder.phases][-7:] == [
         "independent_fabric_warp_precompute",
         "independent_fabric_warp_api",
         "independent_fabric_warp_load",
         "independent_fabric_features_load",
         "independent_fabric_load",
+        "source_graph_audit",
+        "feature_hashes",
     ]
 
 
@@ -972,6 +1007,49 @@ def test_profiled_fabric_internal_precompute_failure_restores_all_methods() -> N
     assert all(getattr(fabric, key) == value for key, value in before.items())
     assert not set(before).intersection(vars(fabric))
     assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_warp_precompute",
+        "independent_fabric_warp_load",
+    ]
+
+
+def test_computed_feature_failure_preserves_original_data_methods() -> None:
+    """#80 RED: instrumentation never leaves monkeypatches in native TF Data."""
+    from oraec_tf.audit_graph import _independent_load_all_with_subphases
+    from oraec_tf.conversion_profile import PhaseRecorder
+
+    class BrokenComputedData:
+        def load(self, *, silent: str = "deep") -> None:
+            raise RuntimeError("computed feature failed")
+
+    class BrokenComputedFabric:
+        def __init__(self) -> None:
+            self.computed = BrokenComputedData()
+            self.features = {"__levels__": self.computed}
+            self.precomputeList = (("__levels__", 0),)
+
+        def _precompute(self) -> None:
+            for name, _ in self.precomputeList:
+                self.features[name].load(silent="deep")
+
+        def _makeApi(self) -> None:
+            raise AssertionError("API should not be constructed")
+
+        def load(self, features: object, *, silent: str = "deep") -> None:
+            self._precompute()
+
+        def loadAll(self, *, silent: str = "deep") -> None:
+            self.load("", silent=silent)
+
+    fabric = BrokenComputedFabric()
+    original = fabric.computed.load
+    recorder = PhaseRecorder(enabled=True)
+    with pytest.raises(RuntimeError, match="computed feature failed"):
+        _independent_load_all_with_subphases(fabric, recorder)
+    assert fabric.computed.load == original
+    assert "load" not in vars(fabric.computed)
+    assert not {"load", "_precompute", "_makeApi"}.intersection(vars(fabric))
+    assert [phase["name"] for phase in recorder.phases] == [
+        "independent_fabric_compute_levels",
         "independent_fabric_warp_precompute",
         "independent_fabric_warp_load",
     ]
