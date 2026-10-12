@@ -112,9 +112,16 @@ materializer and is not itself a proof of kernel-level network isolation.
 Downstream Agora registration must verify the executor actually enforces
 `network: deny` and delivers the exact source revision binding.
 
-Generated corpus content adapts CC BY-SA 4.0 input. See
-[`LICENSE_SCOPE.md`](../LICENSE_SCOPE.md) for attribution and the exclusion of
-Karnak mappings pending explicit file-level licence evidence.
+Generated corpus content adapts CC BY-SA 4.0 input. The upstream converter
+currently excludes the two Karnak mapping files; opt-in local conversion is
+not yet implemented (#85). A software-only ORAEC-TF release can proceed
+without a file-level Karnak redistribution licence; see
+[`LICENSE_SCOPE.md`](../LICENSE_SCOPE.md) and issue #17. **Hosted use differs
+from private local use**: Agora #224 must review **remote execution** and whether
+the host can store, serve, cache or expose generated content. Any
+**Karnak-bearing** corpus shared by the host requires a separate **rights review**
+before distribution. The manifest's `execution.network: deny` claim does not
+prove that outputs remain private or that the hosting service has no access.
 
 The standard local TF advanced app and complete schema reference remain in
 `app/` and `docs/`. Schema v3 models original CR characters as queryable typed native TF nodes
