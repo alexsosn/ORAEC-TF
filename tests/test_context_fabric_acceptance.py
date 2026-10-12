@@ -85,7 +85,7 @@ def verify(
         "Context-Fabric raw .tf API differs from native Text-Fabric"
     )
 
-    tf_names = sorted(p.name for p in output.glob("*.tf"))
+    tf_names = sorted(p.name for p in output.glob("*.tf") if p.is_file())
     before = {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in tf_names}
     assert raw_fabric.compile(silent="deep"), "Context-Fabric .cfm compilation failed"
     assert list((output / ".cfm").glob("*/meta.json")), "compiled .cfm manifest missing"
