@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import struct
 import subprocess
 import sys
@@ -145,9 +144,11 @@ def _measure_loaded_graph(
     if fingerprint:
         start = time.perf_counter()
         if backend == "native":
-            get_parents = lambda n: api.C.levUp.data[n - 1]
+            def get_parents(n: int) -> Iterable[int]:
+                return api.C.levUp.data[n - 1]
         else:
-            get_parents = lambda n: api.C.levUp[n]
+            def get_parents(n: int) -> Iterable[int]:
+                return api.C.levUp[n]
         result["fingerprint"] = digest_graph(
             max_slot=max_slot,
             max_node=max_node,
