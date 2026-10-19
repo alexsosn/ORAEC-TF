@@ -199,7 +199,7 @@ Supported release mappings are:
 
 Wikidata source keys are heterogeneous. A key must resolve exactly once, either to exact author_name or exact cv_id. No match or more than one match fails closed.
 
-The Karnak text and lemma mapping files remain excluded from the **current default** TF output and frozen schema. They are not included in the converter's existing generated graph; opt-in local support is planned under #85 and is not yet implemented. This default limitation is a code/schema status, not a licence barrier for releasing the **software-only** v0.1.0 package (#12). Issue #17 separately gates project/host redistribution of a future Karnak-bearing corpus until appropriate rights have been established. Any #85 semantic change must revise the schema contract with RED-first tests and a full independent raw-source graph audit.
+The Karnak text and lemma mapping files remain excluded from the **current default** TF output and frozen schema. They are not included in the default generated graph; explicit direct-CLI `--include-karnak` includes both mappings using the same native `external_ref` and valued `external` edges with one-to-many conservation (#85). The Agora adapter remains default-only. This default limitation is a code/schema status, not a licence barrier for releasing the **software-only** v0.1.0 package (#12). Issue #17 separately gates project/host redistribution of a future Karnak-bearing corpus until appropriate rights have been established. Any #85 semantic change must revise the schema contract with RED-first tests and a full independent raw-source graph audit.
 
 ## Derived upstream analytical files
 
@@ -219,7 +219,7 @@ Frozen core edge features are:
 - parent: hierarchy child to hierarchy parent;
 - external: text, lex, cv, or author to external_ref, valued by mapping filename.
 
-One-to-many external mappings remain separate edges and are never delimiter-packed. Mapping-table row order is treated as serialization rather than scholarly semantics: the conserved object is the exact relation pair plus its mapping-file provenance. This is safe for the audited supported files, whose source keys are unique except for the explicitly one-to-many Karnak lemma table, which is currently release-excluded.
+One-to-many external mappings remain separate edges and are never delimiter-packed. Mapping-table row order is treated as serialization rather than scholarly semantics: the conserved object is the exact relation pair plus its mapping-file provenance. This is safe for the audited supported files, whose source keys are unique except for the explicitly one-to-many Karnak lemma table, which stays default-release-excluded but is supported through explicit local opt-in (#85).
 
 ## Sections
 

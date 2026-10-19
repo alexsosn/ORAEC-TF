@@ -30,9 +30,10 @@ def test_current_converter_exclusion_is_not_misrepresented_as_local_support() ->
     adr = _text("docs/adr/0005-native-tf-schema.md")
     schema = json.loads(_text("schema/core.json"))
 
-    assert "#85" in readme and "not yet implemented" in readme
-    assert "#85" in scope and "not yet implemented" in scope
+    assert "#85" in readme and "--include-karnak" in readme
+    assert "#85" in scope and "--include-karnak" in scope
     assert "#85" in adr and "current default" in adr
+    assert "--include-karnak" in adr
     assert set(schema["release"]["excludedMappings"]) == {
         "mapping_oraec_karnak.tsv",
         "mapping_oraec_lemmata_karnak.tsv",
@@ -56,8 +57,8 @@ def test_researcher_docs_and_roadmap_distinguish_current_exclusion_from_rights()
     plan = _text("plan.md")
     research = _text("research.md")
 
-    assert "currently excludes the Karnak" in feature_ref
-    assert "#85" in recipes and "currently excludes" in recipes
+    assert "default output excludes Karnak" in feature_ref
+    assert "#85" in recipes and "default converter" in recipes
     assert "#85" in plan and "separate from software release #12" in plan
     assert "2026-10-12 release-boundary clarification" in research
     assert "Karnak mappings remain excluded by the #17 fail-closed licence gate" not in research

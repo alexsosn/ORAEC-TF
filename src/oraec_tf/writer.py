@@ -57,6 +57,10 @@ INCLUDED_MAPPINGS = {
     "vega": "mapping_oraec_lemmata_vega.tsv",
     "wikidata": "mapping_oraec_wikidata.tsv",
 }
+LOCAL_KARNAK_MAPPINGS = frozenset({
+    "mapping_oraec_karnak.tsv",
+    "mapping_oraec_lemmata_karnak.tsv",
+})
 OTEXT = {
     "sectionTypes": "text,sentence",
     "sectionFeatures": "oraec_id,sentence_index",
@@ -159,8 +163,16 @@ def write_tf(
             raise WriterError("hierarchy paths must contain at least one component")
     tables = tuple(mapping_tables)
     for table in tables:
-        if table.release_included and (
-            INCLUDED_MAPPINGS.get(table.target_system) != table.filename
+        if table.release_included and not (
+            INCLUDED_MAPPINGS.get(table.target_system) == table.filename
+            or (
+                table.target_system == "karnak"
+                and table.filename in LOCAL_KARNAK_MAPPINGS
+                and table.source_domain == (
+                    "text.oraec_id" if table.filename == "mapping_oraec_karnak.tsv"
+                    else "lex.lemma_id"
+                )
+            )
         ):
             raise WriterError(f"unapproved mapping family: {table.filename}")
 
@@ -388,7 +400,7 @@ def write_tf(
             for oraec_id, prefix in leaves.items():
                 walker.edge(text_handles[oraec_id], handles[prefix], hierarchy=None)
 
-        # Included external crosswalks; unlicensed Karnak never enters release TF.
+        # Default includes licensed mappings only; explicit local tables may add Karnak.
         mapping_edges: dict[tuple[str, str], list[tuple[Any, str]]] = defaultdict(list)
         for table in tables:
             if not table.release_included:
@@ -398,6 +410,12 @@ def write_tf(
                     source_handle = text_handles.get(mapping_row.source)
                 elif table.target_system == "vega":
                     source_handle = lex_handles.get(mapping_row.source)
+                elif table.target_system == "karnak":
+                    source_handle = (
+                        text_handles.get(mapping_row.source)
+                        if table.filename == "mapping_oraec_karnak.tsv"
+                        else lex_handles.get(mapping_row.source)
+                    )
                 elif table.target_system == "wikidata":
                     matches = [authors[mapping_row.source]] if mapping_row.source in authors else []
                     matches += [
@@ -458,17 +476,24 @@ def write_tf(
             if not walker.occurs(feature):
                 walker.meta(feature)
 
+    generic_metadata = {
+        "source": "https://github.com/oraec/corpus_raw_data",
+        "sourceRevision": source_revision,
+        "license": "CC BY-SA 4.0",
+        "schemaVersion": str(_schema()["schemaVersion"]),
+        "controlCharacterTransport": "native-cr-occurrences-v1",
+    }
+    if any(t.release_included and t.target_system == "karnak" for t in tables):
+        generic_metadata["karnakMappingRedistributionTerms"] = "unresolved"
+        generic_metadata["karnakTextMappingSource"] = "mapping_oraec_karnak.tsv"
+        generic_metadata["karnakLemmaMappingSource"] = (
+            "mapping_oraec_lemmata_karnak.tsv"
+        )
     good = cv.walk(
         director,
         "word",
         otext=otext,
-        generic={
-            "source": "https://github.com/oraec/corpus_raw_data",
-            "sourceRevision": source_revision,
-            "license": "CC BY-SA 4.0",
-            "schemaVersion": str(_schema()["schemaVersion"]),
-            "controlCharacterTransport": "native-cr-occurrences-v1",
-        },
+        generic=generic_metadata,
         intFeatures=int_features,
         featureMeta=metadata,
         warn=True,
