@@ -9,7 +9,7 @@ import hashlib
 import itertools
 import json
 from collections.abc import Iterable, Mapping
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 FeatureKind = Literal["node", "edge"]
 
@@ -39,7 +39,7 @@ def _canonical_edge(value: object) -> list[object]:
             if not isinstance(destination, int) or isinstance(destination, bool):
                 raise FeatureParityError("edge destination must be integer TF node")
             pairs.append([destination, _typed_scalar(edge_value)])
-        pairs.sort(key=lambda pair: int(pair[0]))
+        pairs.sort(key=lambda pair: cast(int, pair[0]))
         if len({pair[0] for pair in pairs}) != len(pairs):
             raise FeatureParityError("duplicate valued edge destination")
         return ["valued", pairs]
@@ -69,13 +69,13 @@ def _ordered_rows(items: Iterable[tuple[int, object]], *,
     # Materialize at most one feature's annotations, not the entire graph.
     ordered = sorted(
         (_canonical_row(src, val, kind=kind) for src, val in items),
-        key=lambda row: int(row[0]),
+        key=lambda row: cast(int, row[0]),
     )
     previous = 0
     for row in ordered:
-        if int(row[0]) == previous:
+        if cast(int, row[0]) == previous:
             raise FeatureParityError(f"duplicate feature source node {previous}")
-        previous = int(row[0])
+        previous = cast(int, row[0])
         yield row
 
 
@@ -141,6 +141,6 @@ def compare_native_and_rust(
             ):
                 raise FeatureParityError(f"{label} items() unavailable")
             result[label] = compare_feature_streams(
-                name, base.items(), trial.items(), kind=kind,
+                name, base.items(), trial.items(), kind=cast(FeatureKind, kind),
             )
     return result
