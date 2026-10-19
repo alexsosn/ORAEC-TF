@@ -3,8 +3,10 @@ name: Rust Context-Fabric 0.6 RC ORAEC acceptance
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "src/oraec_tf/cf_rust_parity.py"
+      - "scripts/validate_cf_rust_full.py"
       - "tests/test_cf_rust_parity.py"
       - ".github/workflows/context-fabric-rust-rc1.yml"
 
@@ -123,3 +125,60 @@ jobs:
                   "edge_features": len(ef), "cached_source_invalidated": True,
               })
           PY
+
+  full-source-value-parity:
+    # Small RED/GREEN tests run even on drafts. The costly real corpus job
+    # runs only on a ready PR or manual dispatch and must be exact-head green.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
+    needs: exact-wheel-and-native-graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install release wheel and native TF converter
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pip install 'context-fabric==0.6.0rc1'
+      - name: Fetch pinned ORAEC raw source and verify immutable revision
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+      - name: Run unmodified ORAEC native conversion and counts
+        run: |
+          mkdir -p reports/generated
+          oraec-tf convert upstream/corpus_raw_data \
+            --output reports/generated/tf \
+            --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            > reports/generated/native-conversion.json
+      - name: Independently conserve complete raw ORAEC source against native TF
+        run: |
+          python scripts/validate_graph_source.py \
+            upstream/corpus_raw_data reports/generated/tf \
+            --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --converter-revision "$(git rev-parse HEAD)" \
+            --schema-version 3 \
+            --report reports/generated/native-graph-conservation.json
+      - name: Standard researcher/browser end-to-end smoke
+        run: |
+          python scripts/validate_advanced_app.py reports/generated/tf \
+            > reports/generated/advanced-app-smoke.json
+      - name: Compare all 62 feature values and every node's oslots to Rust .cfr/4
+        run: |
+          python scripts/validate_cf_rust_full.py reports/generated/tf \
+            --schema schema/core.json \
+            --report reports/generated/rust-rc1-feature-parity.json
+      - name: Upload aggregate verification only (never source, TF or .cfr)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-rust-rc1-value-parity
+          path: |
+            reports/generated/native-conversion.json
+            reports/generated/native-graph-conservation.json
+            reports/generated/advanced-app-smoke.json
+            reports/generated/rust-rc1-feature-parity.json
+          if-no-files-found: warn
