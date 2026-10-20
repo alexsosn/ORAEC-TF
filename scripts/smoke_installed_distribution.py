@@ -119,9 +119,14 @@ def verify_native_tf(app_dir: Path) -> dict[str, int]:
                         lemma_form="nṯr",
                         hiero="𓀀[⯑]�",
                         pos="substantive",
+                        line_count="[Vs 1]",
                     ),
                 ),
             ),
+            # The standard app hides technical compatibility slots via
+            # is_anchor:1. Include one zero-token source sentence so that
+            # this sparse feature exists in the genuine tiny TF dataset.
+            SentenceIR(index=2, translation="", tokens=()),
         ),
     )
     with tempfile.TemporaryDirectory(prefix="oraec-installed-wheel-") as d:
@@ -130,11 +135,17 @@ def verify_native_tf(app_dir: Path) -> dict[str, int]:
         api = Fabric(locations=str(tf_dir), silent="deep").loadAll(silent="deep")
         if not api:
             raise AssertionError("installed distribution could not reload TF")
-        assert len(api.F.otype.s("word")) == 1
+        assert len(api.F.otype.s("word")) == 2  # one word + one anchor
         assert len(api.F.otype.s("text")) == 1
         assert len(api.F.otype.s("cr_occurrence")) == 2
+        assert sum(
+            api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
+        ) == 1
         text = api.F.otype.s("text")[0]
-        word = api.F.otype.s("word")[0]
+        word = next(
+            w for w in api.F.otype.s("word")
+            if api.F.token_id.v(w) is not None
+        )
         assert NativeCRIndex(api).restore(text, "bibliography") == record.bibliography
         assert api.F.bibliography.v(text) == "Original\nsourcestring"
         assert api.F.hiero.v(word) == "𓀀[⯑]�"
