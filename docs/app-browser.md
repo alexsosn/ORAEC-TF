@@ -56,7 +56,17 @@ A complete researcher-facing reference is available in
 from `schema/core.json` and CI verifies that it has not drifted.
 
 The advanced-app smoke runner also supports arbitrary ephemeral outputs without
-moving files or contacting a server:
+moving files or contacting an external server. In addition to native API and
+`App.pretty()` rendering, it now instantiates the **actual Text-Fabric 13.1
+Flask browser** in web mode and sends HTTP requests through Flask's local test
+client: the homepage (`GET /`), an attested ORAEC text search
+(`POST /query`), and passage navigation (`POST /passage`). It fails on
+non-200 responses or incorrect/nonpositive search results. This exercises
+server-side browser routing and researcher-facing results, **not** a real
+Chromium/Firefox graphical interaction; no public network port is opened.
+Reports record HTTP status/counts only.
+
+Example:
 
 ```bash
 python scripts/validate_advanced_app.py /absolute/path/to/generated/tf
