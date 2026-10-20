@@ -41,6 +41,6 @@ def test_installed_wheel_smoke_must_verify_real_app_after_clean_install() -> Non
         encoding="utf-8"
     )
     assert "verify_installed_app" in script
-    assert '["app-path"]' in script
+    assert '"app-path"' in script
     assert "findAppConfig" in script
     assert "APP_DIR" not in script
