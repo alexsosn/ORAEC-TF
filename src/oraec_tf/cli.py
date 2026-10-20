@@ -10,6 +10,7 @@ from pathlib import Path
 from tf_build.validate import FeatureRequirement, validate_tf_artifact
 from tf_build.workspace import BuildWorkspace
 
+from .app_resources import installed_app_dir
 from .conversion_profile import PhaseRecorder
 from .parser import (
     iter_texts,
@@ -36,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("source-info", help="Print the default supported upstream source")
+    subparsers.add_parser("app-path", help="Print the installed standard TF app directory")
 
     fetch = subparsers.add_parser("fetch", help="Fetch a pinned ORAEC source checkout")
     fetch.add_argument("destination", help="Empty/nonexistent destination directory")
@@ -218,6 +220,10 @@ def _convert(
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.command == "app-path":
+        print(installed_app_dir())
+        return 0
 
     if args.command == "source-info":
         print(
