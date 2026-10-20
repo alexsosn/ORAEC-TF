@@ -1,0 +1,188 @@
+name: Rust Context-Fabric 0.6 RC ORAEC acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - "src/oraec_tf/cf_rust_parity.py"
+      - "scripts/validate_cf_rust_full.py"
+      - "tests/test_cf_rust_parity.py"
+      - ".github/workflows/context-fabric-rust-rc1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-wheel-and-native-graph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install ORAEC code, Text-Fabric and published Rust release candidate
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pip install 'context-fabric==0.6.0rc1'
+      - name: Prove exact Rust version is installed, no skipped test
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          from cfabric import Fabric
+          assert version("context-fabric") == "0.6.0rc1"
+          assert Fabric is not None
+          PY
+      - name: RED/GREEN typed parity and cache invalidation on generated ORAEC TF
+        run: |
+          python -m pytest -q tests/test_cf_rust_parity.py
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import runpy
+          import tempfile
+          from pathlib import Path
+
+          from cfabric import Fabric as RustFabric
+          from tf.fabric import Fabric as NativeFabric
+          from oraec_tf.cf_rust_parity import compare_native_and_rust
+          from oraec_tf.writer import write_tf
+
+          fixture = runpy.run_path("tests/test_writer.py")
+          schema = json.loads(Path("schema/core.json").read_text(encoding="utf-8"))
+          declared_node = {
+              name
+              for spec in schema["nodeTypes"].values()
+              for name in spec["features"]
+          }
+          declared_edge = set(schema["edgeFeatures"])
+          with tempfile.TemporaryDirectory(prefix="oraec-rust-rc1-") as root:
+              path = Path(root) / "tf"
+              write_tf(
+                  fixture["_texts"](), path,
+                  source_revision=fixture["REVISION"],
+              )
+              source_files = sorted(path.glob("*.tf"))
+              original = {
+                  f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+                  for f in source_files
+              }
+              present = {f.stem for f in source_files} - {
+                  "otype", "oslots", "otext"
+              }
+              assert present <= declared_node | declared_edge
+              nf, ef = present & declared_node, present & declared_edge
+              assert nf and ef and nf.isdisjoint(ef)
+              native = NativeFabric(locations=str(path), silent="deep").loadAll(silent="deep")
+              assert native and len(native.F.otype.s("text")) == 2
+              rust = RustFabric(locations=str(path), silent="deep").loadAll(silent="deep")
+              assert rust and len(rust.F.otype.s("text")) == 2
+              parity = compare_native_and_rust(
+                  native, rust, node_features=nf, edge_features=ef,
+              )
+              assert len(parity) == len(present)
+              assert all(isinstance(row["sha256"], str) for row in parity.values())
+              for n in native.N.walk():
+                  assert native.F.otype.v(n) == rust.F.otype.v(n)
+                  if n > native.F.otype.maxSlot:
+                      assert tuple(native.E.oslots.s(n)) == tuple(rust.E.oslots.s(n))
+              q = "text oraec_id=oraec1"
+              assert set(tuple(x) for x in native.S.search(q, silent="deep")) == (
+                  set(tuple(x) for x in rust.S.search(q, silent="deep"))
+              )
+              assert original == {
+                  f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+                  for f in source_files
+              }, "compilation modified native TF features"
+              assert list((path / ".cfr" / "4").glob("*")), "Rust .cfr cache missing"
+              # Mutation test: refuse a fresh loader that serves the old title
+              # from its compiled cache after the original .tf is changed.
+              title = path / "title.tf"
+              before = title.read_text(encoding="utf-8")
+              assert "First source text" in before
+              title.write_text(
+                  before.replace("First source text", "Revised source text"),
+                  encoding="utf-8",
+              )
+              os.utime(title, None)
+              fresh = RustFabric(locations=str(path), silent="deep").loadAll(silent="deep")
+              assert fresh
+              observed = [
+                  fresh.F.title.v(t) for t in fresh.F.otype.s("text")
+              ]
+              assert "Revised source text" in observed, (
+                  "Rust .cfr returned stale values after changed TF source"
+              )
+              print({
+                  "ok": True, "node_features": len(nf),
+                  "edge_features": len(ef), "cached_source_invalidated": True,
+              })
+          PY
+
+  full-source-value-parity:
+    # Small RED/GREEN tests run even on drafts. The costly real corpus job
+    # runs only on a ready PR or manual dispatch and must be exact-head green.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false }}
+    needs: exact-wheel-and-native-graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install release wheel and native TF converter
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pip install 'context-fabric==0.6.0rc1'
+      - name: Fetch pinned ORAEC raw source and verify immutable revision
+        run: |
+          oraec-tf fetch upstream/corpus_raw_data
+          oraec-tf verify-source upstream/corpus_raw_data
+      - name: Run unmodified ORAEC native conversion and counts
+        run: |
+          mkdir -p reports/generated
+          oraec-tf convert upstream/corpus_raw_data \
+            --output reports/generated/tf \
+            --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            > reports/generated/native-conversion.json
+      - name: Independently conserve complete raw ORAEC source against native TF
+        run: |
+          python scripts/validate_graph_source.py \
+            upstream/corpus_raw_data reports/generated/tf \
+            --source-revision b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
+            --converter-revision "$(git rev-parse HEAD)" \
+            --schema-version 3 \
+            --report reports/generated/native-graph-conservation.json
+      - name: Standard researcher/browser end-to-end smoke
+        run: |
+          python scripts/validate_advanced_app.py reports/generated/tf \
+            > reports/generated/advanced-app-smoke.json
+      - name: Compare all 62 feature values and every node's oslots to Rust .cfr/4
+        run: |
+          python scripts/validate_cf_rust_full.py reports/generated/tf \
+            --schema schema/core.json \
+            --report reports/generated/rust-rc1-feature-parity.json
+      - name: Upload aggregate verification only (never source, TF or .cfr)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-rust-rc1-value-parity
+          path: |
+            reports/generated/native-conversion.json
+            reports/generated/native-graph-conservation.json
+            reports/generated/advanced-app-smoke.json
+            reports/generated/rust-rc1-feature-parity.json
+          if-no-files-found: warn
