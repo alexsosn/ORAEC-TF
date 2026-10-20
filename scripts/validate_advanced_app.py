@@ -78,6 +78,10 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     )
     if not browser_app.api:
         raise ValueError("Text-Fabric browser App failed to initialize")
+    # Passing an already loaded Fabric API intentionally skips getModulesData(),
+    # which normally initializes App.provenance to []. There is no independently
+    # published TF dataset/module to cite: only this local generated graph.
+    browser_app.provenance = []
     kernel = makeTfKernel(browser_app, "ORAEC-TF")
     if not kernel:
         raise ValueError("Text-Fabric browser kernel initialization failed")
