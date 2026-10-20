@@ -223,8 +223,11 @@ def test_generated_corpus_serves_actual_browser_home_query_and_passage_http(
     tmp_path: Path,
 ) -> None:
     """RED: real Flask browser routes must execute, not only App.pretty."""
-    from scripts.validate_advanced_app import verify_local_advanced_app
+    from runpy import run_path
 
+    verify_local_advanced_app = run_path(
+        str(ROOT / "scripts" / "validate_advanced_app.py")
+    )["verify_local_advanced_app"]
     output = tmp_path / "http-tf"
     _tiny_corpus(output)
     result = verify_local_advanced_app(output)
