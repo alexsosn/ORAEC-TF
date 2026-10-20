@@ -67,7 +67,18 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     from tf.browser.kernel import makeTfKernel
     from tf.browser.web import Web, factory
 
-    kernel = makeTfKernel(app, "ORAEC-TF")
+    # The existing app is notebook/Python-facing (_browse=False).
+    # The real web header intentionally returns None outside browser mode.
+    # Instantiate the same standard app in _browse=True mode, with the same
+    # already loaded and independently verified TF API, not a mocked handler.
+    browser_app = App(
+        cfg, "ORAEC-TF", str(APP_DIR),
+        commit="local", release="", local="clone", backend="github",
+        _browse=True, api=api, silent="deep",
+    )
+    if not browser_app.api:
+        raise ValueError("Text-Fabric browser App failed to initialize")
+    kernel = makeTfKernel(browser_app, "ORAEC-TF")
     if not kernel:
         raise ValueError("Text-Fabric browser kernel initialization failed")
     webapp = factory(Web(kernel))
@@ -75,12 +86,10 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     query = f"text oraec_id={text_id}"
     with webapp.test_client() as client:
         home = client.get("/")
-        if home.status_code != 200 or b"<!DOCTYPE html" not in home.data.upper():
-            # HTML case varies by template; check the doctype case-insensitively.
-            if home.status_code != 200 or b"<html" not in home.data.lower():
-                raise ValueError(
-                    f"Text-Fabric browser homepage HTTP failed: {home.status_code}"
-                )
+        if home.status_code != 200 or b"<html" not in home.data.lower():
+            raise ValueError(
+                f"Text-Fabric browser homepage HTTP failed: {home.status_code}"
+            )
         result = client.post("/query", data={"query": query, "jobName": "oraec-smoke"})
         reply = result.get_json(silent=True)
         if (
