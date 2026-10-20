@@ -216,3 +216,23 @@ def test_advanced_app_preserves_each_distinct_source_hiero_case(
     html = app.pretty(sentence, _asString=True, fmt="text-hiero")
     assert hiero in html
     assert "ḫpr" not in html
+
+
+
+def test_generated_corpus_serves_actual_browser_home_query_and_passage_http(
+    tmp_path: Path,
+) -> None:
+    """RED: real Flask browser routes must execute, not only App.pretty."""
+    from scripts.validate_advanced_app import verify_local_advanced_app
+
+    output = tmp_path / "http-tf"
+    _tiny_corpus(output)
+    result = verify_local_advanced_app(output)
+
+    assert result["ok"] is True
+    assert result["browser_http"]["home_status"] == 200
+    assert result["browser_http"]["query_status"] == 200
+    assert result["browser_http"]["query_success"] is True
+    assert result["browser_http"]["query_results"] == 1
+    assert result["browser_http"]["passage_status"] == 200
+    assert result["browser_http"]["text_id"] == "oraec42"
