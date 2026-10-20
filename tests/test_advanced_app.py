@@ -38,6 +38,8 @@ def _tiny_corpus(destination: Path) -> None:
                     TokenIR(
                         token_id="oraec42-1-1",
                         written_form="nṯr",
+                        lemma_id="L1",
+                        lemma_form="nṯr",
                         hiero="𓀀[⯑]�",
                         pos="substantive",
                         line_count="[Vs 1]",
