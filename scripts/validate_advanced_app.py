@@ -60,6 +60,61 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     hiero = app.pretty(sentence, _asString=True, fmt="text-hiero")
     if not isinstance(translit, str) or not isinstance(hiero, str):
         raise ValueError("Text-Fabric advanced app failed to render sentence HTML")
+
+    # Exercise the *real* TF 13.1 Flask handlers without binding a public port.
+    # Rendering App.pretty() alone does not prove that a researcher can use the
+    # browser homepage, search API, or passage/navigation forms.
+    from tf.browser.kernel import makeTfKernel
+    from tf.browser.web import Web, factory
+
+    kernel = makeTfKernel(app, "ORAEC-TF")
+    if not kernel:
+        raise ValueError("Text-Fabric browser kernel initialization failed")
+    webapp = factory(Web(kernel))
+    webapp.testing = True
+    query = f"text oraec_id={text_id}"
+    with webapp.test_client() as client:
+        home = client.get("/")
+        if home.status_code != 200 or b"<!DOCTYPE html" not in home.data.upper():
+            # HTML case varies by template; check the doctype case-insensitively.
+            if home.status_code != 200 or b"<html" not in home.data.lower():
+                raise ValueError(
+                    f"Text-Fabric browser homepage HTTP failed: {home.status_code}"
+                )
+        result = client.post("/query", data={"query": query, "jobName": "oraec-smoke"})
+        reply = result.get_json(silent=True)
+        if (
+            result.status_code != 200
+            or not isinstance(reply, dict)
+            or reply.get("status") is not True
+            or not isinstance(reply.get("nResults"), int)
+            or reply["nResults"] != 1
+        ):
+            raise ValueError(
+                f"Text-Fabric browser query HTTP failed: "
+                f"status={result.status_code}; "
+                f"result={None if not isinstance(reply, dict) else reply.get('nResults')}"
+            )
+        passage = client.post(
+            "/passage", data={"sec0": text_id, "jobName": "oraec-smoke"}
+        )
+        passage_reply = passage.get_json(silent=True)
+        if (
+            passage.status_code != 200
+            or not isinstance(passage_reply, dict)
+            or "table" not in passage_reply
+        ):
+            raise ValueError(
+                f"Text-Fabric browser passage HTTP failed: {passage.status_code}"
+            )
+    browser_http = {
+        "home_status": home.status_code,
+        "query_status": result.status_code,
+        "query_success": True,
+        "query_results": reply["nResults"],
+        "passage_status": passage.status_code,
+        "text_id": text_id,
+    }
     return {
         "ok": True,
         "app": "standard Text-Fabric advanced app",
@@ -67,6 +122,7 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
         "text_count": len(texts),
         "sentence_count": len(api.F.otype.s("sentence")),
         "formats": ["text-orig-full", "text-translit", "text-hiero"],
+        "browser_http": browser_http,
     }
 
 
