@@ -36,6 +36,9 @@ Upstream = "https://github.com/oraec/corpus_raw_data"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+oraec_tf = ["tf_app/config.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
