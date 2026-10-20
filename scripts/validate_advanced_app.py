@@ -94,7 +94,15 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
             raise ValueError(
                 f"Text-Fabric browser homepage HTTP failed: {home.status_code}"
             )
-        result = client.post("/query", data={"query": query, "jobName": "oraec-smoke"})
+        result = client.post(
+            "/query",
+            data={
+                "query": query, "jobName": "oraec-smoke",
+                # The browser's highlighting code requires a valid node type
+                # even for its ordinary uncondensed query result.
+                "condenseType": "text",
+            },
+        )
         reply = result.get_json(silent=True)
         if (
             result.status_code != 200
