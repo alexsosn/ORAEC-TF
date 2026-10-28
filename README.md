@@ -78,6 +78,19 @@ published, independently verifiable tf-build wheel. See
 ORAEC-TF issue #59, and upstream tf-build #60.
 
 
+## Installed Text-Fabric app (software-only)
+
+The standard advanced-app configuration is part of the ORAEC-TF software wheel,
+not just the GitHub source checkout. In a Python environment with `oraec-tf`
+installed, `oraec-tf app-path` prints the absolute installed standard TF app
+directory; use it with `tf app:/absolute/app/path --locations=/absolute/generated/tf`
+to open the local browser, without cloning this repository. Neither source
+JSON/TSV nor generated TF corpora are bundled into the Python wheel. The
+Linux and Windows installed-wheelhouse checks verify the packaged app against
+the reviewed source configuration and render a synthetic Egyptian sentence.
+See [browser instructions](docs/app-browser.md) and the release blocker #59
+for the separate dependency-resolving offline-install gate.
+
 ## Local Text-Fabric conversion (development builds)
 
 After installing from this repository and fetching the verified pinned checkout, run:

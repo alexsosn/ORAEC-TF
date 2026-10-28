@@ -58,9 +58,16 @@ phase, and the smoke PATH excludes system Git. This is not a kernel-enforced
 network sandbox; the downstream Agora host must independently enforce
 `execution.network: deny` during converter execution.
 
-The standard Text-Fabric advanced app under `app/` is repository-managed and
-is **not** part of the Python wheel smoke. App/browser offline discovery and
-the full 13,026-text source conservation remain separate release checks.
+The standard Text-Fabric app configuration is now also shipped as
+`oraec_tf/tf_app/config.yaml` in the Python wheel. The independent
+Linux/Windows installed-wheel smoke invokes `oraec-tf app-path` outside the
+checkout with Git absent, verifies the installed resource byte-for-byte against
+reviewed `app/config.yaml`, and attaches it to a newly generated synthetic
+Egyptian native TF corpus to render a real hieroglyphic sentence. The full
+13,026-text source conservation and genuine Flask browser HTTP routes remain
+separate pinned-corpus release checks; the wheel still contains no corpus.
+A local offline **source-built wheelhouse** test does not prove a publicly
+published, dependency-resolving offline wheel (#59).
 
 **Release blockers remain:** a published, immutable, hash-verified compatible
 `tf-build` software wheel (upstream tf-build #60); reproducible wheelhouse

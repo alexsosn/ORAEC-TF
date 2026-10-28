@@ -56,8 +56,42 @@ def verify_installed_modules() -> dict[str, str]:
     return versions
 
 
-def verify_native_tf() -> dict[str, int]:
-    """Actually write, read and reconstruct native Text-Fabric schema v3."""
+def verify_installed_app() -> Path:
+    """Resolve TF config from the wheel, not an editable checkout or Git clone."""
+    from tf.advanced.find import findAppConfig
+
+    from oraec_tf.app_resources import installed_app_dir
+
+    source_tree = Path(os.environ["ORAEC_SOURCE_TREE"]).resolve()
+    environment = Path(sys.prefix).resolve()
+    from_resource = installed_app_dir()
+    entrypoint = shutil.which("oraec-tf")
+    if not entrypoint:
+        raise AssertionError("installed oraec-tf CLI entrypoint is missing")
+    cli = subprocess.run(
+        [entrypoint, "app-path"], capture_output=True, text=True, check=True,
+    )
+    advertised = Path(cli.stdout.strip()).resolve()
+    assert advertised == from_resource
+    assert advertised.is_relative_to(environment), advertised
+    assert not advertised.is_relative_to(source_tree)
+    config_path = advertised / "config.yaml"
+    assert config_path.is_file(), "installed wheel omitted standard TF app"
+    assert config_path.read_bytes() == (
+        source_tree / "app" / "config.yaml"
+    ).read_bytes(), "packaged TF config differs from reviewed software source"
+    cfg = findAppConfig(
+        "ORAEC-TF", str(advertised),
+        commit="local", release="", local="clone", backend="github",
+        org="alexsosn", repo="ORAEC-TF", straight=True,
+    )
+    assert cfg["apiVersion"] == 3
+    assert cfg["dataDisplay"]["textFormat"] == "text-translit"
+    return advertised
+
+
+def verify_native_tf(app_dir: Path) -> dict[str, int]:
+    """Write/reload real TF and render it with the *installed* advanced app."""
     from tf.fabric import Fabric
 
     from oraec_tf.ir import CreditsIR, SentenceIR, TextIR, TokenIR
@@ -81,11 +115,18 @@ def verify_native_tf() -> dict[str, int]:
                     TokenIR(
                         token_id="oraec1-1-1",
                         written_form="nṯr",
+                        lemma_id="L1",
+                        lemma_form="nṯr",
                         hiero="𓀀[⯑]�",
                         pos="substantive",
+                        line_count="[Vs 1]",
                     ),
                 ),
             ),
+            # The standard app hides technical compatibility slots via
+            # is_anchor:1. Include one zero-token source sentence so that
+            # this sparse feature exists in the genuine tiny TF dataset.
+            SentenceIR(index=2, translation="", tokens=()),
         ),
     )
     with tempfile.TemporaryDirectory(prefix="oraec-installed-wheel-") as d:
@@ -94,15 +135,40 @@ def verify_native_tf() -> dict[str, int]:
         api = Fabric(locations=str(tf_dir), silent="deep").loadAll(silent="deep")
         if not api:
             raise AssertionError("installed distribution could not reload TF")
-        assert len(api.F.otype.s("word")) == 1
+        assert len(api.F.otype.s("word")) == 2  # one word + one anchor
         assert len(api.F.otype.s("text")) == 1
         assert len(api.F.otype.s("cr_occurrence")) == 2
+        assert sum(
+            api.F.token_id.v(w) is not None for w in api.F.otype.s("word")
+        ) == 1
         text = api.F.otype.s("text")[0]
-        word = api.F.otype.s("word")[0]
+        word = next(
+            w for w in api.F.otype.s("word")
+            if api.F.token_id.v(w) is not None
+        )
         assert NativeCRIndex(api).restore(text, "bibliography") == record.bibliography
         assert api.F.bibliography.v(text) == "Original\nsourcestring"
         assert api.F.hiero.v(word) == "𓀀[⯑]�"
         assert api.T.nodeFromSection(("oraec1", 1)) in api.F.otype.s("sentence")
+
+        from tf.advanced.app import App
+        from tf.advanced.find import findAppConfig
+
+        cfg = findAppConfig(
+            "ORAEC-TF", str(app_dir),
+            commit="local", release="", local="clone", backend="github",
+            org="alexsosn", repo="ORAEC-TF",
+        )
+        app = App(
+            cfg, "ORAEC-TF", str(app_dir),
+            commit="local", release="", local="clone", backend="github",
+            _browse=False, api=api, silent="deep",
+        )
+        assert app.api, "installed TF app could not attach to converted corpus"
+        sentence = api.F.otype.s("sentence")[0]
+        html = app.pretty(sentence, _asString=True, fmt="text-hiero")
+        assert isinstance(html, str) and "𓀀" in html
+
         return {"texts": 1, "source_tokens": 1, "cr_occurrences": 2}
 
 
@@ -130,9 +196,13 @@ def verify_no_clobber() -> None:
 
 def main() -> None:
     versions = verify_installed_modules()
-    graph = verify_native_tf()
+    app_dir = verify_installed_app()
+    graph = verify_native_tf(app_dir)
     verify_no_clobber()
-    print(json.dumps({"ok": True, "installed_versions": versions, "graph": graph}))
+    print(json.dumps({
+        "ok": True, "installed_versions": versions,
+        "app_resource": "standard-Text-Fabric-config", "graph": graph,
+    }))
 
 
 if __name__ == "__main__":

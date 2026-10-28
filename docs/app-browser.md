@@ -5,9 +5,42 @@ web service. The `app/config.yaml` file is maintained in this software
 repository, while the raw upstream JSON/TSV and generated TF features stay
 **local** (ignored by Git) or in separately published licensed corpus artifacts.
 
-## Rebuild and browse locally
+## Browse from an installed Python wheel (no software clone)
 
-For Text-Fabric's normal `clone` lookup, place this repository under the
+The ORAEC-TF **software wheel** now contains the same Text-Fabric standard
+app config as the repository's `app/config.yaml`. After installing `oraec-tf`
+and independently generating a TF corpus, discover the app's real installed
+directory:
+
+```bash
+oraec-tf app-path
+# An absolute path under the active Python environment's oraec_tf/tf_app
+
+# Bash / POSIX:
+tf "app:$(oraec-tf app-path)" --locations=/absolute/path/to/generated/tf -noweb
+```
+
+PowerShell:
+
+```powershell
+$appDir = oraec-tf app-path
+tf "app:$appDir" --locations="C:\\corpora\\oraec\\tf" -noweb
+```
+
+The `-noweb` option starts the ordinary local TF web server without
+automatically launching a graphical browser. Remove it to open the browser
+normally. No ORAEC JSON, generated TF files, or source data are installed
+with the Python wheel: `--locations` must refer to the **separately generated**
+local native TF corpus. The app path command itself performs no fetch/network
+operation. The installed-wheelhouse Linux and Windows smoke checks now
+verify this resource and render an actual newly generated Text-Fabric
+sentence. Offline **dependency-resolving** installation remains separately
+blocked under #59 until a published, independently verifiable `tf-build`
+wheel exists.
+
+## Rebuild and browse from a software clone
+
+For Text-Fabric's alternative normal `clone` lookup, place this repository under the
 usual clone location:
 
 ```bash

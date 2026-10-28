@@ -1,0 +1,8 @@
+# Plan — Installed Text-Fabric app software artifact (#95)
+
+1. **Research:** inspect real setuptools package/manifest, std TF `app:` browser interface, config, and existing noneditable Windows/Linux wheelhouse smoke. Freeze software-vs-data distribution boundary.
+2. **RED first:** CLI `oraec-tf app-path` returns absolute existing package directory; byte-identical to repo `app/config.yaml`; installed-smoke invokes entry point outside checkout, reads path under venv and checks parsed app config + renders own freshly written TF. Assert wheel package-data config inclusion; require small test to fail before implementation.
+3. **GREEN:** add minimal `src/oraec_tf/tf_app/config.yaml` resource, explicit setuptools package-data, small path helper/subcommand; extend installed smoke, no extra runtime dependencies or custom web server.
+4. **Docs:** show installed wheel-only local `tf app:<installed app path> --locations=<generated TF dir> -noweb` invocation; retain clone-path users; document that source/corpus are never bundled. Update README and installed wheel distribution scope.
+5. **Exact head validation:** Python 3.11–3.13, Ruff/mypy/pytest, Linux+Windows noneditable wheelhouse smoke with absent Git and no checkout imports; standard pinned 13,026-text converter independent graph conservation, Agora and true Flask HTTP browser smoke. Repository zip/CI artifacts software-only.
+6. **Independent review:** adversarial pass from source+real wheel test logs, verify no app-copy drift, no source data accidental packaging, no import from checkout, Windows path behavior; merge/close issue only on all-green exact head.
