@@ -47,7 +47,8 @@ jobs:
       - name: Acquire hash-verified published tf-build wheel ONLINE
         run: python -m pip download --no-deps --dest "${{ runner.temp }}/wheelhouse" -r requirements/tf-build.txt
       - name: Acquire locked platform runtime wheels ONLINE
-        run: python -m pip download --only-binary=:all: --require-hashes --find-links "${{ runner.temp }}/wheelhouse" --dest "${{ runner.temp }}/wheelhouse" -r requirements/runtime.lock
+        run: |
+          python -m pip download --only-binary=:all: --require-hashes --find-links "${{ runner.temp }}/wheelhouse" --dest "${{ runner.temp }}/wheelhouse" -r requirements/runtime.lock
       - name: Build ORAEC software wheel only
         run: python -m pip wheel --no-deps --wheel-dir "${{ runner.temp }}/wheelhouse" .
       - name: Resolve and install hash-locked wheelhouse OFFLINE without Git
