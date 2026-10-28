@@ -1,77 +1,75 @@
-# Source-built wheelhouse installation gate (ORAEC issue #59)
+# Published-wheel offline installation (ORAEC issue #59)
 
-**Status: developer smoke only, not a distributed offline release.**
-The current immutable `tf-build` dependency is the Git commit
-`da7ff9618259f1669bdb89b134970399919accc0`, package version
-`0.1.0.dev0`. There is currently no verified public tf-build release
-wheel/tag/asset that can be downloaded independently of Git; upstream
-[tf-build issue #60](https://github.com/alexsosn/tf-build/issues/60)
-tracks a source-matched published distribution, stable version, and SHA-256.
+ORAEC package metadata requires `tf-build==0.1.0rc1`. The independently published
+[tf-build prerelease](https://github.com/alexsosn/tf-build/releases/tag/v0.1.0rc1)
+is built from `65a3bbb42a238f2cd59931cca79ee01560fdd887`.
+Its pure-Python wheel SHA-256 is
+`dff2a14c0299422b4716217d04e6d43b47e714f4dacdb21d9939292051e82c9a`.
+See upstream [tf-build #60](https://github.com/alexsosn/tf-build/issues/60) and
+ORAEC-TF issue #59. This is a release candidate, with experimental upstream APIs.
 
-The exact working boundary is:
+## Prepare on the target platform, with network access
 
-1. **Online source preparation** — Git and network *are available*. The
-   immutable VCS dependency and PyPI runtime dependencies are acquired.
-   `python -m pip wheel --wheel-dir "$RUNNER_TEMP/wheelhouse" .`
-   creates local runtime wheels including ORAEC-TF and tf-build. Their actual
-   bytes are hashed with SHA-256 and listed in `wheel-manifest.txt`.
-2. **Offline wheelhouse installation** — an isolated, previously empty venv
-   installs **only the captured local wheel files** using
-   `pip --no-index --no-deps --require-hashes`. `--no-deps` prevents
-   re-resolution of ORAEC's embedded direct-VCS dependency while the complete
-   prior wheelhouse contains its runtime dependency distribution and all
-   transitive requirements. `pip check` verifies the resulting environment's
-   declared dependency compatibility. Neither an editable package nor a Git
-   source checkout is used for imports.
-3. **Installed-package functionality** — from a working directory outside
-   the repository, with PATH restricted to the venv bin directory, the smoke
-   validates installed `oraec_tf` and `tf_build` import paths and versions,
-   the public `oraec-tf source-info` CLI, a *newly generated synthetic*
-   Egyptian native TF graph, original Unicode reconstruction using
-   `NativeCRIndex`, and the genuine cross-platform no-clobber publisher.
+Use Python 3.11–3.13. From the reviewed ORAEC software checkout:
 
-## Portable development wheelhouse test
+```bash
+python -m pip download --no-deps --dest build/wheelhouse -r requirements/tf-build.txt
+python -m pip download --only-binary=:all: --require-hashes --find-links build/wheelhouse --dest build/wheelhouse -r requirements/runtime.lock
+python -m pip wheel --no-deps --wheel-dir build/wheelhouse .
+python scripts/validate_wheelhouse_install.py --wheelhouse build/wheelhouse --source-tree . --manifest build/wheel-manifest.txt
+```
 
-The same installed-distribution check now runs as an Actions matrix on
-`ubuntu-latest` and `windows-latest`, using Python 3.12. Wheel acquisition
-and compilation happen online **before** the offline-install phase. A shared
-`scripts/validate_wheelhouse_install.py` harness inspects the actual wheel
-`METADATA` for the exact development tf-build commit, hashes every wheel,
-generates a local `file://...` SHA-256 pip manifest, creates a fresh virtual
-environment, and installs from wheel files using `--no-index --no-deps
---require-hashes`. It then runs `pip check` and the same noneditable
-`smoke_installed_distribution.py` from outside the checkout on both operating
-systems with Git removed from `PATH`.
+The first command retrieves the real release wheel and verifies its hash fragment.
+The second resolves the checked-in exact runtime versions and allowed hashes for
+this interpreter/OS. The third builds only ORAEC software; PEP 517 build tools may
+be acquired online. No tf-build source checkout or replacement build is used.
+Use a fresh wheelhouse and manifest directory for each run. The verifier refuses
+an existing `offline-venv` directory rather than silently reusing an environment.
 
-Successful jobs demonstrate **platform-specific local-wheelhouse execution**,
-not a permanent independently published or version-locked tf-build wheel. No
-wheel payload, corpus source or generated TF is uploaded as an artifact; the
-job records only its local SHA-256 manifest. A passing Windows run is required
-before describing this matrix as validated across operating systems.
+`requirements/runtime.lock` fixes versions and allowed distribution hashes,
+including platform-dependent wheels and conditional requirements. It does not
+make one platform's wheelhouse suitable for another. Linux and Windows CI run
+these commands independently on Python 3.12. Other interpreter/platform variants
+need their own acquisition and installation check before claiming support for a
+particular offline wheelhouse. ORAEC's normal Python 3.11–3.13 CI remains separate.
 
-The wheelhouse manifest is a record of **this particular CI job**, not an
-immutable cross-machine dependency lock. Wheels are *not uploaded* as CI
-artifacts or silently treated as an official release. Every offline install
-must first acquire its wheels in another trusted step. `--no-index` and
-`--require-hashes` prevent pip from fetching package indexes in the offline
-phase, and the smoke PATH excludes system Git. This is not a kernel-enforced
-network sandbox; the downstream Agora host must independently enforce
-`execution.network: deny` during converter execution.
+The runtime lock was generated with `uv pip compile --python-version 3.11
+--universal --generate-hashes --no-annotate --no-header requirements/runtime.in`,
+with the verified release wheel supplied as a local `--find-links` directory.
+Review version and hash changes before regenerating it.
 
-The standard Text-Fabric app configuration is now also shipped as
-`oraec_tf/tf_app/config.yaml` in the Python wheel. The independent
-Linux/Windows installed-wheel smoke invokes `oraec-tf app-path` outside the
-checkout with Git absent, verifies the installed resource byte-for-byte against
-reviewed `app/config.yaml`, and attaches it to a newly generated synthetic
-Egyptian native TF corpus to render a real hieroglyphic sentence. The full
-13,026-text source conservation and genuine Flask browser HTTP routes remain
-separate pinned-corpus release checks; the wheel still contains no corpus.
-A local offline **source-built wheelhouse** test does not prove a publicly
-published, dependency-resolving offline wheel (#59).
+## What the offline phase proves
 
-**Release blockers remain:** a published, immutable, hash-verified compatible
-`tf-build` software wheel (upstream tf-build #60); reproducible wheelhouse
-locking/availability for each supported platform; a truly independent cold
-install without a VCS resolver; and ORAEC-TF's full #12 release and downstream
-Agora #224 gates. Keep #59 open until those are verified, even when this
-developer CI job succeeds.
+The verifier checks the downloaded tf-build bytes against the published digest,
+checks ORAEC's wheel METADATA for the exact version requirement, and emits a
+portable complete installation manifest of `name==version --hash=sha256:...`.
+It creates a new venv outside package source imports, removes Git from PATH,
+disables indexes and pip's cache, and runs **normal dependency resolution**:
+
+```bash
+python -m pip install --no-index --no-cache-dir --only-binary=:all: --require-hashes --find-links build/wheelhouse -r build/wheel-manifest.txt
+```
+
+This command is illustrative: the verifier invokes the new venv's absolute
+interpreter with resolved manifest/wheelhouse paths. There is no `--no-deps`
+bypass. A missing transitive dependency fails; pip checks installed compatibility.
+The manifest and wheels can be relocated together because the manifest contains
+no machine-specific absolute file URLs.
+
+The installed smoke exercises the public `oraec-tf source-info` and `app-path`
+CLI, verifies imports/resources inside the wheel venv, writes and reloads a small
+synthetic native TF graph, reconstructs original CR and Unicode values, renders
+hieroglyphs through the installed standard app, and checks no-clobber publication.
+No ORAEC source corpus or generated TF is bundled or uploaded. CI uploads only
+the portable version/hash manifest for each platform, not wheel payloads.
+
+`--no-index` is pip configuration, not a kernel network sandbox. It and the
+local-only wheel requirements prevent dependency fetching in this phase;
+Agora's execution network enforcement remains a separate host responsibility.
+
+## Remaining release scope
+
+A prepared wheelhouse is not a published ORAEC software release. Full pinned
+13,026-text source conservation, standard browser checks, independent final-head
+review and the software-only release remain gated by #12. Downstream Agora #224
+is separate. Karnak-bearing source/TF data are never distributed by this process.

@@ -27,7 +27,7 @@ jobs:
           cache: pip
       - name: Install source converter and pinned Context-Fabric runtime
         run: |
-          python -m pip install -e '.[dev]'
+          python -m pip install -r requirements/tf-build.txt -e '.[dev]'
           python -m pip install 'context-fabric==0.5.7'
       - name: Require importable Context-Fabric (no skipped acceptance)
         run: python -c 'from cfabric.core import Fabric; assert Fabric'

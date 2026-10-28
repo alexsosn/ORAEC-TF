@@ -4,7 +4,8 @@ Run this script with a *fresh offline-installed virtualenv* whose packages came
 only from a pre-acquired wheelhouse. It needs no Git, network, ORAEC source
 checkout, or generated corpus files; it tests a small synthetic native graph.
 
-This does NOT establish a published hash-locked tf-build wheel release.
+Published tf-build identity and offline dependency resolution are checked by
+validate_wheelhouse_install.py before this installed-package functionality test.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ def verify_installed_modules() -> dict[str, str]:
             raise AssertionError(f"{distribution} imported outside wheel venv: {path}")
         versions[distribution] = version(distribution)
     assert versions["oraec-tf"] == "0.1.0.dev0"
-    assert versions["tf-build"] == "0.1.0.dev0"
+    assert versions["tf-build"] == "0.1.0rc1"
     entrypoint = shutil.which("oraec-tf")
     if not entrypoint:
         raise AssertionError("oraec-tf console entrypoint missing from installed wheel")

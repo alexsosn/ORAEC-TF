@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "pyproject.toml"
+      - "requirements/**"
       - "src/**"
       - "scripts/smoke_installed_distribution.py"
       - "scripts/validate_wheelhouse_install.py"
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - "pyproject.toml"
+      - "requirements/**"
       - "src/**"
       - "scripts/smoke_installed_distribution.py"
       - "scripts/validate_wheelhouse_install.py"
@@ -27,9 +29,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  source-built-wheelhouse:
-    # Both operating systems must build exact-source wheels online, then
-    # install the acquired local wheels into a fresh environment offline.
+  released-wheelhouse:
+    # Resolve the checked-in runtime lock for each OS, using the actual
+    # published tf-build wheel. Build only ORAEC from this checkout.
     strategy:
       fail-fast: false
       matrix:
@@ -42,9 +44,13 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Acquire and build exact-source runtime wheels ONLINE
-        run: python -m pip wheel --wheel-dir "${{ runner.temp }}/wheelhouse" .
-      - name: SHA256 lock and install wheelhouse OFFLINE without Git or resolver
+      - name: Acquire hash-verified published tf-build wheel ONLINE
+        run: python -m pip download --no-deps --dest "${{ runner.temp }}/wheelhouse" -r requirements/tf-build.txt
+      - name: Acquire locked platform runtime wheels ONLINE
+        run: python -m pip download --only-binary=:all: --require-hashes --find-links "${{ runner.temp }}/wheelhouse" --dest "${{ runner.temp }}/wheelhouse" -r requirements/runtime.lock
+      - name: Build ORAEC software wheel only
+        run: python -m pip wheel --no-deps --wheel-dir "${{ runner.temp }}/wheelhouse" .
+      - name: Resolve and install hash-locked wheelhouse OFFLINE without Git
         run: |
           python scripts/validate_wheelhouse_install.py --wheelhouse "${{ runner.temp }}/wheelhouse" --source-tree "${{ github.workspace }}" --manifest "${{ runner.temp }}/wheel-manifest.txt"
       - name: Upload checksum manifest only, not wheels or corpus
