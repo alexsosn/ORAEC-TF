@@ -88,7 +88,10 @@ def audit_wheel(archive_path: Path) -> None:
     with zipfile.ZipFile(archive_path) as archive:
         for member in archive.infolist():
             _checked_parts(member.filename)
-            if member.create_system == 3 and stat.S_IFMT(member.external_attr >> 16) == stat.S_IFLNK:
+            if (
+                member.create_system == 3
+                and stat.S_IFMT(member.external_attr >> 16) == stat.S_IFLNK
+            ):
                 raise ValueError(f"symlink in wheel: {member.filename}")
             if member.is_dir():
                 continue
