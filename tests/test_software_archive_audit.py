@@ -117,3 +117,16 @@ def test_archives_reject_symlinks(tmp_path: Path, kind: str) -> None:
         operation = "audit_sdist"
     with pytest.raises(ValueError):
         _audit(operation, path)
+
+
+def test_archive_audit_changes_trigger_real_installed_wheel_job() -> None:
+    workflow = (ROOT / ".github/workflows/installed-wheelhouse.yml").read_text(
+        encoding="utf-8"
+    )
+    paths = workflow.split("pull_request:", 1)[1].split("permissions:", 1)[0]
+    for item in (
+        "scripts/audit_software_release.py",
+        "tests/test_software_archive_audit.py",
+        "tests/test_writer_wheel.py",
+    ):
+        assert f'"{item}"' in paths
