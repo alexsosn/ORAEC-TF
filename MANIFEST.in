@@ -1,1 +1,2 @@
 include schema/core.json
+recursive-include requirements *.txt *.in *.lock

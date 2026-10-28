@@ -15,8 +15,15 @@ from runpy import run_path
 from typing import cast
 
 import pytest
+from yaml import safe_load  # type: ignore[import-untyped]
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_distribution_workflow_is_valid_yaml() -> None:
+    workflow = ROOT / ".github" / "workflows" / "installed-wheelhouse.yml"
+    parsed = safe_load(workflow.read_text(encoding="utf-8"))
+    assert "jobs" in parsed
 
 
 def _write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
@@ -61,7 +68,7 @@ def test_ci_builds_wheels_online_but_installs_offline_without_git() -> None:
     assert '"pip", "check"' in runner
     for required in (
         "--no-index",
-        "--no-deps",
+        "--find-links",
         "smoke_installed_distribution.py",
         "sha256",
         "ORAEC_SOURCE_TREE",
@@ -87,16 +94,16 @@ def test_offline_wheelhouse_runs_real_windows_and_linux_installed_smokes() -> No
     assert "wheel-manifest.txt" in workflow
     assert '"pip", "check"' in source
     for literal in (
-        "--no-index", "--no-deps", "--require-hashes",
+        "--no-index", "--find-links", "--require-hashes",
         "PIP_NO_INDEX", "ORAEC_SOURCE_TREE",
         "smoke_installed_distribution.py", "PATH", "sha256",
-        "Requires-Dist", "da7ff9618259f1669bdb89b134970399919accc0",
+        "Requires-Dist", "0.1.0rc1",
     ):
         assert literal in source, literal
     # A platform-specific venv/Scripts vs venv/bin layout must be resolved
     # by the helper, never hardcoded to POSIX inside the workflow.
     assert "offline-venv/bin" not in workflow
-    assert "source-built-wheelhouse" in workflow
+    assert "released-wheelhouse" in workflow
 
 
 def test_installed_distribution_rejects_git_on_smoke_path() -> None:
@@ -108,34 +115,39 @@ def test_installed_distribution_rejects_git_on_smoke_path() -> None:
 
 
 def _synthetic_wheel(
-    root: Path, distribution: str, *, requirement: str = "",
+    root: Path, distribution: str, *, requirement: str = "", version: str = "0.1.0.dev0",
 ) -> Path:
     normalized = distribution.replace("-", "_")
-    file = root / f"{normalized}-0.1.0.dev0-py3-none-any.whl"
-    meta = f"Metadata-Version: 2.1\nName: {distribution}\nVersion: 0.1.0.dev0\n"
+    file = root / f"{normalized}-{version}-py3-none-any.whl"
+    meta = f"Metadata-Version: 2.1\nName: {distribution}\nVersion: {version}\n"
     if requirement:
         meta += f"Requires-Dist: {requirement}\n"
     with zipfile.ZipFile(file, "w") as archive:
-        archive.writestr(f"{normalized}-0.1.0.dev0.dist-info/METADATA", meta)
+        archive.writestr(f"{normalized}-{version}.dist-info/METADATA", meta)
     return file
 
 
-def test_portable_manifest_binds_real_wheel_bytes_and_pinned_vcs_metadata(
-    tmp_path: Path,
+def test_portable_manifest_binds_real_wheel_bytes_and_released_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wheelhouse = tmp_path / "wheelhouse"
     wheelhouse.mkdir()
-    sha = "da7ff9618259f1669bdb89b134970399919accc0"
     oraec = _synthetic_wheel(
         wheelhouse, "oraec-tf",
-        requirement=f"tf-build @ git+https://github.com/alexsosn/tf-build.git@{sha}",
+        requirement="tf-build==0.1.0rc1",
     )
-    _synthetic_wheel(wheelhouse, "tf-build")
+    tf_build = _synthetic_wheel(wheelhouse, "tf-build", version="0.1.0rc1")
+    module = run_path(str(ROOT / "scripts" / "validate_wheelhouse_install.py"))
+    writer = cast(Callable[[Path, Path], dict[str, str]], module["write_hash_manifest"])
+    monkeypatch.setitem(
+        writer.__globals__, "TF_BUILD_SHA256",
+        hashlib.sha256(tf_build.read_bytes()).hexdigest(),
+    )
     lock = tmp_path / "manifest.txt"
-    recorded = _write_hash_manifest(wheelhouse, lock)
+    recorded = writer(wheelhouse, lock)
     lines = lock.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 2
-    assert all(line.startswith("file://") and "--hash=sha256:" in line for line in lines)
+    assert all("==" in line and "--hash=sha256:" in line for line in lines)
     assert recorded[oraec.name] == hashlib.sha256(oraec.read_bytes()).hexdigest()
     assert f"--hash=sha256:{recorded[oraec.name]}" in lock.read_text(encoding="utf-8")
 
@@ -149,12 +161,18 @@ def test_portable_manifest_binds_real_wheel_bytes_and_pinned_vcs_metadata(
     ],
 )
 def test_portable_manifest_refuses_missing_or_mutable_tf_build_pin(
-    tmp_path: Path, requirement: str,
+    tmp_path: Path, requirement: str, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     wheels = tmp_path / "wheels"
     wheels.mkdir()
     _synthetic_wheel(wheels, "oraec-tf", requirement=requirement)
-    _synthetic_wheel(wheels, "tf-build")
+    tf_build = _synthetic_wheel(wheels, "tf-build", version="0.1.0rc1")
+    module = run_path(str(ROOT / "scripts" / "validate_wheelhouse_install.py"))
+    writer = cast(Callable[[Path, Path], dict[str, str]], module["write_hash_manifest"])
+    monkeypatch.setitem(
+        writer.__globals__, "TF_BUILD_SHA256",
+        hashlib.sha256(tf_build.read_bytes()).hexdigest(),
+    )
     with pytest.raises(ValueError, match="pin"):
-        _write_hash_manifest(wheels, tmp_path / "manifest.txt")
+        writer(wheels, tmp_path / "manifest.txt")
     assert not (tmp_path / "manifest.txt").exists()

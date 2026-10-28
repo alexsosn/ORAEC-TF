@@ -40,7 +40,8 @@ def test_readme_never_claims_unreleased_or_network_free_cold_install() -> None:
     assert "tf-build #60" in readme
     assert "ORAEC-TF issue #59" in readme
     assert "Agora #224" in readme
-    assert "no publicly released" in readme.casefold()
+    assert "tf-build==0.1.0rc1" in readme
+    assert "no publicly released" not in readme.casefold()
     assert "wheelhouse" in readme
 
 

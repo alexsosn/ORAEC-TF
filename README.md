@@ -52,7 +52,7 @@ Local source and generated data are ignored by Git. A researcher or materializer
 For development:
 
 ```bash
-python -m pip install -e '.[dev]'
+python -m pip install -r requirements/tf-build.txt -e '.[dev]'
 oraec-tf source-info
 oraec-tf fetch upstream/corpus_raw_data
 oraec-tf verify-source upstream/corpus_raw_data
@@ -60,36 +60,24 @@ oraec-tf verify-source upstream/corpus_raw_data
 
 The fetch command acquires the exact supported immutable Git commit into a clean detached checkout. Alternate revisions must also be full 40-hex commit IDs; branches, tags, abbreviated SHAs, and dirty worktrees are rejected. `verify-source` applies the same identity contract to an existing local checkout, requiring the Git **worktree root**. Acquisition uses tf-build's pinned, bounded Git subprocesses and atomic no-clobber publication; the published checkout retains neither the origin remote URL nor transient `FETCH_HEAD` metadata. Conversion itself remains network-free; Agora owns acquisition and then invokes ORAEC-TF on the verified local source directory.
 
-**Pre-release dependency:** the current development package pins `tf-build` to the exact Git commit
-`da7ff9618259f1669bdb89b134970399919accc0`. Installing ORAEC-TF
-therefore needs Git and access to that repository **during installation**. No
-tf-build PyPI release or hash-pinned wheel is assumed. A versioned, verified
-wheel/package artifact is required before ORAEC's independent offline release;
-this Git-commit pin is a temporary, reproducible development source, not a
-claim of offline wheel availability. Upstream [tf-build #60](https://github.com/alexsosn/tf-build/issues/60) tracks the required durable, uniquely versioned release asset; ORAEC-TF issue #59 tracks its separately verified consumer installation. There is **no publicly released** matching tf-build wheel yet.
+**Published dependency:** package metadata requires `tf-build==0.1.0rc1`.
+The online installation command above acquires the actual
+[tf-build release wheel](https://github.com/alexsosn/tf-build/releases/tag/v0.1.0rc1)
+through `requirements/tf-build.txt`, with its published SHA-256. No PyPI release
+is assumed, and installing the converter no longer requires Git. Git is still
+needed for the separate source-acquisition command.
 
-A source-built wheelhouse installation smoke now exercises **noneditable**
-ORAEC-TF and tf-build wheels with locally recorded SHA-256 hashes, pip
-`--no-index --no-deps --require-hashes`, a clean venv and synthetic native
-TF conversion. This proves the *already-acquired wheelhouse* is importable
-without network/Git resolution; it does **not** establish availability of a
-published, independently verifiable tf-build wheel. See
-[`docs/installed-distribution.md`](docs/installed-distribution.md),
-ORAEC-TF issue #59, and upstream tf-build #60.
+For offline installation, first prepare a wheelhouse on the target platform
+using the checked-in `requirements/runtime.lock` and the published wheel.
+The Linux/Windows installed-distribution gate then runs normal pip dependency
+resolution with `--no-index --require-hashes`, local wheels and no Git; it checks
+the installed CLI, synthetic native TF, original CR/Unicode values and packaged
+standard app. Each target needs its own compatible wheelhouse. See
+[`docs/installed-distribution.md`](docs/installed-distribution.md).
+Upstream [tf-build #60](https://github.com/alexsosn/tf-build/issues/60) now has a
+published candidate; ORAEC-TF issue #59 owns the consumer acceptance gate.
+ORAEC's own software release and full-corpus release-head checks remain under #12.
 
-
-## Installed Text-Fabric app (software-only)
-
-The standard advanced-app configuration is part of the ORAEC-TF software wheel,
-not just the GitHub source checkout. In a Python environment with `oraec-tf`
-installed, `oraec-tf app-path` prints the absolute installed standard TF app
-directory; use it with `tf app:/absolute/app/path --locations=/absolute/generated/tf`
-to open the local browser, without cloning this repository. Neither source
-JSON/TSV nor generated TF corpora are bundled into the Python wheel. The
-Linux and Windows installed-wheelhouse checks verify the packaged app against
-the reviewed source configuration and render a synthetic Egyptian sentence.
-See [browser instructions](docs/app-browser.md) and the release blocker #59
-for the separate dependency-resolving offline-install gate.
 
 ## Local Text-Fabric conversion (development builds)
 

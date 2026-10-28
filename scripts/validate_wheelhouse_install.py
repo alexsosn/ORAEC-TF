@@ -1,9 +1,8 @@
 """Cross-platform offline installed-wheel smoke for ORAEC-TF release issue #59.
 
-Only wheel *acquisition/building* occurs before this script. Both Linux and
-Windows use the same wheel hashes, local-only pip install, outside-checkout
-installed package checks, and no-Git smoke. This script is not proof that an
-independently published immutable tf-build wheel exists.
+Wheel acquisition happens first, separately for each platform. The published
+tf-build wheel is checked against its release digest. Pip resolves ordinary
+version requirements using only the captured local wheels and their hashes.
 """
 
 from __future__ import annotations
@@ -17,7 +16,8 @@ import zipfile
 from email.parser import Parser
 from pathlib import Path
 
-TF_BUILD_SOURCE = "da7ff9618259f1669bdb89b134970399919accc0"
+TF_BUILD_VERSION = "0.1.0rc1"
+TF_BUILD_SHA256 = "dff2a14c0299422b4716217d04e6d43b47e714f4dacdb21d9939292051e82c9a"
 
 
 def _wheel_metadata(path: Path) -> tuple[str, str, tuple[str, ...]]:
@@ -37,7 +37,7 @@ def _wheel_metadata(path: Path) -> tuple[str, str, tuple[str, ...]]:
 
 
 def write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
-    """Generate pip-validated file URLs paired with true wheel SHA256 digests."""
+    """Generate portable version requirements paired with wheel SHA256 digests."""
     wheels = sorted(wheelhouse.glob("*.whl"))
     if not wheels:
         raise ValueError("wheelhouse must contain at least one wheel")
@@ -52,26 +52,36 @@ def write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
             raise ValueError(f"duplicate wheel distribution: {name}")
         packages[name] = (version, requirements)
         digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        if name == "tf-build" and digest != TF_BUILD_SHA256:
+            raise ValueError("tf-build wheel SHA256 differs from published release")
         checksums[wheel.name] = digest
-        rows.append(f"{wheel.resolve().as_uri()} --hash=sha256:{digest}")
+        rows.append(f"{name}=={version} --hash=sha256:{digest}")
     if "oraec-tf" not in packages or "tf-build" not in packages:
         raise ValueError("source wheelhouse missing ORAEC-TF or tf-build")
     if packages["oraec-tf"][0] != "0.1.0.dev0":
         raise ValueError("unexpected ORAEC-TF prerelease wheel version")
-    if packages["tf-build"][0] != "0.1.0.dev0":
+    if packages["tf-build"][0] != TF_BUILD_VERSION:
         raise ValueError("unexpected tf-build prerelease wheel version")
     dependencies = packages["oraec-tf"][1]
     if not any(
-        "tf-build" in item and "git+https://github.com/alexsosn/tf-build.git" in item
-        and TF_BUILD_SOURCE in item for item in dependencies
+        item.replace(" ", "") == f"tf-build=={TF_BUILD_VERSION}"
+        for item in dependencies
     ):
-        raise ValueError("wheel METADATA does not pin the audited tf-build Git source")
+        raise ValueError("wheel METADATA does not pin the released tf-build version")
+    if any("@" in item for _, requirements in packages.values() for item in requirements):
+        raise ValueError("offline wheel dependencies must not contain direct URLs")
     manifest.write_text("\n".join(rows) + "\n", encoding="utf-8")
     return checksums
 
 
-def verify_installed_wheels(source_tree: Path, manifest: Path, environment: Path) -> None:
+def verify_installed_wheels(
+    source_tree: Path, manifest: Path, environment: Path, *, wheelhouse: Path,
+) -> None:
     """Install exactly hash-verified local wheel files into a fresh venv."""
+    source_tree = source_tree.resolve()
+    manifest = manifest.resolve()
+    environment = environment.resolve()
+    wheelhouse = wheelhouse.resolve()
     if environment.exists():
         raise ValueError("offline installed wheel environment must not preexist")
     venv.EnvBuilder(with_pip=True).create(environment)
@@ -80,6 +90,10 @@ def verify_installed_wheels(source_tree: Path, manifest: Path, environment: Path
     if not interpreter.is_file():
         raise ValueError("venv Python was not created")
     env = os.environ.copy()
+    # Inherited pip find-links/requirements must not add remote candidates.
+    for key in tuple(env):
+        if key.startswith("PIP_"):
+            del env[key]
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
     env.update({
@@ -92,7 +106,8 @@ def verify_installed_wheels(source_tree: Path, manifest: Path, environment: Path
     })
     subprocess.run([
         str(interpreter), "-m", "pip", "install",
-        "--no-index", "--no-deps", "--require-hashes",
+        "--no-index", "--no-cache-dir", "--only-binary=:all:", "--require-hashes",
+        "--find-links", str(wheelhouse.resolve()),
         "-r", str(manifest.resolve()),
     ], cwd=environment.parent, env=env, check=True)
     subprocess.run(
@@ -110,7 +125,7 @@ def verify_installed_wheels(source_tree: Path, manifest: Path, environment: Path
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Hash-lock source-built wheels and smoke offline installation"
+        description="Verify released wheel bytes and smoke offline dependency resolution"
     )
     parser.add_argument("--wheelhouse", required=True, type=Path)
     parser.add_argument("--source-tree", required=True, type=Path)
@@ -121,6 +136,7 @@ def main() -> None:
     print(f"Verified {len(hashes)} real local wheel SHA256 digests", flush=True)
     verify_installed_wheels(
         args.source_tree, manifest, manifest.parent / "offline-venv",
+        wheelhouse=args.wheelhouse,
     )
     print("Installed ORAEC-TF and tf-build wheel smoke succeeded offline", flush=True)
 
