@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import subprocess
 import tomllib
 import zipfile
@@ -74,12 +73,22 @@ def test_real_offline_resolver_and_relocatable_manifest(
     )
     # No index, no Git, and pip must resolve tf-build's declared dependency.
     monkeypatch.setenv("PIP_INDEX_URL", "https://example.invalid/never")
+    monkeypatch.setenv("PIP_FIND_LINKS", "https://example.invalid/never")
     install = module["verify_installed_wheels"]
     if missing_dependency:
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises(subprocess.CalledProcessError) as error:
             install(source, lock, tmp_path / "venv", wheelhouse=moved)
+        assert "install" in error.value.cmd  # resolution fails before pip check/smoke
+        assert "--no-deps" not in error.value.cmd
     else:
-        install(source, lock, tmp_path / "venv", wheelhouse=moved)
+        # The documented CLI accepts relative paths while its subprocesses
+        # deliberately run outside the source checkout.
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "nested").mkdir()
+        install(
+            Path("source"), Path("requirements.txt"), Path("nested/venv"),
+            wheelhouse=Path("relocated wheelhouse"),
+        )
 
 
 def test_manifest_rejects_substituted_release_wheel(tmp_path: Path) -> None:
@@ -87,4 +96,19 @@ def test_manifest_rejects_substituted_release_wheel(tmp_path: Path) -> None:
     _wheel(tmp_path, "tf-build", "0.1.0rc1")
     with pytest.raises(ValueError, match="SHA256"):
         _verifier()["write_hash_manifest"](tmp_path, tmp_path / "lock.txt")
+    assert not (tmp_path / "lock.txt").exists()
+
+
+def test_manifest_refuses_transitive_direct_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _wheel(tmp_path, "oraec-tf", "0.1.0.dev0", "tf-build==0.1.0rc1")
+    tf_build = _wheel(tmp_path, "tf-build", "0.1.0rc1", "leaf@https://example.invalid/x.whl")
+    writer = _verifier()["write_hash_manifest"]
+    monkeypatch.setitem(
+        writer.__globals__, "TF_BUILD_SHA256",
+        hashlib.sha256(tf_build.read_bytes()).hexdigest(),
+    )
+    with pytest.raises(ValueError, match="direct URLs"):
+        writer(tmp_path, tmp_path / "lock.txt")
     assert not (tmp_path / "lock.txt").exists()
