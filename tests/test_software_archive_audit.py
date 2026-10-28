@@ -130,3 +130,12 @@ def test_archive_audit_changes_trigger_real_installed_wheel_job() -> None:
         "tests/test_writer_wheel.py",
     ):
         assert f'"{item}"' in paths
+
+
+def test_installed_wheel_job_audits_the_wheel_it_builds() -> None:
+    workflow = (ROOT / ".github/workflows/installed-wheelhouse.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "Audit ORAEC wheel software-only inventory" in workflow
+    assert 'glob("oraec_tf-*.whl")' in workflow
+    assert '["audit_wheel"]' in workflow
