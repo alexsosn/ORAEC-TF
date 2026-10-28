@@ -47,7 +47,7 @@ def test_installed_smoke_is_syntax_valid_and_checks_real_wheel_api() -> None:
         "ORAEC_SOURCE_TREE",
         "NativeCRIndex",
         "publish_path_no_clobber",
-        "0.1.0.dev0",
+        "0.1.0rc1",
         "source-info",
         "bibliography",
     ):
@@ -115,7 +115,7 @@ def test_installed_distribution_rejects_git_on_smoke_path() -> None:
 
 
 def _synthetic_wheel(
-    root: Path, distribution: str, *, requirement: str = "", version: str = "0.1.0.dev0",
+    root: Path, distribution: str, *, requirement: str = "", version: str = "0.1.0rc1",
 ) -> Path:
     normalized = distribution.replace("-", "_")
     file = root / f"{normalized}-{version}-py3-none-any.whl"
