@@ -6,10 +6,18 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from runpy import run_path
 from tarfile import open as open_tar
+from typing import Callable, cast
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _audit_software_artifact(kind: str, path: Path) -> None:
+    checks = run_path(str(ROOT / "scripts/audit_software_release.py"))
+    audit = cast(Callable[[Path], None], checks[kind])
+    audit(path)
 
 
 def _checked_build(
@@ -58,6 +66,7 @@ def test_installed_wheel_can_load_frozen_schema(tmp_path: Path) -> None:
     )
     wheels = list(wheelhouse.glob("oraec_tf-*.whl"))
     assert len(wheels) == 1
+    _audit_software_artifact("audit_wheel", wheels[0])
 
     installed = tmp_path / "isolated"
     installed.mkdir()
@@ -96,6 +105,7 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
     )
     archives = list(source_dist.glob("oraec_tf-*.tar.gz"))
     assert len(archives) == 1
+    _audit_software_artifact("audit_sdist", archives[0])
     canonical = (ROOT / "schema" / "core.json").read_bytes()
     with open_tar(archives[0], "r:gz") as archive:
         schema_files = [
@@ -128,5 +138,6 @@ def test_sdist_can_rebuild_a_wheel_with_identical_frozen_schema(
     )
     wheels = list(wheelhouse.glob("oraec_tf-*.whl"))
     assert len(wheels) == 1
+    _audit_software_artifact("audit_wheel", wheels[0])
     with ZipFile(wheels[0]) as archive:
         assert archive.read("oraec_tf/schema_core.json") == canonical
