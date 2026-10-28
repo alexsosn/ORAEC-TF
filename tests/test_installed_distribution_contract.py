@@ -15,8 +15,15 @@ from runpy import run_path
 from typing import cast
 
 import pytest
+from yaml import safe_load  # type: ignore[import-untyped]
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_distribution_workflow_is_valid_yaml() -> None:
+    workflow = ROOT / ".github" / "workflows" / "installed-wheelhouse.yml"
+    parsed = safe_load(workflow.read_text(encoding="utf-8"))
+    assert "jobs" in parsed
 
 
 def _write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
