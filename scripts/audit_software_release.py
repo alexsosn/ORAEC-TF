@@ -20,7 +20,7 @@ _WHEEL_METADATA = {
 }
 _SDIST_ROOT_FILES = {
     "README.md", "LICENSE", "LICENSE_SCOPE.md", "AGENTS.md", "CONTRIBUTING.md",
-    "MANIFEST.in", "setup.py", "pyproject.toml", "plan.md", "research.md",
+    "MANIFEST.in", "setup.py", "setup.cfg", "PKG-INFO", "pyproject.toml", "plan.md", "research.md",
     "design.md", "agora.materializer.json",
 }
 _EGG_METADATA = {
@@ -54,7 +54,7 @@ def _wheel_is_software(name: str) -> bool:
         relative = name.removeprefix("oraec_tf/")
         return relative.endswith(".py") or relative in _WHEEL_RESOURCES
     head, sep, member = name.partition("/")
-    if not sep or re.fullmatch(r"oraec_tf-[^/]+\\.dist-info", head) is None:
+    if not sep or re.fullmatch(r"oraec_tf-[^/]+\.dist-info", head) is None:
         return False
     return member in _WHEEL_METADATA
 
