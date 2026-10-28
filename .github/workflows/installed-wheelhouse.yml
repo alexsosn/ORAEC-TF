@@ -18,6 +18,9 @@ on:
       - "src/**"
       - "scripts/smoke_installed_distribution.py"
       - "scripts/validate_wheelhouse_install.py"
+      - "scripts/audit_software_release.py"
+      - "tests/test_software_archive_audit.py"
+      - "tests/test_writer_wheel.py"
       - "tests/test_installed_distribution_contract.py"
       - ".github/workflows/installed-wheelhouse.yml"
 
