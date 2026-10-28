@@ -19,6 +19,7 @@ import tempfile
 from importlib.metadata import version
 from pathlib import Path
 
+ORAEC_VERSION = "0.1.0rc1"
 PINNED_SOURCE = "b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd"
 
 
@@ -45,7 +46,7 @@ def verify_installed_modules() -> dict[str, str]:
         if not path.is_relative_to(environment):
             raise AssertionError(f"{distribution} imported outside wheel venv: {path}")
         versions[distribution] = version(distribution)
-    assert versions["oraec-tf"] == "0.1.0.dev0"
+    assert versions["oraec-tf"] == ORAEC_VERSION
     assert versions["tf-build"] == "0.1.0rc1"
     entrypoint = shutil.which("oraec-tf")
     if not entrypoint:
