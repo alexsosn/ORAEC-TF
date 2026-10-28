@@ -90,3 +90,12 @@ def test_verifier_rejects_wrong_oraec_wheel_version(
     with pytest.raises(ValueError, match="unexpected ORAEC-TF"):
         writer(wheels, tmp_path / "manifest.txt")
     assert not (tmp_path / "manifest.txt").exists()
+
+
+def test_candidate_metadata_change_triggers_exact_head_rust_acceptance() -> None:
+    workflow = (ROOT / ".github/workflows/context-fabric-rust-rc1.yml").read_text(
+        encoding="utf-8"
+    )
+    event_paths = workflow.split("paths:", 1)[1].split("permissions:", 1)[0]
+    assert '"pyproject.toml"' in event_paths
+    assert '"src/oraec_tf/__init__.py"' in event_paths
