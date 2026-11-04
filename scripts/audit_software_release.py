@@ -16,7 +16,7 @@ from pathlib import Path
 _WHEEL_RESOURCES = {"schema_core.json", "tf_app/config.yaml"}
 _WHEEL_METADATA = {
     "METADATA", "WHEEL", "RECORD", "entry_points.txt", "top_level.txt",
-    "LICENSE", "licenses/LICENSE",
+    "LICENSE", "licenses/LICENSE", "licenses/LICENSE_SCOPE.md",
 }
 _SDIST_ROOT_FILES = {
     "README.md", "LICENSE", "LICENSE_SCOPE.md", "AGENTS.md", "CONTRIBUTING.md",
