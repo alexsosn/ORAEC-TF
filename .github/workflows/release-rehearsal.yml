@@ -77,7 +77,7 @@ jobs:
           RAW="${ROOT}/upstream/corpus_raw_data"
           GRAPH="${ROOT}/generated-tf"
           mkdir -p "${ROOT}/upstream"
-          # Python -I ignores PYTHONPATH and user site; assert import provenance.
+          # python -I ignores PYTHONPATH and user site; assert import provenance.
           "${PY}" -I - <<'PY'
           import sys
           from pathlib import Path
