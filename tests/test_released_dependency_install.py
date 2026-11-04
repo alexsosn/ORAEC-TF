@@ -47,7 +47,7 @@ def test_real_offline_resolver_and_relocatable_manifest(
 ) -> None:
     wheels = tmp_path / "original wheelhouse"
     wheels.mkdir()
-    _wheel(wheels, "oraec-tf", "0.1.0.dev0", "tf-build==0.1.0rc1")
+    _wheel(wheels, "oraec-tf", "0.1.0rc1", "tf-build==0.1.0rc1")
     tf_build = _wheel(wheels, "tf-build", "0.1.0rc1", "test-leaf==1.0")
     if not missing_dependency:
         _wheel(wheels, "test-leaf", "1.0")
@@ -92,7 +92,7 @@ def test_real_offline_resolver_and_relocatable_manifest(
 
 
 def test_manifest_rejects_substituted_release_wheel(tmp_path: Path) -> None:
-    _wheel(tmp_path, "oraec-tf", "0.1.0.dev0", "tf-build==0.1.0rc1")
+    _wheel(tmp_path, "oraec-tf", "0.1.0rc1", "tf-build==0.1.0rc1")
     _wheel(tmp_path, "tf-build", "0.1.0rc1")
     with pytest.raises(ValueError, match="SHA256"):
         _verifier()["write_hash_manifest"](tmp_path, tmp_path / "lock.txt")
@@ -102,7 +102,7 @@ def test_manifest_rejects_substituted_release_wheel(tmp_path: Path) -> None:
 def test_manifest_refuses_transitive_direct_url(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _wheel(tmp_path, "oraec-tf", "0.1.0.dev0", "tf-build==0.1.0rc1")
+    _wheel(tmp_path, "oraec-tf", "0.1.0rc1", "tf-build==0.1.0rc1")
     tf_build = _wheel(tmp_path, "tf-build", "0.1.0rc1", "leaf@https://example.invalid/x.whl")
     writer = _verifier()["write_hash_manifest"]
     monkeypatch.setitem(
