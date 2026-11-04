@@ -73,6 +73,23 @@ def test_valid_software_archive_members_and_canonical_resources(tmp_path: Path) 
     _audit("audit_sdist", _sdist(tmp_path / "clean.tar.gz"))
 
 
+def test_wheel_allows_packager_generated_license_scope_but_no_other_license_files(
+    tmp_path: Path,
+) -> None:
+    """Setuptools includes the project-specific release scope in dist-info/licenses."""
+    _audit(
+        "audit_wheel",
+        _wheel(tmp_path / "licensed.whl",
+               "oraec_tf-0.1.0rc1.dist-info/licenses/LICENSE_SCOPE.md"),
+    )
+    with pytest.raises(ValueError, match="non-software wheel member"):
+        _audit(
+            "audit_wheel",
+            _wheel(tmp_path / "unexpected-license.whl",
+                   "oraec_tf-0.1.0rc1.dist-info/licenses/UNREVIEWED.md"),
+        )
+
+
 @pytest.mark.parametrize(
     "member",
     [
