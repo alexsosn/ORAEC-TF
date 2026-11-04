@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from runpy import run_path
 from tarfile import open as open_tar
-from typing import Callable, cast
+from typing import cast
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
