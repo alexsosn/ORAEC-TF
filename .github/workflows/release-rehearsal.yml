@@ -1,0 +1,148 @@
+name: Installed-wheel complete ORAEC researcher E2E
+
+on:
+  workflow_dispatch:
+  # One explicit release-rehearsal PR branch, never an automatic full rebuild
+  # for unrelated code changes. Dispatch remains available for final #12.
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - ".github/workflows/release-rehearsal.yml"
+      - "scripts/validate_advanced_app.py"
+      - "tests/test_installed_full_e2e.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-full-corpus:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release/installed-full-e2e-102' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: ""
+      PYTHONNOUSERSITE: "1"
+      SOURCE_REVISION: b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd
+      CONVERTER_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Test the exact PR head, not GitHub's synthetic PR merge revision.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Acquire released tf-build and locked runtime wheels
+        run: |
+          python -m pip download --no-deps --dest "${RUNNER_TEMP}/wheelhouse" -r requirements/tf-build.txt
+          python -m pip download --only-binary=:all: --require-hashes --find-links "${RUNNER_TEMP}/wheelhouse" --dest "${RUNNER_TEMP}/wheelhouse" -r requirements/runtime.lock
+
+      - name: Build and audit candidate ORAEC software wheel
+        shell: bash
+        run: |
+          python -m pip wheel --no-deps --wheel-dir "${RUNNER_TEMP}/wheelhouse" .
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from runpy import run_path
+
+          wheels = list((Path(os.environ["RUNNER_TEMP"]) / "wheelhouse").glob("oraec_tf-*.whl"))
+          assert len(wheels) == 1, wheels
+          run_path("scripts/audit_software_release.py")["audit_wheel"](wheels[0])
+          print("Audited software-only candidate wheel", wheels[0].name)
+          PY
+
+      - name: Install into new isolated wheel-only environment
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/rehearsal"
+          python scripts/validate_wheelhouse_install.py \
+            --wheelhouse "${RUNNER_TEMP}/wheelhouse" \
+            --source-tree "${GITHUB_WORKSPACE}" \
+            --manifest "${RUNNER_TEMP}/rehearsal/wheel-manifest.txt"
+
+      - name: Researcher E2E - pinned acquisition and full wheel-installed conversion
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="${RUNNER_TEMP}/rehearsal"
+          PY="${ROOT}/offline-venv/bin/python"
+          CLI="${ROOT}/offline-venv/bin/oraec-tf"
+          RAW="${ROOT}/upstream/corpus_raw_data"
+          GRAPH="${ROOT}/generated-tf"
+          mkdir -p "${ROOT}/upstream"
+          # Python -I ignores PYTHONPATH and user site; assert import provenance.
+          "${PY}" -I - <<'PY'
+          import sys
+          from pathlib import Path
+          import oraec_tf
+          import tf_build
+
+          prefix = Path(sys.prefix).resolve()
+          for package in (oraec_tf, tf_build):
+              assert package.__file__ is not None
+              assert Path(package.__file__).resolve().is_relative_to(prefix)
+          PY
+          "${CLI}" source-info
+          "${CLI}" fetch "${RAW}"
+          "${CLI}" verify-source "${RAW}"
+          "${CLI}" convert "${RAW}" \
+            --output "${GRAPH}" \
+            --upstream-commit "${SOURCE_REVISION}" \
+            > "${ROOT}/rehearsal-summary.json"
+          "${PY}" -I - "${ROOT}/rehearsal-summary.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert report["counts"] == {
+              "texts": 13026,
+              "sentences": 101796,
+              "tokens": 815026,
+              "technical_anchors": 3,
+              "slots": 815029,
+          }, report["counts"]
+          assert "mapping_mode" not in report  # default mode excludes local-only Karnak
+          print("Full installed-wheel source conversion counts verified")
+          PY
+
+      - name: Independently audit installed-wheel generated full TF
+        shell: bash
+        run: |
+          ROOT="${RUNNER_TEMP}/rehearsal"
+          "${ROOT}/offline-venv/bin/python" -I scripts/validate_graph_source.py \
+            "${ROOT}/upstream/corpus_raw_data" "${ROOT}/generated-tf" \
+            --source-revision "${SOURCE_REVISION}" \
+            --converter-revision "${CONVERTER_REVISION}" \
+            --schema-version 3 \
+            --report "${ROOT}/graph-conservation.json"
+
+      - name: Browser HTTP and section navigation through installed app
+        shell: bash
+        run: |
+          ROOT="${RUNNER_TEMP}/rehearsal"
+          INSTALLED_APP="$("${ROOT}/offline-venv/bin/oraec-tf" app-path)"
+          test -f "${INSTALLED_APP}/config.yaml"
+          "${ROOT}/offline-venv/bin/python" -I scripts/validate_advanced_app.py \
+            "${ROOT}/generated-tf" --app-dir "${INSTALLED_APP}" \
+            > "${ROOT}/advanced-app-validation.json"
+
+      # Upload ONLY source-free reports; never the source checkout or generated TF.
+      - name: Upload release rehearsal counts and provenance only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oraec-installed-researcher-e2e-counts
+          path: |
+            ${{ runner.temp }}/rehearsal/rehearsal-summary.json
+            ${{ runner.temp }}/rehearsal/graph-conservation.json
+            ${{ runner.temp }}/rehearsal/advanced-app-validation.json
+            ${{ runner.temp }}/rehearsal/wheel-manifest.txt
+          if-no-files-found: warn
