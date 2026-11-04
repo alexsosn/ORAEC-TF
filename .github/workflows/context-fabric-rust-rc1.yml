@@ -5,6 +5,9 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
+      # Candidate metadata changes must prove exact-head native/Rust parity (#98).
+      - "pyproject.toml"
+      - "src/oraec_tf/__init__.py"
       - "src/oraec_tf/cf_rust_parity.py"
       - "scripts/validate_cf_rust_full.py"
       - "tests/test_cf_rust_parity.py"

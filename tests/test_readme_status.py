@@ -19,7 +19,7 @@ def test_readme_describes_implemented_schema_and_real_release_boundaries() -> No
         assert phrase not in readme
     for claim in (
         "schema v3", "2,930", "13,026", "815,026",
-        "0.1.0.dev0", "no released TF corpus", "NativeCRIndex",
+        "0.1.0rc1", "no released TF corpus", "NativeCRIndex",
         "CC BY-SA", "Karnak", "network",
     ):
         assert claim.casefold() in readme.casefold(), claim

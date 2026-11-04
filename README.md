@@ -4,7 +4,7 @@ ORAEC-TF converts the [Open Richly Annotated Egyptian Corpus (ORAEC)](https://gi
 
 ## Status
 
-**Pre-release converter (`0.1.0.dev0`): no released TF corpus or bundled corpus data.** The pinned-source native schema v3 writer, complete independent source-conservation audit, standard Text-Fabric advanced app, researcher reference, and upstream Agora adapter are implemented and tested. The standalone software-only release remains gated by issue #12 and offline dependency packaging issue #59. Downstream Agora marketplace registration (#224) is a separate integration milestone, not a prerequisite for publishing the converter package.
+**Unpublished software release candidate (`0.1.0rc1`): no released TF corpus or bundled corpus data.** The candidate is not yet published as a GitHub Release. The pinned-source native schema v3 writer, complete independent source-conservation audit, standard Text-Fabric advanced app, researcher reference, and upstream Agora adapter are implemented and tested. Offline dependency packaging issue #59 passed in merged PR #97; final standalone software-only publication and exact-head qualification remain gated by issue #12. Downstream Agora marketplace registration (#224) is a separate integration milestone, not a prerequisite for publishing the converter package.
 
 This repository contains only the software, tests, Text-Fabric app configuration, documentation, and source-acquisition helpers needed to build the corpus. It intentionally does **not** store either the ORAEC upstream files or generated Text-Fabric data.
 
@@ -75,7 +75,7 @@ the installed CLI, synthetic native TF, original CR/Unicode values and packaged
 standard app. Each target needs its own compatible wheelhouse. See
 [`docs/installed-distribution.md`](docs/installed-distribution.md).
 Upstream [tf-build #60](https://github.com/alexsosn/tf-build/issues/60) now has a
-published candidate; ORAEC-TF issue #59 owns the consumer acceptance gate.
+published candidate; ORAEC-TF issue #59 has passed its separately verified consumer acceptance gate.
 ORAEC's own software release and full-corpus release-head checks remain under #12.
 
 

@@ -16,6 +16,7 @@ import zipfile
 from email.parser import Parser
 from pathlib import Path
 
+ORAEC_VERSION = "0.1.0rc1"
 TF_BUILD_VERSION = "0.1.0rc1"
 TF_BUILD_SHA256 = "dff2a14c0299422b4716217d04e6d43b47e714f4dacdb21d9939292051e82c9a"
 
@@ -58,7 +59,7 @@ def write_hash_manifest(wheelhouse: Path, manifest: Path) -> dict[str, str]:
         rows.append(f"{name}=={version} --hash=sha256:{digest}")
     if "oraec-tf" not in packages or "tf-build" not in packages:
         raise ValueError("source wheelhouse missing ORAEC-TF or tf-build")
-    if packages["oraec-tf"][0] != "0.1.0.dev0":
+    if packages["oraec-tf"][0] != ORAEC_VERSION:
         raise ValueError("unexpected ORAEC-TF prerelease wheel version")
     if packages["tf-build"][0] != TF_BUILD_VERSION:
         raise ValueError("unexpected tf-build prerelease wheel version")
