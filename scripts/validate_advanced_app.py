@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app"
 
 
-def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
+def verify_local_advanced_app(
+    tf_dir: Path, *, app_dir: Path | None = None,
+) -> dict[str, object]:
     if not tf_dir.is_dir():
         raise ValueError(f"missing local TF output: {tf_dir}")
     if not (tf_dir / "otype.tf").is_file():
@@ -27,13 +29,14 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     if not api:
         raise ValueError("generated TF cannot load in Fabric")
 
+    selected_app = APP_DIR if app_dir is None else app_dir
     cfg = findAppConfig(
-        "ORAEC-TF", str(APP_DIR),
+        "ORAEC-TF", str(selected_app),
         commit="local", release="", local="clone", backend="github",
         org="alexsosn", repo="ORAEC-TF",
     )
     app = App(
-        cfg, "ORAEC-TF", str(APP_DIR),
+        cfg, "ORAEC-TF", str(selected_app),
         commit="local", release="", local="clone", backend="github",
         _browse=False, api=api, silent="deep",
     )
@@ -72,7 +75,7 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
     # Instantiate the same standard app in _browse=True mode, with the same
     # already loaded and independently verified TF API, not a mocked handler.
     browser_app = App(
-        cfg, "ORAEC-TF", str(APP_DIR),
+        cfg, "ORAEC-TF", str(selected_app),
         commit="local", release="", local="clone", backend="github",
         _browse=True, api=api, silent="deep",
     )
@@ -150,10 +153,16 @@ def verify_local_advanced_app(tf_dir: Path) -> dict[str, object]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("tf_dir", type=Path)
+    parser.add_argument(
+        "--app-dir", type=Path, default=None,
+        help="Explicit Text-Fabric app path, e.g. installed oraec-tf app-path",
+    )
     args = parser.parse_args()
     import json
 
-    print(json.dumps(verify_local_advanced_app(args.tf_dir), sort_keys=True))
+    print(json.dumps(
+        verify_local_advanced_app(args.tf_dir, app_dir=args.app_dir), sort_keys=True,
+    ))
     return 0
 
 
