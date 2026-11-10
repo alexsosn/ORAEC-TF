@@ -8,6 +8,7 @@ import tarfile
 import zipfile
 from pathlib import Path
 from runpy import run_path
+from typing import Any, cast
 
 import pytest
 
@@ -62,9 +63,9 @@ def _verify(
     revision: str = REVISION,
 ) -> dict[str, object]:
     module = run_path(str(ROOT / "scripts/verify_release_assets.py"))
-    return module["verify_release_assets"](
+    return cast(dict[str, object], module["verify_release_assets"](
         wheel, source, rebuilt, revision=revision, manifest=out,
-    )
+    ))
 
 
 def test_release_manifest_matches_real_archive_bytes(tmp_path: Path) -> None:
@@ -77,9 +78,10 @@ def test_release_manifest_matches_real_archive_bytes(tmp_path: Path) -> None:
     assert report["version"] == VERSION
     assert report["source_revision"] == REVISION
     assert report["format"] == "oraec-software-release-assets-v1"
-    assert {a["name"] for a in report["artifacts"]} == {direct.name, source.name}
-    assert all(len(a["sha256"]) == 64 for a in report["artifacts"])
-    assert all(a["size"] > 0 for a in report["artifacts"])
+    artifacts = cast(list[dict[str, Any]], report["artifacts"])
+    assert {a["name"] for a in artifacts} == {direct.name, source.name}
+    assert all(len(a["sha256"]) == 64 for a in artifacts)
+    assert all(a["size"] > 0 for a in artifacts)
 
 
 def test_release_rejects_sdist_rebuilt_wheel_with_changed_schema(tmp_path: Path) -> None:
