@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use ORAEC-TF in your research, please cite this software."
+type: software
+title: "ORAEC-TF: Open Richly Annotated Egyptian Corpus to Text-Fabric converter"
+authors:
+  - family-names: Sosnovshchenko
+    given-names: Oleksandr (Alex)
+repository-code: https://github.com/alexsosn/ORAEC-TF
+license: MIT
