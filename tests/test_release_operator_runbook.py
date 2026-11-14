@@ -57,3 +57,10 @@ def test_public_readme_links_release_runbook_without_claiming_a_release() -> Non
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "[software release operator runbook](docs/software-release-runbook.md)" in readme
     assert "Unpublished software release candidate" in readme
+
+
+def test_tag_probe_must_not_silence_remote_authentication_failure() -> None:
+    guide = GUIDE.read_text(encoding="utf-8")
+    assert "git ls-remote --refs origin refs/tags/v0.1.0rc1" in guide
+    assert "|| true" not in guide, "tag probe errors must abort instead of passing"
+    assert 'test -z "$remote_tag"' in guide
