@@ -146,7 +146,7 @@ python scripts/verify_release_assets.py \
   --revision "$SHA"
 ```
 
-The verifier rejects unexpected files, wrong revision and SHA256/size mismatch,
+The verifier rejects unexpected files, wrong revision and SHA256 (`sha256`)/size mismatch,
 and audits the two archives for non-software members. Those downloaded bytes
 must be independently installed in a fresh isolated environment and checked
 with `oraec-tf source-info`, `oraec-tf app-path`, native TF and hieroglyphic
