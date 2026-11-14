@@ -64,3 +64,12 @@ def test_tag_probe_must_not_silence_remote_authentication_failure() -> None:
     assert "git ls-remote --refs origin refs/tags/v0.1.0rc1" in guide
     assert "|| true" not in guide, "tag probe errors must abort instead of passing"
     assert 'test -z "$remote_tag"' in guide
+
+
+def test_failed_publication_retry_preserves_existing_tag_and_sha() -> None:
+    guide = GUIDE.read_text(encoding="utf-8")
+    assert "## Recovery: failed publication with an existing tag" in guide
+    assert 'refs/tags/v0.1.0rc1^{commit}' in guide
+    assert 'gh release view v0.1.0rc1' in guide
+    assert "Never move or recreate the tag" in guide
+    assert "gh workflow run software-release.yml --ref main -f tag=v0.1.0rc1" in guide
