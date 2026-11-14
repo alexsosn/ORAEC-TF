@@ -19,8 +19,9 @@ the software; citing it does not change source-text permissions.
 
 ## 1. Freeze an exact main source commit
 
-Run in a **single Bash session** with a GitHub CLI (`gh`) account authorized
-to publish in this repository and a clean checkout. Later commands reuse the
+Run in a **single Bash session** with Git, Python 3.11+, GitHub CLI (`gh`)
+and `jq` available, using an account authorized to publish in this repository
+and a clean checkout. Later commands reuse the
 `REPO` and `SHA` variables established here. **Do not reuse old PR-head or earlier main
 checks after any later commit.** These commands work from the repository root:
 
@@ -126,6 +127,31 @@ The GitHub Actions `release` environment may require an explicit approval.
 The publication job checks that the source SHA, current main HEAD and remote tag
 still match. It refuses existing releases and uploads only the three files
 listed above. It does not create tags, and PR events never publish.
+
+## Recovery: failed publication with an existing tag
+
+A failed or unapproved publication attempt may leave the correct tag in place
+without a GitHub Release. **Never move or recreate the tag** to retry.
+First investigate the failed run and confirm that the release is genuinely
+absent (distinguish an API/network/authentication failure from a 404).
+Then recheck the tag's peeled commit and current main HEAD against the SAME
+SHA that passed every gate in step 2:
+
+```bash
+set -euo pipefail
+git fetch origin main --tags
+test "$SHA" = "$(git rev-parse origin/main)"
+test "$SHA" = "$(git rev-parse 'refs/tags/v0.1.0rc1^{commit}')"
+gh release view v0.1.0rc1 --repo "$REPO"
+# If the preceding command reports a genuine missing release, continue manually:
+gh workflow run software-release.yml --ref main -f tag=v0.1.0rc1 --repo "$REPO"
+```
+
+The `gh release view` command above is deliberately an inspection gate,
+not a command whose error should be ignored by a shell script. If a release
+already exists, do not dispatch again. If the original final-head checks
+have become stale because main changed, do not repoint the tag: stop and
+select an appropriately versioned future release instead.
 
 ## 4. Independently check the published bytes before calling #12 complete
 
