@@ -10,7 +10,7 @@ compiled Context-Fabric caches. Its only assets are:
 
 - `oraec_tf-0.1.0rc1-py3-none-any.whl`
 - `oraec_tf-0.1.0rc1.tar.gz`
-- `release-manifest.json` (SHA-256/sha256 and source commit)
+- `release-manifest.json` (SHA256 digests, sizes and source commit)
 
 The converter software is MIT licensed; upstream texts retain their own terms
 (`LICENSE_SCOPE.md`). Do not publish source JSON, mapping TSVs or generated
@@ -19,8 +19,9 @@ the software; citing it does not change source-text permissions.
 
 ## 1. Freeze an exact main source commit
 
-Run locally with a GitHub CLI (`gh`) account authorized to publish in this
-repository and a clean checkout. **Do not reuse old PR-head or earlier main
+Run in a **single Bash session** with a GitHub CLI (`gh`) account authorized
+to publish in this repository and a clean checkout. Later commands reuse the
+`REPO` and `SHA` variables established here. **Do not reuse old PR-head or earlier main
 checks after any later commit.** These commands work from the repository root:
 
 ```bash
@@ -99,19 +100,28 @@ Only after the exact-SHA checks have passed, create the tag on the same head.
 Never silently move a pre-existing tag:
 
 ```bash
+set -euo pipefail
+git fetch origin main
 test "$SHA" = "$(git rev-parse HEAD)"
 test "$SHA" = "$(git rev-parse origin/main)"
-git ls-remote --exit-code origin refs/tags/v0.1.0rc1 && {
-  echo "Tag already exists: stop and inspect it" >&2
+# Local tag must not be overwritten, either.
+if git rev-parse --quiet --verify refs/tags/v0.1.0rc1 >/dev/null; then
+  echo "Local tag already exists: stop and inspect it" >&2
   exit 1
-} || true
+fi
+# A remote/network/auth failure aborts under set -e. Missing tags return empty output.
+remote_tag="$(git ls-remote --refs origin refs/tags/v0.1.0rc1)"
+test -z "$remote_tag" || {
+  echo "Remote tag already exists: stop and inspect it" >&2
+  exit 1
+}
 git tag -a v0.1.0rc1 "$SHA" -m "ORAEC-TF v0.1.0rc1 software-only prerelease"
 git push origin refs/tags/v0.1.0rc1
 gh workflow run software-release.yml --ref main -f tag=v0.1.0rc1 --repo "$REPO"
 ```
 
-Note: if `git ls-remote` fails because the network/authentication is broken,
-do **not** treat that as absence of a tag; inspect the error before tagging.
+The `git ls-remote` check must succeed; a network or authentication error
+aborts the procedure rather than being interpreted as an absent tag.
 The GitHub Actions `release` environment may require an explicit approval.
 The publication job checks that the source SHA, current main HEAD and remote tag
 still match. It refuses existing releases and uploads only the three files
