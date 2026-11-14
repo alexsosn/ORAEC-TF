@@ -142,14 +142,25 @@ set -euo pipefail
 git fetch origin main --tags
 test "$SHA" = "$(git rev-parse origin/main)"
 test "$SHA" = "$(git rev-parse 'refs/tags/v0.1.0rc1^{commit}')"
+```
+
+Now inspect the release lookup **separately**:
+
+```bash
 gh release view v0.1.0rc1 --repo "$REPO"
-# If the preceding command reports a genuine missing release, continue manually:
+```
+
+If it succeeds, a release already exists: do not dispatch again. If it
+returns a genuine *release not found* response (not an authentication,
+authorization or network failure), and the exact-SHA gates remain green,
+manually retry only the original guarded publication workflow:
+
+```bash
 gh workflow run software-release.yml --ref main -f tag=v0.1.0rc1 --repo "$REPO"
 ```
 
-The `gh release view` command above is deliberately an inspection gate,
-not a command whose error should be ignored by a shell script. If a release
-already exists, do not dispatch again. If the original final-head checks
+Do not place that last command in an unconditional shell fallback from a
+failed `gh release view` command. If the original final-head checks
 have become stale because main changed, do not repoint the tag: stop and
 select an appropriately versioned future release instead.
 
