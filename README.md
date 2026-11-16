@@ -6,6 +6,8 @@ ORAEC-TF converts the [Open Richly Annotated Egyptian Corpus (ORAEC)](https://gi
 
 **Unpublished software release candidate (`0.1.0rc1`): no released TF corpus or bundled corpus data.** The candidate is not yet published as a GitHub Release. The pinned-source native schema v3 writer, complete independent source-conservation audit, standard Text-Fabric advanced app, researcher reference, and upstream Agora adapter are implemented and tested. Offline dependency packaging issue #59 passed in merged PR #97; final standalone software-only publication and exact-head qualification remain gated by issue #12. Downstream Agora marketplace registration (#224) is a separate integration milestone, not a prerequisite for publishing the converter package.
 
+The [software release operator runbook](docs/software-release-runbook.md) documents the exact-head manual CI, immutable tag, guarded publication, and independently verified published-asset steps. The GitHub Release has not yet been created; follow the runbook only after the current main head has passed its own release gates.
+
 This repository contains only the software, tests, Text-Fabric app configuration, documentation, and source-acquisition helpers needed to build the corpus. It intentionally does **not** store either the ORAEC upstream files or generated Text-Fabric data.
 
 The initial supported upstream snapshot is:
