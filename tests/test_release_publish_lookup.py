@@ -53,6 +53,10 @@ def test_release_publication_requires_confirmed_absence(
     gh = bin_dir / "gh"
     gh.write_text(
         '#!/bin/sh\n'
+        'if [ "$1" = "release" ] && [ "$2" = "view" ]; then\n'
+        '  [ "$MOCK_HTTP_STATUS" = "200" ] && exit 0\n'
+        '  exit 1\n'
+        'fi\n'
         'if [ "$1" = "release" ] && [ "$2" = "create" ]; then\n'
         '  printf "%s\\n" "$*" > "$CREATE_SENTINEL"\n'
         'fi\n'
