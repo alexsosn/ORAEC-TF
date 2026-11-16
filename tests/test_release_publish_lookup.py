@@ -47,7 +47,10 @@ def test_release_publication_requires_confirmed_absence(
     bin_dir.mkdir()
     curl = bin_dir / "curl"
     curl.write_text(
-        '#!/bin/sh\nprintf "%s" "$MOCK_HTTP_STATUS"\nexit "$MOCK_CURL_EXIT"\n',
+        '#!/bin/sh\n'
+        'printf "%s\\n" "$@" > "$CURL_ARGS_SENTINEL"\n'
+        'printf "%s" "$MOCK_HTTP_STATUS"\n'
+        'exit "$MOCK_CURL_EXIT"\n',
         encoding="utf-8",
     )
     gh = bin_dir / "gh"
@@ -72,6 +75,7 @@ def test_release_publication_requires_confirmed_absence(
         "MOCK_HTTP_STATUS": http_status,
         "MOCK_CURL_EXIT": str(curl_exit),
         "CREATE_SENTINEL": str(sentinel),
+        "CURL_ARGS_SENTINEL": str(tmp_path / "curl-args.txt"),
         "RUNNER_TEMP": str(tmp_path),
         "GH_TOKEN": "synthetic-test-token",
         "GITHUB_REPOSITORY": "alexsosn/ORAEC-TF",
@@ -86,6 +90,12 @@ def test_release_publication_requires_confirmed_absence(
         text=True,
         check=False,
     )
+    curl_args = (tmp_path / "curl-args.txt").read_text(encoding="utf-8")
+    assert "Authorization: Bearer synthetic-test-token" in curl_args
+    assert "https://api.github.com/repos/alexsosn/ORAEC-TF/releases/tags/v0.1.0rc1" in curl_args
+    assert "--connect-timeout" in curl_args
+    assert "--max-time" in curl_args
+    assert "--write-out" in curl_args
     assert (result.returncode == 0) is should_create, result.stderr
     assert sentinel.exists() is should_create, result.stderr
     if should_create:
