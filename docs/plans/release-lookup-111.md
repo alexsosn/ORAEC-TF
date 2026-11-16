@@ -1,0 +1,6 @@
+# Plan: release lookup must fail closed (#111)
+
+1. **RED-first test.** Add `tests/test_release_publish_lookup.py` extracting the real workflow's publish-step Bash script and executing it under local fake `curl`/`gh`. Test HTTP 404 creates, while 200, 401, 403, 429, 500 and failed transport never create. Commit the test first; record 404 failure on the old workflow.
+2. **Small production change.** Replace the ambiguous `gh release view` precheck with authenticated GitHub release-by-tag API `curl --silent --show-error --connect-timeout --max-time --write-out '%{http_code}' --output ...`, then `case` on `404` vs `200` vs other, preserving `set -euo pipefail`. Keep the guarded `gh release create` parameters unchanged.
+3. **Verify.** RED then GREEN, Python 3.11–3.13 Ruff/mypy/pytest, full pinned-corpus writer and Context-Fabric acceptance on final PR head.
+4. **Adversarial review.** Independently inspect the exact workflow diff, mock fixtures and GitHub REST semantics; look for network/auth bypass, token/command leakage, incorrect status handling and evidence of a real publication. Merge only after green tests and final review. Leave #12/#106 unresolved until the actual tagged release and public-byte E2E.
