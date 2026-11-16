@@ -136,3 +136,23 @@ def test_release_workflow_never_publishes_on_pull_request() -> None:
     assert "tf-build" not in workflow.split("gh release create", 1)[1].split("\n", 1)[0]
     assert "git tag" not in workflow
     assert "git push" not in workflow
+
+
+def test_release_pr_staging_covers_critical_packaged_inputs() -> None:
+    """PR changes to wheel/sdist inputs must not silently bypass archive staging."""
+    workflow = (ROOT / ".github/workflows/software-release.yml").read_text(
+        encoding="utf-8"
+    )
+    section = workflow.split("  pull_request:\n    paths:\n", 1)[1].split(
+        "\n  workflow_dispatch:", 1
+    )[0]
+    watched = {line.strip() for line in section.splitlines() if line.strip().startswith("- ")}
+    required = {
+        '- "README.md"',  # pyproject.readme: wheel METADATA and sdist.
+        '- "src/**"',  # Native converter code and installed CLI.
+        '- "app/**"',  # Packaged standard TF application.
+        '- "schema/**"',  # Frozen schema copied into the wheel.
+        '- "requirements/**"',  # Published dependency contract in sdist.
+        '- "LICENSE*"',  # Wheel/sdist licensing payload.
+    }
+    assert required <= watched, f"unwatched release inputs: {sorted(required - watched)}"

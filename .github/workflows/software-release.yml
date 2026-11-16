@@ -10,6 +10,12 @@ on:
       - "pyproject.toml"
       - "setup.py"
       - "MANIFEST.in"
+      - "README.md"
+      - "LICENSE*"
+      - "src/**"
+      - "app/**"
+      - "schema/**"
+      - "requirements/**"
   workflow_dispatch:
     inputs:
       tag:
