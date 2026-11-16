@@ -138,9 +138,9 @@ After acquiring the pinned source independently, create an explicitly opted-in *
 Text-Fabric dataset with both upstream Karnak mapping tables:
 
 ```bash
-oraec-tf convert upstream/corpus_raw_data \\
-  --output build/oraec-with-karnak \\
-  --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \\
+oraec-tf convert upstream/corpus_raw_data \
+  --output build/oraec-with-karnak \
+  --upstream-commit b83a0ee5fae27a40d4c0a2a9a8c9c2973d45e9cd \
   --include-karnak
 ```
 
