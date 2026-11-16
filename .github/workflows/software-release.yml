@@ -195,10 +195,26 @@ jobs:
           RELEASE_SOURCE: ${{ needs.stage.outputs.source_sha }}
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release already exists: refusing to overwrite" >&2
-            exit 1
-          fi
+          # Only a completed, authenticated HTTP 404 proves absence. The
+          # old gh-release-view fallback treated *every* API/network failure
+          # as permission to attempt publication.
+          status="$(curl --silent --show-error --retry 2 \
+            --connect-timeout 10 --max-time 30 \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --output /dev/null --write-out '%{http_code}' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          case "$status" in
+            404) ;;  # Verified not found; publication is allowed.
+            200)
+              echo "Release already exists: refusing to overwrite" >&2
+              exit 1
+              ;;
+            *)
+              echo "Release existence lookup failed (HTTP $status): refusing to publish" >&2
+              exit 1
+              ;;
+          esac
           gh release create "$RELEASE_TAG" \
             "$RUNNER_TEMP/release-dist/oraec_tf-0.1.0rc1-py3-none-any.whl" \
             "$RUNNER_TEMP/release-dist/oraec_tf-0.1.0rc1.tar.gz" \
