@@ -70,12 +70,22 @@ def _run_graphical_browser_smoke(
                 if not page.locator("#queryTable").inner_text().strip():
                     raise ValueError("real browser did not render its one query result")
 
-                # The actual result reference is a clickable passage link,
-                # wired to another Ajax handler in tf3.0.js.
-                passage_link = page.locator("#queryTable .pq")
-                if passage_link.count() < 1:
-                    raise ValueError("query result has no clickable passage reference")
-                passage_link.first.click()
+                # ORAEC deliberately has no fabricated external webBase,
+                # so result references need not be clickable. Use TF's
+                # real passage navigator: switch mode, filter the attested
+                # text ID, and click its *exact* section link.
+                from re import compile as regex_compile
+                from re import escape as regex_escape
+
+                page.locator("#modepassage").click()
+                page.locator("#passages .s0nav").first.wait_for(timeout=45000)
+                page.locator("#s0filter").fill(text_id)
+                passage_link = page.locator("#passages .s0nav").filter(
+                    has_text=regex_compile(f"^{regex_escape(text_id)}$")
+                )
+                if passage_link.count() != 1:
+                    raise ValueError("passage navigator lacks exact source text ID")
+                passage_link.click()
                 page.wait_for_function(
                     '() => Boolean(document.querySelector("#passageTable")'
                     '?.innerText?.trim())',
