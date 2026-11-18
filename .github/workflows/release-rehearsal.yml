@@ -10,6 +10,7 @@ on:
       - ".github/workflows/release-rehearsal.yml"
       - "scripts/validate_advanced_app.py"
       - "tests/test_installed_full_e2e.py"
+      - "tests/test_advanced_app.py"
 
 permissions:
   contents: read
@@ -20,8 +21,10 @@ concurrency:
 
 jobs:
   installed-full-corpus:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release/installed-full-e2e-102' }}
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release/installed-full-e2e-102' || github.head_ref == 'feature/real-browser-gui-119' }}
+    # Playwright 1.55 Chromium dependency bootstrap supports Ubuntu 24.04;
+    # ubuntu-latest became 26.04, which this pinned browser build rejects.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       PYTHONPATH: ""
@@ -124,14 +127,23 @@ jobs:
             --schema-version 3 \
             --report "${ROOT}/graph-conservation.json"
 
-      - name: Browser HTTP and section navigation through installed app
+      - name: Install optional browser test runner, isolated from package-lock acceptance
+        shell: bash
+        run: |
+          # Test-only dependency AFTER the hash-locked wheelhouse install gate.
+          # This never enters ORAEC package metadata or distributable assets.
+          ROOT="${RUNNER_TEMP}/rehearsal"
+          "${ROOT}/offline-venv/bin/python" -m pip install --no-cache-dir "playwright==1.55.0"
+          "${ROOT}/offline-venv/bin/python" -m playwright install --with-deps chromium
+
+      - name: Real Chromium researcher GUI and browser HTTP through installed app
         shell: bash
         run: |
           ROOT="${RUNNER_TEMP}/rehearsal"
           INSTALLED_APP="$("${ROOT}/offline-venv/bin/oraec-tf" app-path)"
           test -f "${INSTALLED_APP}/config.yaml"
           "${ROOT}/offline-venv/bin/python" -I scripts/validate_advanced_app.py \
-            "${ROOT}/generated-tf" --app-dir "${INSTALLED_APP}" \
+            "${ROOT}/generated-tf" --app-dir "${INSTALLED_APP}" --gui-browser \
             > "${ROOT}/advanced-app-validation.json"
 
       # Upload ONLY source-free reports; never the source checkout or generated TF.

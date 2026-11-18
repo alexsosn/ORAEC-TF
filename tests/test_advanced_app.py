@@ -137,6 +137,10 @@ def test_app_provenance_never_claims_bundled_corpus_files() -> None:
     )
     assert cfg["apiVersion"] == 3
     assert cfg["dataDisplay"]["textFormat"] == "text-translit"
+    # Browser passage must enumerate sentence content, not only render the
+    # (potentially big/condensed) enclosing text heading.
+    assert cfg["dataDisplay"]["browseNavLevel"] == 1
+    assert cfg["dataDisplay"]["browseContentPretty"] is False
     assert cfg["typeDisplay"]["word"]["exclude"] == {"is_anchor": 1}
     assert cfg["provenanceSpec"]["org"] == "alexsosn"
     assert cfg["provenanceSpec"]["repo"] == "ORAEC-TF"
@@ -241,3 +245,45 @@ def test_generated_corpus_serves_actual_browser_home_query_and_passage_http(
     assert result["browser_http"]["query_results"] == 1
     assert result["browser_http"]["passage_status"] == 200
     assert result["browser_http"]["text_id"] == "oraec42"
+
+
+def test_real_browser_mode_is_explicit_and_does_not_change_http_only_mode(
+    tmp_path: Path,
+) -> None:
+    """RED: GUI automation must opt in and keep HTTP-only smoke intact."""
+    import inspect
+    from runpy import run_path
+
+    script = run_path(str(ROOT / "scripts" / "validate_advanced_app.py"))
+    verify = script["verify_local_advanced_app"]
+    assert "gui_browser" in inspect.signature(verify).parameters
+
+    output = tmp_path / "http-only"
+    _tiny_corpus(output)
+    report = verify(output)
+    assert report["browser_http"]["query_results"] == 1
+    assert "browser_gui" not in report
+
+
+def test_real_browser_uses_attested_hieroglyphs_and_actual_dom(
+    tmp_path: Path,
+) -> None:
+    """Execute in the browser-enabled rehearsal; no browser on ordinary CI."""
+    from runpy import run_path
+
+    import pytest
+
+    pytest.importorskip("playwright.sync_api")
+    output = tmp_path / "gui-tf"
+    _tiny_corpus(output)
+    verify = run_path(str(ROOT / "scripts" / "validate_advanced_app.py"))[
+        "verify_local_advanced_app"
+    ]
+    report = verify(output, gui_browser=True)
+    ui = report["browser_gui"]
+    assert ui["browser"] == "chromium"
+    assert ui["query_results"] == 1
+    assert ui["passage_visible"] is True
+    assert ui["hiero_rendered"] is True
+    assert ui["text_format"] == "text-hiero"
+    assert "𓀀" not in str(ui), "source glyphs belong in the DOM, not reports"

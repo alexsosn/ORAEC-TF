@@ -4,7 +4,8 @@
 apiVersion: 3
 
 dataDisplay:
-  browseContentPretty: true
+  # Show actual sentence passages; a whole-text pretty view can collapse to a heading.
+  browseContentPretty: false
   browseNavLevel: 1
   exampleSection: oraec42 1
   textFormat: text-translit
