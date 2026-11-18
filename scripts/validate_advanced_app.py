@@ -59,13 +59,35 @@ def _run_graphical_browser_smoke(
 
                 # Real button click runs the upstream tf3.0.js Ajax /query
                 # handler. Neither a direct HTTP client nor DOM injection counts.
+                # Detect an upstream JS initialization failure *before*
+                # waiting for an Ajax response that will never be issued.
+                if errors:
+                    raise ValueError(
+                        f"Text-Fabric page initialization raised {len(errors)} "
+                        f"uncaught JavaScript error(s): {errors[0][:220]}"
+                    )
                 page.locator("#query").fill(f"text oraec_id={text_id}")
-                page.locator("#queryGo").click()
-                page.wait_for_function(
-                    'document.querySelector("#nresults .nresults")'
-                    '?.textContent?.trim() === "1"',
-                    timeout=45000,
+                query_responses: list[int] = []
+                page.on(
+                    "response",
+                    lambda response: query_responses.append(response.status)
+                    if response.url.endswith("/query") else None,
                 )
+                page.locator("#queryGo").click()
+                try:
+                    page.wait_for_function(
+                        'document.querySelector("#nresults .nresults")'
+                        '?.textContent?.trim() === "1"',
+                        timeout=12000,
+                    )
+                except Exception as exc:
+                    raise ValueError(
+                        "real browser query failed: "
+                        f"query_http_statuses={query_responses}, "
+                        f"uncaught_js_errors={len(errors)}, "
+                        f"mode={page.locator('#mode').input_value()}, "
+                        f"result_count={page.locator('#nresults .nresults').inner_text()!r}"
+                    ) from exc
                 if not page.locator("#queryTable").inner_text().strip():
                     raise ValueError("real browser did not render its one query result")
 
