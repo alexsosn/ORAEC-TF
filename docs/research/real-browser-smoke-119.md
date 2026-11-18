@@ -13,3 +13,7 @@ Inspected pinned upstream **annotation/text-fabric tag v13.1.0**, not inferred s
 Constraints: Playwright + Chromium are **test-only** (not a converter/wheel dependency); wheel-installed release rehearsal can opt into real GUI via an explicit CLI flag. Make errors, timeouts, absent controls, JavaScript failures, empty Ajax response and missing visible text fail closed. Terminate loopback server/browser in `finally`. Never upload screenshots, raw source, rendered text or corpus caches as artifacts. The existing full-corpus writer and source-conservation audits remain mandatory before GUI smoke.
 
 Execution plan must be explicit because CI ordinary unit jobs intentionally do not download browser binaries. Synthetic author-created ORAEC fixture exercises the same script when Playwright is available; the release rehearsal branch `feature/real-browser-gui-119` will exercise the installed-wheel **full** corpus.
+
+## Independent selector correction before CI
+
+The pinned `tf/advanced/links.py::webLink` returns **plain text**, not a clickable `.pq` anchor, when `webBase`/`webUrl` are deliberately absent (as in the ORAEC app). Therefore a GUI smoke **must not depend on clicking a search-result permalink**. Text-Fabric's `tf3.0.js::modes`, `filterS0`, and `subLinks` instead expose the real passage navigator: click `#modepassage`, filter `#s0filter`, and click the exact `#passages .s0nav` entry. This preserves the verified no-invented-URL metadata policy and actually uses a researcher-facing navigation control.
