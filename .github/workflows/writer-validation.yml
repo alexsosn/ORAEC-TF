@@ -23,7 +23,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          # Exercise the newest verified native full-source interpreter without
+          # multiplying expensive independent corpus audits across a matrix.
+          python-version: "3.14"
           cache: pip
 
       - name: Install
