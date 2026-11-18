@@ -137,6 +137,10 @@ def test_app_provenance_never_claims_bundled_corpus_files() -> None:
     )
     assert cfg["apiVersion"] == 3
     assert cfg["dataDisplay"]["textFormat"] == "text-translit"
+    # Browser passage must enumerate sentence content, not only render the
+    # (potentially big/condensed) enclosing text heading.
+    assert cfg["dataDisplay"]["browseNavLevel"] == 1
+    assert cfg["dataDisplay"]["browseContentPretty"] is False
     assert cfg["typeDisplay"]["word"]["exclude"] == {"is_anchor": 1}
     assert cfg["provenanceSpec"]["org"] == "alexsosn"
     assert cfg["provenanceSpec"]["repo"] == "ORAEC-TF"
