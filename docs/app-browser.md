@@ -91,22 +91,43 @@ A complete researcher-facing reference is available in
 [the executable query cookbook](query-recipes.md). The catalogue is generated
 from `schema/core.json` and CI verifies that it has not drifted.
 
-The advanced-app smoke runner also supports arbitrary ephemeral outputs without
-moving files or contacting an external server. In addition to native API and
-`App.pretty()` rendering, it now instantiates the **actual Text-Fabric 13.1
-Flask browser** in web mode and sends HTTP requests through Flask's local test
-client: the homepage (`GET /`), an attested ORAEC text search
-(`POST /query`), and passage navigation (`POST /passage`). It fails on
-non-200 responses or incorrect/nonpositive search results. This exercises
-server-side browser routing and researcher-facing results, **not** a real
-Chromium/Firefox graphical interaction; no public network port is opened.
-Reports record HTTP status/counts only.
+The advanced-app smoke runner accepts arbitrary ephemeral outputs without
+moving or uploading source data. By default it tests native API, `App.pretty()`,
+and the **actual Text-Fabric 13.1 Flask browser** via local HTTP test client:
+homepage (`GET /`), attested text query (`POST /query`), and passage
+navigation (`POST /passage`). This default is a server-side smoke only, and
+does **not** establish real JavaScript or graphical browser behavior.
+
+For the prerelease **installed-wheel full-corpus rehearsal**, the same runner
+also has optional `--gui-browser`: Playwright Chromium opens the real standard
+browser on an ephemeral `127.0.0.1` port, clicks the search control for an
+attested source text ID, opens the passage reference, selects `text-hiero`,
+and requires an actual source hieroglyph in the rendered passage. Chromium
+and Playwright are **test-only** requirements, installed by the rehearsal
+workflow after offline wheelhouse verification; neither is included in
+ORAEC-TF software requirements or release artifacts. Loopback server and
+browser are shut down even if the test fails. Reports record counts and
+browser version, never source passages or screenshots. This is a scripted
+headless graphical browser, not a human usability study.
 
 Example:
 
 ```bash
 python scripts/validate_advanced_app.py /absolute/path/to/generated/tf
 ```
+
+For the graphical check, install Playwright and its bundled Chromium
+separately in your testing environment, then run:
+
+```bash
+python -m pip install playwright==1.55.0
+python -m playwright install --with-deps chromium
+python scripts/validate_advanced_app.py /absolute/path/to/generated/tf \
+  --app-dir "$(oraec-tf app-path)" --gui-browser
+```
+
+The optional browser smoke runs against existing locally generated TF and
+never downloads ORAEC source data.
 
 ## Display and navigation
 
