@@ -17,8 +17,106 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app"
 
 
+
+
+
+def _run_graphical_browser_smoke(
+    webapp: object, *, text_id: str, glyph: str,
+) -> dict[str, object]:
+    """Drive TF's actual JavaScript UI on loopback; never report source strings.
+
+    This optional test dependency is deliberately absent from the ORAEC wheel.
+    No screenshots, HTML, raw source or generated corpus are persisted.
+    """
+    from importlib import import_module
+    from threading import Thread
+
+    from werkzeug.serving import make_server
+
+    try:
+        sync_playwright = import_module("playwright.sync_api").sync_playwright
+    except ImportError as exc:
+        raise RuntimeError(
+            "graphical browser smoke requires optional Playwright and its Chromium browser"
+        ) from exc
+
+    server = make_server("127.0.0.1", 0, webapp, threaded=True)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                errors: list[str] = []
+                page.on("pageerror", lambda error: errors.append(str(error)))
+                page.goto(
+                    f"http://127.0.0.1:{server.server_port}/",
+                    wait_until="load", timeout=45000,
+                )
+                if "ORAEC-TF" not in page.title():
+                    raise ValueError("graphical TF browser did not open the ORAEC app")
+
+                # Real button click runs the upstream tf3.0.js Ajax /query
+                # handler. Neither a direct HTTP client nor DOM injection counts.
+                page.locator("#query").fill(f"text oraec_id={text_id}")
+                page.locator("#queryGo").click()
+                page.wait_for_function(
+                    'document.querySelector("#nresults .nresults")'
+                    '?.textContent?.trim() === "1"',
+                    timeout=45000,
+                )
+                if not page.locator("#queryTable").inner_text().strip():
+                    raise ValueError("real browser did not render its one query result")
+
+                # The actual result reference is a clickable passage link,
+                # wired to another Ajax handler in tf3.0.js.
+                passage_link = page.locator("#queryTable .pq")
+                if passage_link.count() < 1:
+                    raise ValueError("query result has no clickable passage reference")
+                passage_link.first.click()
+                page.wait_for_function(
+                    '() => Boolean(document.querySelector("#passageTable")'
+                    '?.innerText?.trim())',
+                    timeout=45000,
+                )
+                if not page.locator("#passageTable").is_visible():
+                    raise ValueError("passage navigation did not reveal passage text")
+
+                # Real controls from Text-Fabric v13.1.0: selecting the radio
+                # triggers form submission and then reloads the Ajax passage.
+                page.locator("details#options summary").click()
+                page.locator('input[name="textFormat"][value="text-hiero"]').check()
+                page.wait_for_function(
+                    '(attested) => Boolean(document.querySelector("#passageTable")'
+                    '?.innerText?.includes(attested))',
+                    arg=glyph, timeout=45000,
+                )
+                if not page.locator("#passageTable").is_visible():
+                    raise ValueError("hieroglyphic passage is not visible")
+                if errors:
+                    raise ValueError(
+                        f"uncaught JavaScript errors in graphical browser: {len(errors)}"
+                    )
+
+                return {
+                    "browser": "chromium",
+                    "browser_version": browser.version,
+                    "query_results": 1,
+                    "passage_visible": True,
+                    "text_format": "text-hiero",
+                    "hiero_rendered": True,
+                    "uncaught_js_errors": 0,
+                }
+            finally:
+                browser.close()
+    finally:
+        server.shutdown()
+        worker.join(timeout=10)
+        server.server_close()
+
 def verify_local_advanced_app(
-    tf_dir: Path, *, app_dir: Path | None = None,
+    tf_dir: Path, *, app_dir: Path | None = None, gui_browser: bool = False,
 ) -> dict[str, object]:
     if not tf_dir.is_dir():
         raise ValueError(f"missing local TF output: {tf_dir}")
@@ -139,7 +237,7 @@ def verify_local_advanced_app(
         "passage_status": passage.status_code,
         "text_id": text_id,
     }
-    return {
+    summary: dict[str, object] = {
         "ok": True,
         "app": "standard Text-Fabric advanced app",
         "text_id": text_id,
@@ -148,6 +246,35 @@ def verify_local_advanced_app(
         "formats": ["text-orig-full", "text-translit", "text-hiero"],
         "browser_http": browser_http,
     }
+    if gui_browser:
+        # Choose only an actually attested Egyptian hieroglyph in the FIRST
+        # sentence of a real text so a normal passage view must include it.
+        # The target is derived from TF, not a guessed or copied corpus string.
+        target: tuple[str, str] | None = None
+        for word, source_hiero in api.F.hiero.items():
+            if not isinstance(source_hiero, str):
+                continue
+            glyph = next(
+                (c for c in source_hiero if "\U00013000" <= c <= "\U0001342F"),
+                None,
+            )
+            if glyph is None:
+                continue
+            parents = api.L.u(word, otype="sentence")
+            if not parents or api.F.sentence_index.v(parents[0]) != 1:
+                continue
+            text_parents = api.L.u(word, otype="text")
+            if text_parents:
+                attested_text_id = api.F.oraec_id.v(text_parents[0])
+                if isinstance(attested_text_id, str):
+                    target = (attested_text_id, glyph)
+                    break
+        if target is None:
+            raise ValueError("no first-sentence source hieroglyph for browser smoke")
+        summary["browser_gui"] = _run_graphical_browser_smoke(
+            webapp, text_id=target[0], glyph=target[1],
+        )
+    return summary
 
 
 def main() -> int:
@@ -157,11 +284,17 @@ def main() -> int:
         "--app-dir", type=Path, default=None,
         help="Explicit Text-Fabric app path, e.g. installed oraec-tf app-path",
     )
+    parser.add_argument(
+        "--gui-browser", action="store_true",
+        help="Also drive actual Chromium JavaScript query, passage and hieroglyph UI",
+    )
     args = parser.parse_args()
     import json
 
     print(json.dumps(
-        verify_local_advanced_app(args.tf_dir, app_dir=args.app_dir), sort_keys=True,
+        verify_local_advanced_app(
+            args.tf_dir, app_dir=args.app_dir, gui_browser=args.gui_browser,
+        ), sort_keys=True,
     ))
     return 0
 
