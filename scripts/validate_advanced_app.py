@@ -121,7 +121,8 @@ def _run_graphical_browser_smoke(
                 # a subsequent text-format form reload may hide the passage.
                 # Recover through the *visible researcher controls*, rather
                 # than mutating the hidden input or patching third-party JS.
-                if page.locator("#mode").input_value() == "passages":
+                mode_after_link = page.locator("#mode").input_value()
+                if mode_after_link == "passages":
                     page.locator("#moderesults").click()
                     page.locator("#modepassage").click()
                 if page.locator("#mode").input_value() != "passage":
@@ -166,6 +167,7 @@ def _run_graphical_browser_smoke(
                     "passage_visible": True,
                     "text_format": "text-hiero",
                     "hiero_rendered": True,
+                    "passage_mode_recovery_used": mode_after_link == "passages",
                     "uncaught_js_errors": 0,
                 }
             finally:
@@ -327,6 +329,13 @@ def verify_local_advanced_app(
             if text_parents:
                 attested_text_id = api.F.oraec_id.v(text_parents[0])
                 if isinstance(attested_text_id, str):
+                    # Source glyphs on excluded/technical words must not be
+                    # expected in the visible browser passage. Verify the
+                    # actual standard advanced renderer before choosing it.
+                    if glyph not in browser_app.pretty(
+                        parents[0], _asString=True, fmt="text-hiero"
+                    ):
+                        continue
                     target = (attested_text_id, glyph)
                     break
         if target is None:
