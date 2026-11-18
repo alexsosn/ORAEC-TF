@@ -3,8 +3,8 @@
 The job results, rather than this source-text check, establish compatibility.
 """
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
