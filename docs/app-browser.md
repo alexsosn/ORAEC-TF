@@ -34,9 +34,12 @@ with the Python wheel: `--locations` must refer to the **separately generated**
 local native TF corpus. The app path command itself performs no fetch/network
 operation. The installed-wheelhouse Linux and Windows smoke checks now
 verify this resource and render an actual newly generated Text-Fabric
-sentence. Offline **dependency-resolving** installation remains separately
-blocked under #59 until a published, independently verifiable `tf-build`
-wheel exists.
+sentence. Offline **dependency-resolving** wheel installation with the published,
+hash-verified `tf-build` dependency has passed Linux and Windows installed
+smoke checks (closed issue #59). Build a platform-specific wheelhouse as
+explained in [the installed-distribution guide](installed-distribution.md).
+ORAEC-TF `0.1.0rc1` itself remains an **unpublished** software release
+candidate under issue #12.
 
 ## Rebuild and browse from a software clone
 
@@ -48,7 +51,7 @@ mkdir -p ~/github/alexsosn
 git clone https://github.com/alexsosn/ORAEC-TF.git \
   ~/github/alexsosn/ORAEC-TF
 cd ~/github/alexsosn/ORAEC-TF
-python -m pip install -e '.[dev]'
+python -m pip install -r requirements/tf-build.txt -e '.[dev]'
 
 # Source acquisition is explicit and pins the immutable upstream commit.
 oraec-tf fetch upstream/corpus_raw_data
