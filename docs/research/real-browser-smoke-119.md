@@ -17,3 +17,10 @@ Execution plan must be explicit because CI ordinary unit jobs intentionally do n
 ## Independent selector correction before CI
 
 The pinned `tf/advanced/links.py::webLink` returns **plain text**, not a clickable `.pq` anchor, when `webBase`/`webUrl` are deliberately absent (as in the ORAEC app). Therefore a GUI smoke **must not depend on clicking a search-result permalink**. Text-Fabric's `tf3.0.js::modes`, `filterS0`, and `subLinks` instead expose the real passage navigator: click `#modepassage`, filter `#s0filter`, and click the exact `#passages .s0nav` entry. This preserves the verified no-invented-URL metadata policy and actually uses a researcher-facing navigation control.
+
+
+## Actual pinned full-corpus Chromium failure and upstream mode mismatch
+
+The installed-wheel full-graph graphical runs on [head c7a1db3](https://github.com/alexsosn/ORAEC-TF/actions/runs/44326047578) and [head 182e95a](https://github.com/alexsosn/ORAEC-TF/actions/runs/44354053639) reached the **last** Playwright assertion, after actual Ajax `POST /query`, passage-navigation `POST /passage`, selecting the `text-hiero` radio and the expected main-form `POST /` reload. They timed out waiting for the attested hieroglyph in `#passageTable`. This is **not** a search failure. Python CI, native writer, Context-Fabric and independently audited full source graph passed.
+
+Direct upstream code inspection finds that Text-Fabric v13.1.0 `tf3.0.js::subLinks` calls `getTable(kind, subkind, "passages")` for `.s0nav`, while `switchMode` only handles `"passage"` (singular) and `"results"`; its unconditional `mode.val(m)` leaves an invalid hidden mode. After a radio-triggered full-page reload, this can prevent the normal passage-mode visibility restoration even though the AJAX request succeeds. The bounded GUI test now uses the *actual visible* Results → Passages mode controls to normalize the mode before selecting a format, and fails closed with counts/booleans for format/reload failures. This is a workaround for an upstream browser UI state mismatch, not a patch to Text-Fabric nor evidence that an untouched upstream passage link works across reloads.
