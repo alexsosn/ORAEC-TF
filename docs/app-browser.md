@@ -129,6 +129,15 @@ python scripts/validate_advanced_app.py /absolute/path/to/generated/tf \
 The optional browser smoke runs against existing locally generated TF and
 never downloads ORAEC source data.
 
+The pinned Text-Fabric 13.1.0 passage-link handler can leave its hidden mode as
+`passages` (plural), while its mode controls expect `passage`. If changing the
+text format after selecting a text in the passage navigator loses the visible
+passage, use the browser's **Results** and then **Browse passages** mode buttons
+before changing the format. The graphical smoke explicitly exercises this
+visible-controls recovery and still requires the actual source hieroglyph to
+render; this is a known upstream UI limitation, not a Text-Fabric data issue.
+
+
 ## Display and navigation
 
 | Format | TF origin | Use |
