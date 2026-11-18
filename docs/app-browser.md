@@ -146,6 +146,13 @@ render; this is a known upstream UI limitation, not a Text-Fabric data issue.
 | `text-translit` | `written_form` + `trailer` | Default app view |
 | `text-hiero` | `hiero` + `trailer` | Supplied Unicode Egyptian hieroglyphs |
 
+The default browser passage display lists the actual **sentences** within
+the selected text (`browseNavLevel: 1` and `browseContentPretty: false`).
+Rendering a whole text as one pretty node can show only a condensed text
+heading, hiding the source words and the hieroglyphs even when the selected
+`text-hiero` radio is correct. This is why sentence rows are the app's
+supported researcher-facing display.
+
 The app navigates `text` by the exact `oraec_id`, then `sentence` by its
 source array index. A technical word slot tagged `is_anchor=1` is hidden from
 the visual word display but remains in the source-faithful TF graph. Neither
