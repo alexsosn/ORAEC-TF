@@ -265,8 +265,9 @@ def test_real_browser_uses_attested_hieroglyphs_and_actual_dom(
     tmp_path: Path,
 ) -> None:
     """Execute in the browser-enabled rehearsal; no browser on ordinary CI."""
-    import pytest
     from runpy import run_path
+
+    import pytest
 
     pytest.importorskip("playwright.sync_api")
     output = tmp_path / "gui-tf"
