@@ -86,6 +86,9 @@ def _run_graphical_browser_smoke(
 
                 # Real controls from Text-Fabric v13.1.0: selecting the radio
                 # triggers form submission and then reloads the Ajax passage.
+                # Options live in a sidebar hidden until its actual tab is
+                # clicked; do not force-click hidden controls.
+                page.locator('#sidebar div[status="options"] a').click()
                 page.locator("details#options summary").click()
                 page.locator('input[name="textFormat"][value="text-hiero"]').check()
                 page.wait_for_function(
