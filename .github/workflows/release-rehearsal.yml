@@ -22,7 +22,9 @@ concurrency:
 jobs:
   installed-full-corpus:
     if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'release/installed-full-e2e-102' || github.head_ref == 'feature/real-browser-gui-119' }}
-    runs-on: ubuntu-latest
+    # Playwright 1.55 Chromium dependency bootstrap supports Ubuntu 24.04;
+    # ubuntu-latest became 26.04, which this pinned browser build rejects.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       PYTHONPATH: ""
