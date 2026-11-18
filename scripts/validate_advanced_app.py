@@ -1,13 +1,16 @@
 """Smoke-test the standard ORAEC advanced app using an existing local TF graph.
 
 This program NEVER fetches source or corpus data. It runs on the same
-ephemeral TF directory produced by oraec-tf convert. No browser server needed.
+ephemeral TF directory produced by oraec-tf convert. The opt-in graphical
+browser smoke serves that same in-memory graph on loopback only.
 """
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
+from flask import Flask
 
 from tf.advanced.app import App
 from tf.advanced.find import findAppConfig
@@ -18,10 +21,8 @@ APP_DIR = ROOT / "app"
 
 
 
-
-
 def _run_graphical_browser_smoke(
-    webapp: object, *, text_id: str, glyph: str,
+    webapp: Flask, *, text_id: str, glyph: str,
 ) -> dict[str, object]:
     """Drive TF's actual JavaScript UI on loopback; never report source strings.
 
