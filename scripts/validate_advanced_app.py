@@ -114,6 +114,11 @@ def _run_graphical_browser_smoke(
                 )
                 if not page.locator("#passageTable").is_visible():
                     raise ValueError("passage navigation did not reveal passage text")
+                if page.locator("#passageTable details.pretty").count() == 0:
+                    raise ValueError(
+                        "passage did not render sentence rows: "
+                        "check browseContentPretty/browser section display"
+                    )
 
                 # TF 13.1.0 tf3.0.js::subLinks calls getTable(..., "passages"),
                 # but switchMode only recognizes "passage" (singular). This
@@ -151,6 +156,8 @@ def _run_graphical_browser_smoke(
                         f"passage_visible={passage.is_visible()}, "
                         f"passage_dom_chars={len(passage.text_content() or '')}, "
                         f"passage_visible_chars={len(passage.inner_text())}, "
+                        f"sentence_rows={page.locator('#passageTable details.pretty').count()}, "
+                        f"sec0_matches_target={page.locator('#sec0').input_value() == text_id}, "
                         f"uncaught_js_errors={len(errors)}"
                     ) from exc
                 if not page.locator("#passageTable").is_visible():
@@ -340,6 +347,29 @@ def verify_local_advanced_app(
                     break
         if target is None:
             raise ValueError("no first-sentence source hieroglyph for browser smoke")
+        # Establish an independent server-side baseline for the SAME
+        # source-attested hieroglyph. The GUI must then prove that the
+        # researcher controls expose this already renderable passage.
+        with webapp.test_client() as client:
+            response = client.post(
+                "/passage",
+                data={
+                    "sec0": target[0],
+                    "jobName": "oraec-smoke",
+                    "textFormat": "text-hiero",
+                },
+            )
+            passage = response.get_json(silent=True)
+            if (
+                response.status_code != 200
+                or not isinstance(passage, dict)
+                or not isinstance(passage.get("table"), str)
+                or target[1] not in passage["table"]
+            ):
+                raise ValueError(
+                    "standard TF passage endpoint fails to render attested "
+                    "first-sentence hieroglyph in text-hiero"
+                )
         summary["browser_gui"] = _run_graphical_browser_smoke(
             webapp, text_id=target[0], glyph=target[1],
         )
