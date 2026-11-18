@@ -11,7 +11,6 @@ import argparse
 from pathlib import Path
 
 from flask import Flask
-
 from tf.advanced.app import App
 from tf.advanced.find import findAppConfig
 from tf.fabric import Fabric
