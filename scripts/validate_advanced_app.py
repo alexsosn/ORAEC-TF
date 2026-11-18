@@ -115,18 +115,43 @@ def _run_graphical_browser_smoke(
                 if not page.locator("#passageTable").is_visible():
                     raise ValueError("passage navigation did not reveal passage text")
 
+                # TF 13.1.0 tf3.0.js::subLinks calls getTable(..., "passages"),
+                # but switchMode only recognizes "passage" (singular). This
+                # leaves the hidden mode invalid after clicking a section;
+                # a subsequent text-format form reload may hide the passage.
+                # Recover through the *visible researcher controls*, rather
+                # than mutating the hidden input or patching third-party JS.
+                if page.locator("#mode").input_value() == "passages":
+                    page.locator("#moderesults").click()
+                    page.locator("#modepassage").click()
+                if page.locator("#mode").input_value() != "passage":
+                    raise ValueError("passage mode cannot be restored via browser controls")
+
                 # Real controls from Text-Fabric v13.1.0: selecting the radio
                 # triggers form submission and then reloads the Ajax passage.
                 # Options live in a sidebar hidden until its actual tab is
                 # clicked; do not force-click hidden controls.
                 page.locator('#sidebar div[status="options"] a').click()
                 page.locator("details#options summary").click()
-                page.locator('input[name="textFormat"][value="text-hiero"]').check()
-                page.wait_for_function(
-                    '(attested) => Boolean(document.querySelector("#passageTable")'
-                    '?.innerText?.includes(attested))',
-                    arg=glyph, timeout=45000,
-                )
+                format_radio = page.locator('input[name="textFormat"][value="text-hiero"]')
+                format_radio.check()
+                try:
+                    page.wait_for_function(
+                        '(attested) => Boolean(document.querySelector("#passageTable")'
+                        '?.innerText?.includes(attested))',
+                        arg=glyph, timeout=15000,
+                    )
+                except Exception as exc:
+                    passage = page.locator("#passageTable")
+                    raise ValueError(
+                        "real browser hieroglyph format failed: "
+                        f"mode={page.locator('#mode').input_value()}, "
+                        f"radio_checked={format_radio.is_checked()}, "
+                        f"passage_visible={passage.is_visible()}, "
+                        f"passage_dom_chars={len(passage.text_content() or '')}, "
+                        f"passage_visible_chars={len(passage.inner_text())}, "
+                        f"uncaught_js_errors={len(errors)}"
+                    ) from exc
                 if not page.locator("#passageTable").is_visible():
                     raise ValueError("hieroglyphic passage is not visible")
                 if errors:
