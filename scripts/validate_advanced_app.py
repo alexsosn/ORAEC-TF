@@ -106,11 +106,17 @@ def _run_graphical_browser_smoke(
                 )
                 if passage_link.count() != 1:
                     raise ValueError("passage navigator lacks exact source text ID")
-                passage_link.click()
+                with page.expect_response(
+                    lambda response: response.url.endswith("/passage")
+                    and response.request.method == "POST"
+                ):
+                    passage_link.click()
                 page.wait_for_function(
-                    '() => Boolean(document.querySelector("#passageTable")'
-                    '?.innerText?.trim())',
+                    '() => Boolean(document.querySelector("#passageTable details.pretty"))',
                     timeout=45000,
+                )
+                page.wait_for_function(
+                    '() => ["passage", "passages"].includes(document.querySelector("#mode").value)'
                 )
                 if not page.locator("#passageTable").is_visible():
                     raise ValueError("passage navigation did not reveal passage text")
@@ -120,18 +126,9 @@ def _run_graphical_browser_smoke(
                         "check browseContentPretty/browser section display"
                     )
 
-                # TF 13.1.0 tf3.0.js::subLinks calls getTable(..., "passages"),
-                # but switchMode only recognizes "passage" (singular). This
-                # leaves the hidden mode invalid after clicking a section;
-                # a subsequent text-format form reload may hide the passage.
-                # Recover through the *visible researcher controls*, rather
-                # than mutating the hidden input or patching third-party JS.
+                # RESEARCH ONLY (#121): intentionally omit Results → Browse
+                # passages recovery so the direct user journey is tested.
                 mode_after_link = page.locator("#mode").input_value()
-                if mode_after_link == "passages":
-                    page.locator("#moderesults").click()
-                    page.locator("#modepassage").click()
-                if page.locator("#mode").input_value() != "passage":
-                    raise ValueError("passage mode cannot be restored via browser controls")
 
                 # Real controls from Text-Fabric v13.1.0: selecting the radio
                 # triggers form submission and then reloads the Ajax passage.
@@ -140,11 +137,15 @@ def _run_graphical_browser_smoke(
                 page.locator('#sidebar div[status="options"] a').click()
                 page.locator("details#options summary").click()
                 format_radio = page.locator('input[name="textFormat"][value="text-hiero"]')
-                format_radio.check()
+                with page.expect_response(
+                    lambda response: response.url.endswith("/passage")
+                    and response.request.method == "POST"
+                ):
+                    format_radio.check()
                 try:
                     page.wait_for_function(
                         '(attested) => Boolean(document.querySelector("#passageTable")'
-                        '?.innerText?.includes(attested))',
+                        '?.textContent?.includes(attested))',
                         arg=glyph, timeout=15000,
                     )
                 except Exception as exc:
@@ -160,8 +161,29 @@ def _run_graphical_browser_smoke(
                         f"sec0_matches_target={page.locator('#sec0').input_value() == text_id}, "
                         f"uncaught_js_errors={len(errors)}"
                     ) from exc
-                if not page.locator("#passageTable").is_visible():
-                    raise ValueError("hieroglyphic passage is not visible")
+                direct_state = {
+                    "mode_after_link": mode_after_link,
+                    "mode_after_format_reload": page.locator("#mode").input_value(),
+                    "radio_checked": format_radio.is_checked(),
+                    "passage_visible": page.locator("#passageTable").is_visible(),
+                    "result_table_visible": page.locator("#queryTable").is_visible(),
+                    "sentence_rows": page.locator("#passageTable details.pretty").count(),
+                    "target_matches": page.locator("#sec0").input_value() == text_id,
+                    "glyph_in_dom": glyph in (page.locator("#passageTable").text_content() or ""),
+                    "uncaught_js_errors": len(errors),
+                }
+                # Deliberately fail on invalid persistent navigation state even
+                # if the glyph happens to be visible with that invalid mode.
+                print(f"direct passage probe: {direct_state}")
+                if not (
+                    direct_state["mode_after_link"] == "passage"
+                    and direct_state["mode_after_format_reload"] == "passage"
+                    and direct_state["passage_visible"]
+                    and direct_state["radio_checked"]
+                    and direct_state["target_matches"]
+                    and direct_state["glyph_in_dom"]
+                ):
+                    raise ValueError(f"unassisted researcher passage regression: {direct_state}")
                 if errors:
                     raise ValueError(
                         f"uncaught JavaScript errors in graphical browser: {len(errors)}"
