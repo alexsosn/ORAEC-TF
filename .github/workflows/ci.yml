@@ -12,7 +12,8 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The pinned research Chromium bootstrap supports Ubuntu 24.04.
+    runs-on: ${{ github.head_ref == 'research/browser-mode-121' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -30,3 +31,12 @@ jobs:
         run: mypy
       - name: Pytest
         run: pytest -q
+
+      # Disposable, branch-scoped research probe. This is never merged into main.
+      - name: Research direct passage format navigation in real Chromium (#121)
+        if: ${{ github.head_ref == 'research/browser-mode-121' && matrix.python-version == '3.12' }}
+        run: |
+          python -m pip install "playwright==1.55.0"
+          python -m playwright install --with-deps chromium
+          python -c "from importlib.metadata import version; print('TF', version('text-fabric'))"
+          pytest -q -s tests/test_advanced_app.py::test_real_browser_uses_attested_hieroglyphs_and_actual_dom
