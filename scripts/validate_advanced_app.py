@@ -106,17 +106,23 @@ def _run_graphical_browser_smoke(
                 )
                 if passage_link.count() != 1:
                     raise ValueError("passage navigator lacks exact source text ID")
+                # A previously selected passage can already contain sentence
+                # rows. Wait for the AJAX response AND replacement of the old
+                # row, not just for a nonempty table from the previous request.
+                rows = page.locator("#passageTable details.pretty")
+                previous_row = rows.first.element_handle() if rows.count() else None
                 with page.expect_response(
                     lambda response: response.url.endswith("/passage")
                     and response.request.method == "POST"
                 ):
                     passage_link.click()
+                if previous_row is not None:
+                    page.wait_for_function(
+                        "(row) => !row.isConnected", arg=previous_row, timeout=45000
+                    )
                 page.wait_for_function(
                     '() => Boolean(document.querySelector("#passageTable details.pretty"))',
                     timeout=45000,
-                )
-                page.wait_for_function(
-                    '() => ["passage", "passages"].includes(document.querySelector("#mode").value)'
                 )
                 if not page.locator("#passageTable").is_visible():
                     raise ValueError("passage navigation did not reveal passage text")
